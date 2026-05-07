@@ -103,12 +103,11 @@
 
 /* ── Bebas Neue headings — force dark in light mode ── */
 [data-theme="light"] [style*="font-family: 'Bebas Neue'"],
-[data-theme="light"] [style*="Bebas Neue"] { color: #0f172a !important; }
+/* Bebas Neue color override removed — handled per-component */
 
 /* ── Override ALL inline lime (yellow-green) → navy in light mode ── */
 /* Scores, standings numbers, round headers etc */
-[data-theme="light"] [style*="var(--color-lime)"] { color: #1e3a5f !important; }
-[data-theme="light"] [style*="color-lime"] { color: #1e3a5f !important; }
+/* lime color overrides removed — handled per-component */
 
 /* ── Standings top-4 highlight — light blue tint ── */
 [data-theme="light"] [style*="rgba(23, 29, 15"] { background: rgba(30,58,95,0.06) !important; }
