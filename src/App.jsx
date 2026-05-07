@@ -123,6 +123,7 @@ function PickleballApp() {
 
   const isWriting = useRef(false);
   const canEditRef = useRef(false); // permanent - never overwritten by Firebase listener
+  const joinCompleteRef = useRef(false); // true only after handleJoin/handleStart fully ran
   const { addToast } = useToast();
   const { theme, toggle: toggleTheme } = useTheme();
 
@@ -171,9 +172,11 @@ function PickleballApp() {
         if (v.champion !== undefined) setChampion(v.champion || null);
         if (v.profiles) setProfiles(v.profiles);
         if (v.themeColor) setThemeColor(v.themeColor);
-        // NEVER touch readOnly here — it is controlled only by handleJoin/handleStart
-        // Re-apply canEditRef to ensure readOnly stays correct after any re-render
-        setReadOnly(!canEditRef.current);
+        // Only re-apply readOnly after join is fully complete
+        // This prevents the listener firing before handleJoin runs from overriding permissions
+        if (joinCompleteRef.current) {
+          setReadOnly(!canEditRef.current);
+        }
       }
       setSyncing(false);
     });
@@ -254,6 +257,7 @@ function PickleballApp() {
       await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: String(pin), profiles: newProfiles, themeColor: tColor, ts: Date.now() });
       _upsertHist(r, null, null, newProfiles, tColor);
       addToast("Tournament created! Share the code.", "success");
+      joinCompleteRef.current = true;
     } finally { isWriting.current = false; }
   };
 
@@ -291,6 +295,8 @@ function PickleballApp() {
       setScorerPin(null);
       addToast(`Joined #${c} — spectator mode. Tap 🔒 for scorer access`, "info");
     }
+    // Mark join as complete — listener can now safely re-apply permissions
+    joinCompleteRef.current = true;
   };
 
   const saveResult = (ri, mi, sA, sB, dur, notes = "") => {
@@ -394,6 +400,7 @@ function PickleballApp() {
 
   const executeEnd = () => {
     canEditRef.current = false;
+    joinCompleteRef.current = false;
     setPlayers([]); setRounds([]); setPlayoffs(null); setCode(null); setChampion(null); setShowConfirmEnd(false);
     setScorerPin(null);
   };
