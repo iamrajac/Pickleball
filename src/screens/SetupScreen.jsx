@@ -15,6 +15,15 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
   const [joinErr, setJoinErr] = useState("");
   const [profiles, setProfiles] = useState({});
   const [editingAvatar, setEditingAvatar] = useState(null);
+  const [themeColor, setThemeColor] = useState("#c8f135");
+
+  const THEMES = [
+    { name: "Lime", val: "#c8f135" },
+    { name: "Cyan", val: "#35c8f1" },
+    { name: "Pink", val: "#f135c8" },
+    { name: "Gold", val: "#f1c835" },
+    { name: "Purple", val: "#a535f1" }
+  ];
 
   const updateCount = n => {
     const c = Math.max(4, Math.min(20, Math.round(n)));
@@ -132,9 +141,22 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
           </div>
         </div>
 
+        {/* Theme Picker */}
+        <div className="fu glass-card" style={{ animationDelay: ".12s", borderRadius: 'var(--radius-lg)', padding: "1.6rem", marginBottom: 20 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: 'var(--color-muted)', marginBottom: 12, fontWeight: 600 }}>APP THEME</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {THEMES.map(t => (
+              <button key={t.val} className="pb" onClick={() => setThemeColor(t.val)}
+                style={{ width: 44, height: 44, borderRadius: "50%", background: t.val, border: themeColor === t.val ? `3px solid white` : `3px solid transparent`, outline: themeColor === t.val ? `2px solid ${t.val}` : "none", cursor: "pointer", transition: "all 0.2s" }}
+                title={t.name}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* Start Button */}
-        <button className="fu pb" style={{ animationDelay: ".14s", width: "100%", padding: "20px", background: canStart ? 'var(--color-lime)' : 'var(--color-border)', border: "none", borderRadius: 'var(--radius-md)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 3, color: canStart ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canStart ? "pointer" : "not-allowed", display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: canStart ? '0 8px 32px rgba(200, 241, 53, 0.25)' : 'none' }}
-          onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles)}>
+        <button className="fu pb" style={{ animationDelay: ".14s", width: "100%", padding: "20px", background: canStart ? themeColor : 'var(--color-border)', border: "none", borderRadius: 'var(--radius-md)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 3, color: canStart ? '#000' : 'var(--color-muted)', cursor: canStart ? "pointer" : "not-allowed", display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: canStart ? `0 8px 32px ${themeColor}40` : 'none' }}
+          onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles, themeColor)}>
           CREATE TOURNAMENT <ChevronRight size={24} />
         </button>
       </div>

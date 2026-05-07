@@ -178,3 +178,8 @@ html, body, #root {
   .standings-num { font-size: 11px !important; }
   .form-tile { width: 12px !important; height: 12px !important; font-size: 7px !important; }
 }
+
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}

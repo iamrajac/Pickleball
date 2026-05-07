@@ -16,9 +16,10 @@ import { PlayoffCard } from "./components/PlayoffCard";
 import { ShareModal } from "./components/ShareModal";
 import { StandingsShareModal } from "./components/StandingsShare";
 import { ReactionsOverlay } from "./components/Reactions";
+import { MatchTicker } from "./components/MatchTicker";
 import { TournamentAwards } from "./components/TournamentAwards";
 import { ScorerPinModal, ScorerPinEntry, generateScorerPin, saveScorerPin, getScorerPin } from "./components/ScorerModal";
-
+import { playAudio } from "./utils/audio";
 import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, Wifi, WifiOff } from "lucide-react";
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -116,6 +117,9 @@ function PickleballApp() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [h2hMatrix, setH2hMatrix] = useState({});
   const [profiles, setProfiles] = useState({});
+  const [themeColor, setThemeColor] = useState("#c8f135");
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
 
   const isWriting = useRef(false);
   const { addToast } = useToast();
@@ -124,6 +128,10 @@ function PickleballApp() {
   useEffect(() => {
     setH2hMatrix(computeH2HMatrix());
   }, []);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--color-lime', themeColor);
+  }, [themeColor]);
 
   // ── Offline detection ───────────────────────────────────────────────────
   useEffect(() => {
@@ -161,6 +169,7 @@ function PickleballApp() {
         if (v.playoffs !== undefined) setPlayoffs(safePlayoffs(v.playoffs));
         if (v.champion !== undefined) setChampion(v.champion || null);
         if (v.profiles) setProfiles(v.profiles);
+        if (v.themeColor) setThemeColor(v.themeColor);
       }
       setSyncing(false);
     });
@@ -182,6 +191,7 @@ function PickleballApp() {
 
   useEffect(() => {
     if (champion && !savedToHist && !readOnly) {
+      playAudio("cheer");
       addToast(`🏆 ${champion} are Champions!`, "success", 6000);
       
       const duration = 4000;
@@ -209,34 +219,35 @@ function PickleballApp() {
     if (!code || readOnly) return;
     isWriting.current = true;
     try {
-      await fbSet(`tournaments/${code}`, { players, rounds: newRounds, playoffs: newPlayoffs, champion: newChamp, profiles: currentProfiles, ts: Date.now() });
+      await fbSet(`tournaments/${code}`, { players, rounds: newRounds, playoffs: newPlayoffs, champion: newChamp, profiles: currentProfiles, themeColor, ts: Date.now() });
     } finally {
       setTimeout(() => { isWriting.current = false; }, 800);
     }
   };
 
-  const _upsertHist = (newRounds, newPlayoffs, newChamp, currentProfiles = profiles) => {
+  const _upsertHist = (newRounds, newPlayoffs, newChamp, currentProfiles = profiles, tColor = themeColor) => {
     const h = loadH();
     const idx = h.findIndex(t => t.code === code);
-    const entry = { date: idx >= 0 ? h[idx].date : new Date().toISOString(), players, code, champion: newChamp || null, status: newChamp ? "completed" : "in-progress", finalStandings: computeStandings(players, newRounds), playoffs: newPlayoffs || null, rounds: newRounds, profiles: currentProfiles };
+    const entry = { date: idx >= 0 ? h[idx].date : new Date().toISOString(), players, code, champion: newChamp || null, status: newChamp ? "completed" : "in-progress", finalStandings: computeStandings(players, newRounds), playoffs: newPlayoffs || null, rounds: newRounds, profiles: currentProfiles, themeColor: tColor };
     if (idx >= 0) h[idx] = entry; else h.push(entry);
     saveH(h);
   };
 
   // ── Actions ─────────────────────────────────────────────────────────────
-  const handleStart = async (p, numRounds, newProfiles = {}) => {
+  const handleStart = async (p, numRounds, newProfiles = {}, tColor = "#c8f135") => {
     const r = generateSchedule(p, numRounds);
     const c = genCode();
     const pin = generateScorerPin();
     setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null); setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
     setScorerPin(pin);
     setProfiles(newProfiles);
+    setThemeColor(tColor);
     registerAsCreator(c);
     saveScorerPin(c, pin);
     isWriting.current = true;
     try {
-      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: String(pin), profiles: newProfiles, ts: Date.now() });
-      _upsertHist(r, null, null, newProfiles);
+      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: String(pin), profiles: newProfiles, themeColor: tColor, ts: Date.now() });
+      _upsertHist(r, null, null, newProfiles, tColor);
       addToast("Tournament created! Share the code.", "success");
     } finally { isWriting.current = false; }
   };
@@ -254,6 +265,7 @@ function PickleballApp() {
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
     setProfiles(data.profiles || {});
+    setThemeColor(data.themeColor || "#c8f135");
     setCode(c);
     setTab("rounds");
     setReadOnly(!canEdit);
@@ -409,6 +421,30 @@ function PickleballApp() {
     navigator.clipboard?.writeText(lines.join("\n")).then(() => addToast("Standings copied! Paste to WhatsApp 📋", "success", 3000));
   };
 
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe) {
+      if (tab === "rounds") setTab("standings");
+      else if (tab === "standings") setTab("playoffs");
+      playAudio("tick");
+    } else if (isRightSwipe) {
+      if (tab === "playoffs") setTab("standings");
+      else if (tab === "standings") setTab("rounds");
+      playAudio("tick");
+    }
+  };
+
   // ── Screens ─────────────────────────────────────────────────────────────
   if (viewCareer) return <CareerScreen onBack={() => setViewCareer(false)} />;
   if (viewHist === "list") return <HistoryScreen onBack={() => setViewHist(null)} onOpen={t => setViewHist(t)} />;
@@ -483,10 +519,11 @@ function PickleballApp() {
           </div>
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
             {[{ id: "rounds", label: "⚡ ROUNDS" }, { id: "standings", label: "📊 TABLE" }, { id: "playoffs", label: "🏆 PLAYOFFS" }].map(t => (
-              <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => setTab(t.id)} style={{ flex: 1 }}>{t.label}</button>
+              <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => { setTab(t.id); playAudio("tick"); }} style={{ flex: 1 }}>{t.label}</button>
             ))}
           </div>
         </div>
+        <MatchTicker rounds={rounds} playoffs={playoffs} profiles={profiles} />
       </div>
 
       {/* Modals */}
@@ -510,7 +547,7 @@ function PickleballApp() {
         </div>
       )}
 
-      <div style={{ padding: "1.5rem 1rem 120px", maxWidth: 1000, margin: "0 auto" }}>
+      <div style={{ padding: "1.5rem 1rem 120px", maxWidth: 1000, margin: "0 auto" }} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEndHandler}>
 
         {/* ROUNDS */}
         {tab === "rounds" && (

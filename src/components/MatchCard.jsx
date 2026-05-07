@@ -4,6 +4,7 @@ import { Play, Pause, X } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
+import { playAudio } from "../utils/audio";
 
 export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {} }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
@@ -53,6 +54,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     const dur = timer.running ? timer.stop() : timer.elapsed || null;
     timer.reset();
     setIsActive(false);
+    playAudio("pop");
     onSave(Number(sA), Number(sB), dur);
   };
 

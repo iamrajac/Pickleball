@@ -4,6 +4,7 @@ import { Play, Pause } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
+import { playAudio } from "../utils/audio";
 
 // Global score buffer — persists across remounts caused by Firebase listener
 const scoreBuffer = {};
@@ -53,6 +54,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     timer.reset();
     delete scoreBuffer[matchKey];
     setIsActive(false);
+    playAudio("pop");
     onSave(Number(sA), Number(sB), dur);
   };
 
