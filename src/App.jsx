@@ -4,7 +4,7 @@ import { db } from "./firebase";
 import confetti from "canvas-confetti";
 
 import { generateSchedule, computeStandings, initPlayoffs, genCode } from "./utils/schedule";
-import { loadH, saveH, isCreator, registerAsCreator } from "./utils/history";
+import { loadH, saveH, isCreator, registerAsCreator, computeH2HMatrix } from "./utils/history";
 
 import { SetupScreen } from "./screens/SetupScreen";
 import { HistoryScreen, HistoryDetail } from "./screens/HistoryScreen";
@@ -114,10 +114,15 @@ function PickleballApp() {
   const [showScorerEntry, setShowScorerEntry] = useState(false);
   const [scorerPin, setScorerPin] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [h2hMatrix, setH2hMatrix] = useState({});
 
   const isWriting = useRef(false);
   const { addToast } = useToast();
   const { theme, toggle: toggleTheme } = useTheme();
+
+  useEffect(() => {
+    setH2hMatrix(computeH2HMatrix());
+  }, []);
 
   // ── Offline detection ───────────────────────────────────────────────────
   useEffect(() => {
@@ -176,9 +181,23 @@ function PickleballApp() {
   useEffect(() => {
     if (champion && !savedToHist && !readOnly) {
       addToast(`🏆 ${champion} are Champions!`, "success", 6000);
-      confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 }, colors: ["#c8f135", "#35c8f1", "#f1c835"] });
-      setTimeout(() => confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0 }, colors: ["#c8f135", "#f1c835"] }), 400);
-      setTimeout(() => confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#35c8f1", "#c8f135"] }), 600);
+      
+      const duration = 4000;
+      const end = Date.now() + duration;
+
+      (function frame() {
+        confetti({
+          particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#c8f135', '#35c8f1', '#f1c835']
+        });
+        confetti({
+          particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#c8f135', '#35c8f1', '#f1c835']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      }());
+      
       _saveHist(playoffs, champion);
     }
   }, [champion, savedToHist, readOnly, addToast, playoffs, _saveHist]);
@@ -257,6 +276,7 @@ function PickleballApp() {
       playScoreSound();
       pushToFirebase(nx, playoffs, champion);
       _upsertHist(nx, playoffs, champion);
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#c8f135', '#35c8f1'] });
       addToast("✓ Score saved", "success", 1500);
     } catch (e) { addToast("Failed to save score", "error"); }
   };
@@ -340,6 +360,7 @@ function PickleballApp() {
       playScoreSound();
       pushToFirebase(rounds, nx, newChamp);
       _upsertHist(rounds, nx, newChamp);
+      if (!newChamp) confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#f1c835', '#35c8f1'] });
       addToast(`${m.label} result saved!`, "success", 2000);
     } catch (e) { console.error("savePlayoff error", e); addToast("Failed to save playoff score", "error"); }
   };
@@ -505,7 +526,7 @@ function PickleballApp() {
                     )}
                     {round.map((m, mi) => (
                       <div key={mi} className={animatingScore === `${ri}-${mi}` ? "score-flash" : ""}>
-                        <MatchCard match={m} delay={mi * .04} readOnly={readOnly} onSave={(a, b, dur) => saveResult(ri, mi, a, b, dur)} />
+                        <MatchCard match={m} delay={mi * .04} readOnly={readOnly} onSave={(a, b, dur) => saveResult(ri, mi, a, b, dur)} h2hMatrix={h2hMatrix} />
                       </div>
                     ))}
                   </div>
@@ -581,7 +602,7 @@ function PickleballApp() {
                 {(() => {
                   const mode = playoffs.mode || "ipl8";
                   const PC = ({ stage, match, accent }) => match ? (
-                    <PlayoffCard match={match} onSave={(a,b,d) => savePlayoff(stage,a,b,d)} accent={accent||"var(--color-lime)"} readOnly={readOnly} />
+                    <PlayoffCard match={match} onSave={(a,b,d) => savePlayoff(stage,a,b,d)} accent={accent||"var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} />
                   ) : null;
 
                   if (mode === "final_only") return (
@@ -657,6 +678,9 @@ function PickleballApp() {
 
       {/* Live Reactions */}
       <ReactionsOverlay code={code} readOnly={readOnly} />
+
+      {/* Champion Trophy Overlay */}
+      {champion && <div className="champion-trophy" style={{ fontSize: "25vh" }}>🏆</div>}
     </>
   );
 }

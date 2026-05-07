@@ -86,11 +86,19 @@ html, body, #root {
   0% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
 }
+@keyframes riseUpAndFade {
+  0% { opacity: 0; transform: translateY(100vh) scale(0.5); }
+  20% { opacity: 1; transform: translateY(30vh) scale(1.2); }
+  50% { opacity: 1; transform: translateY(20vh) scale(1.5); }
+  80% { opacity: 1; transform: translateY(10vh) scale(1.6); }
+  100% { opacity: 0; transform: translateY(0vh) scale(2); }
+}
 
 .fu { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .spin { animation: spin 1s linear infinite; }
 .score-flash { animation: scoreFlash 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .reaction-float { animation: reactionFloat 1.5s ease-out forwards; }
+.champion-trophy { animation: riseUpAndFade 4s ease-out forwards; position: fixed; left: 0; right: 0; text-align: center; pointer-events: none; z-index: 9999; }
 
 .live-dot {
   width: 8px; height: 8px; border-radius: 50%;

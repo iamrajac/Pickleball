@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useTimer } from "../utils/useTimer";
 import { Play, Pause } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
+import { getH2HStats } from "../utils/history";
 
-export function PlayoffCard({ match, onSave, accent, readOnly = false }) {
+export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {} }) {
   const [sA, setSA] = useState(match?.scoreA ?? "");
   const [sB, setSB] = useState(match?.scoreB ?? "");
   const timer = useTimer();
@@ -81,6 +82,34 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false }) {
           </div>
         </>
       )}
+
+      {/* H2H Stats */}
+      {(() => {
+        const h2hData = [];
+        if (!match.played && h2hMatrix && match.teamA && match.teamB) {
+          match.teamA.forEach(a => {
+            match.teamB.forEach(b => {
+              const stat = getH2HStats(a, b, h2hMatrix);
+              if (stat) h2hData.push({ a, b, stat });
+            });
+          });
+        }
+        
+        if (h2hData.length === 0) return null;
+        
+        return (
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid var(--color-border)` }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, color: 'var(--color-gold)', marginBottom: 6 }}>📊 HEAD-TO-HEAD</div>
+            <div style={{ display: 'grid', gridTemplateColumns: h2hData.length > 2 ? '1fr 1fr' : '1fr', gap: 6 }}>
+              {h2hData.map((d, i) => (
+                <div key={i} style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+                  <strong style={{ color: 'var(--color-text)' }}>{d.a} vs {d.b}:</strong> {d.stat}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
