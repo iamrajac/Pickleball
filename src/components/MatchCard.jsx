@@ -29,6 +29,17 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     });
   }
 
+  // Deactivate H2H when user blurs away from the score area
+  const handleBlur = (e) => {
+    // Small delay to allow focus to move within the card
+    setTimeout(() => {
+      const card = e.currentTarget?.closest?.(".match-score-area");
+      if (card && !card.contains(document.activeElement)) {
+        setIsActive(false);
+      }
+    }, 150);
+  };
+
   const handleSave = () => {
     if (!canSave) return;
     const { valid } = validatePickleballScore(sA, sB);
@@ -67,9 +78,9 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         ) : readOnly ? (
           <div style={{ textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-muted)', letterSpacing: 2 }}>VS</div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 170 }}>
+          <div className="match-score-area" onBlur={handleBlur} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 170 }}>
             <input type="number" min={0} value={sA}
-              onChange={e => { setSA(e.target.value); setIsActive(true); }}
+              onChange={e => { const v = e.target.value; setSA(v); if (v !== "") setIsActive(true); }}
               onFocus={() => setIsActive(true)}
               onPointerDown={() => setIsActive(true)}
               placeholder="—" className="si score-input-sm"

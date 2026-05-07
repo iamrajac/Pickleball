@@ -242,31 +242,35 @@ function PickleballApp() {
   };
 
   const handleJoin = (c, data) => {
+    // Check creator/scorer status FIRST before setting any state
+    const creator = isCreator(c);
+    const savedPin = getScorerPin(c);
+    const fbPin = String(data.scorerPin || "").trim();
+    const isSavedScorer = savedPin && fbPin && String(savedPin).trim() === fbPin;
+    const canEdit = creator || isSavedScorer;
+
     setPlayers(data.players || []);
     setRounds(data.rounds ? data.rounds.map(r => r ? Object.values(r) : []) : []);
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
     setProfiles(data.profiles || {});
     setCode(c);
-    const creator = isCreator(c);
     setTab("rounds");
-    
-    const savedPin = getScorerPin(c);
-    const isSavedScorer = savedPin && data.scorerPin && String(savedPin).trim() === String(data.scorerPin).trim();
-    
+    setReadOnly(!canEdit);
+
     if (creator) {
-      setReadOnly(false);
-      setScorerPin(data.scorerPin || null);
-      if (data.scorerPin) saveScorerPin(c, data.scorerPin);
-      addToast(`Joined #${c} (Creator)`, "success");
+      // Always save the PIN from Firebase so creator can share it
+      if (data.scorerPin) {
+        saveScorerPin(c, String(data.scorerPin));
+        setScorerPin(String(data.scorerPin));
+      }
+      addToast(`Joined #${c} (Creator ✓)`, "success");
     } else if (isSavedScorer) {
-      setReadOnly(false);
-      setScorerPin(data.scorerPin);
-      addToast(`Joined #${c} (Scorer Access)`, "success");
+      setScorerPin(fbPin);
+      addToast(`Joined #${c} (Scorer Access ✓)`, "success");
     } else {
-      setReadOnly(true);
       setScorerPin(null);
-      addToast(`Joined #${c} (Spectator — tap 🔒 for scorer access)`, "success");
+      addToast(`Joined #${c} as spectator — tap 🔒 for scorer access`, "info");
     }
   };
 
