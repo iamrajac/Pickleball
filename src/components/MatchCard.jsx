@@ -40,7 +40,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   };
 
   return (
-    <div className="mc fu glass-card" style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
+    <div className="mc fu glass-card" onClick={() => { if (!match.played && !readOnly) setIsActive(true); }} style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
       {match.played && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-lime)' }} />}
       {timer.running && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-cyan)', animation: "pulse 1s infinite" }} />}
 
@@ -71,12 +71,14 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
             <input type="number" min={0} value={sA}
               onChange={e => { setSA(e.target.value); setIsActive(true); }}
               onFocus={() => setIsActive(true)}
+              onPointerDown={() => setIsActive(true)}
               placeholder="—" className="si score-input-sm"
               style={{ width: 44, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, textAlign: "center", padding: "6px 0", boxSizing: "border-box" }} />
             <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 14 }}>VS</span>
             <input type="number" min={0} value={sB}
               onChange={e => { setSB(e.target.value); setIsActive(true); }}
               onFocus={() => setIsActive(true)}
+              onPointerDown={() => setIsActive(true)}
               placeholder="—" className="si score-input-sm"
               style={{ width: 44, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, textAlign: "center", padding: "6px 0", boxSizing: "border-box" }} />
             <button className="pb" onClick={handleSave} disabled={!canSave}

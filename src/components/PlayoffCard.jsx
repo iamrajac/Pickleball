@@ -95,12 +95,14 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
             <input type="number" min={0} value={sA}
               onChange={e => { setSA(e.target.value); setIsActive(true); }}
               onFocus={() => setIsActive(true)}
+              onPointerDown={() => setIsActive(true)}
               placeholder="0" className="si score-input-sm"
               style={{ width: 54, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, textAlign: "center", padding: "8px 0", boxSizing: "border-box" }} />
             <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16 }}>VS</span>
             <input type="number" min={0} value={sB}
               onChange={e => { setSB(e.target.value); setIsActive(true); }}
               onFocus={() => setIsActive(true)}
+              onPointerDown={() => setIsActive(true)}
               placeholder="0" className="si score-input-sm"
               style={{ width: 54, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, textAlign: "center", padding: "8px 0", boxSizing: "border-box" }} />
             <button className="pb" onClick={handleSave} disabled={!canSave}

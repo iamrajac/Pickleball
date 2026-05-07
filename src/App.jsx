@@ -235,7 +235,7 @@ function PickleballApp() {
     saveScorerPin(c, pin);
     isWriting.current = true;
     try {
-      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: pin, profiles: newProfiles, ts: Date.now() });
+      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: String(pin), profiles: newProfiles, ts: Date.now() });
       _upsertHist(r, null, null, newProfiles);
       addToast("Tournament created! Share the code.", "success");
     } finally { isWriting.current = false; }
@@ -378,7 +378,9 @@ function PickleballApp() {
     // Verify PIN against Firebase
     try {
       const snap = await get(ref(db, `tournaments/${code}/scorerPin`));
-      if (snap.exists() && String(snap.val()).trim() === String(enteredPin).trim()) {
+      const fbPin = String(snap.val() || "").trim();
+      const entered = String(enteredPin || "").trim();
+      if (snap.exists() && fbPin === entered && fbPin.length > 0) {
         saveScorerPin(code, enteredPin);
         setScorerPin(enteredPin);
         setReadOnly(false);
