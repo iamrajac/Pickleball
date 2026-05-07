@@ -29,50 +29,89 @@
   --bg-body: #0d0f0a;
 }
 
-/* Light mode — pure neutral, lime only as highlight accent */
+/* ══════════════════════════════════════════════════════
+   LIGHT MODE — Independent sporty theme
+   Deep navy + vivid orange accent + clean white surfaces
+   ══════════════════════════════════════════════════════ */
 [data-theme="light"] {
-  --color-lime: #2563eb;
-  --color-dark: #ffffff;
-  --color-surface: #f4f4f5;
-  --color-card: #ffffff;
-  --color-border: rgba(0,0,0,0.09);
-  --color-text: #09090b;
-  --color-muted: #71717a;
+  --color-lime: #e85d04;        /* vivid orange — primary accent */
+  --color-dark: #1a1f2e;        /* deep navy — headers, titles */
+  --color-surface: #f0f4ff;     /* soft blue-white — surfaces */
+  --color-card: #ffffff;        /* pure white — cards */
+  --color-border: rgba(26,31,46,0.12);
+  --color-text: #1a1f2e;        /* navy — all body text */
+  --color-muted: #6b7280;       /* cool gray — secondary text */
   --color-danger: #dc2626;
-  --color-cyan: #0891b2;
-  --color-gold: #d97706;
-  --bg-body: #e4e4e7;
-  --color-win: rgba(22, 163, 74, 0.1);
+  --color-cyan: #0369a1;        /* deep sky blue */
+  --color-gold: #b45309;        /* warm amber */
+  --bg-body: #e8edf8;           /* light blue-gray body */
+  --color-win: rgba(5, 150, 105, 0.1);
   --color-lose: rgba(220, 38, 38, 0.08);
 }
 
-/* Light mode overrides */
+/* ── Light mode base ── */
 [data-theme="light"] html,
 [data-theme="light"] body,
-[data-theme="light"] #root { background: #e4e4e7 !important; color: #09090b !important; }
-
-[data-theme="light"] .glass {
-  background: #ffffff !important;
-  backdrop-filter: none !important;
-  border-bottom: 1px solid #e4e4e7 !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+[data-theme="light"] #root {
+  background: #e8edf8 !important;
+  color: #1a1f2e !important;
+  font-family: 'DM Sans', sans-serif;
 }
+
+/* ── Topbar / sticky header ── */
+[data-theme="light"] .glass {
+  background: #1a1f2e !important;
+  backdrop-filter: none !important;
+  border-bottom: none !important;
+  box-shadow: 0 2px 12px rgba(26,31,46,0.25) !important;
+}
+/* Topbar text overrides — white on dark navy */
+[data-theme="light"] .glass * { color: #ffffff !important; }
+[data-theme="light"] .glass .tab-btn.on {
+  background: #e85d04 !important;
+  color: #ffffff !important;
+}
+[data-theme="light"] .glass .tab-btn.off {
+  color: rgba(255,255,255,0.6) !important;
+  background: transparent !important;
+}
+[data-theme="light"] .glass .tab-btn.off:hover {
+  background: rgba(255,255,255,0.1) !important;
+  color: #ffffff !important;
+}
+
+/* ── Cards ── */
 [data-theme="light"] .glass-card {
   background: #ffffff !important;
   backdrop-filter: none !important;
-  border: 1px solid #e4e4e7 !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07) !important;
+  border: 1px solid rgba(26,31,46,0.1) !important;
+  box-shadow: 0 2px 10px rgba(26,31,46,0.08) !important;
 }
-[data-theme="light"] .tab-btn.off { color: #71717a !important; background: transparent !important; }
-[data-theme="light"] .tab-btn.off:hover { background: #f4f4f5 !important; color: #09090b !important; }
-[data-theme="light"] .tab-btn.on { background: #2563eb !important; color: #ffffff !important; box-shadow: none !important; }
-[data-theme="light"] .rh:hover { background: #f4f4f5 !important; }
-[data-theme="light"] .live-dot { background: #16a34a !important; box-shadow: 0 0 6px #16a34a !important; }
-[data-theme="light"] .ni:hover { color: #2563eb !important; }
-[data-theme="light"] .fu { animation: fadeUp 0.35s ease both; }
-/* Override lime to blue in light mode for headings and key text */
-[data-theme="light"] [style*="var(--color-lime)"] { }
-[data-theme="light"] .font-heading { color: #09090b; }
+
+/* ── Table rows ── */
+[data-theme="light"] .rh:hover { background: #f0f4ff !important; }
+
+/* ── Live dot ── */
+[data-theme="light"] .live-dot {
+  background: #10b981 !important;
+  box-shadow: 0 0 8px #10b981 !important;
+}
+
+/* ── Back arrow hover ── */
+[data-theme="light"] .ni:hover { color: #e85d04 !important; }
+
+/* ── Bebas Neue headings — navy in light mode ── */
+[data-theme="light"] .font-heading { color: #1a1f2e; }
+
+/* ── Home screen — keep body bg, not dark ── */
+[data-theme="light"] .setup-screen { background: #e8edf8 !important; }
+
+/* ── Progress bar ── */
+[data-theme="light"] .progress-bar { background: #e85d04 !important; }
+
+/* ── Form tiles ── */
+[data-theme="light"] span[style*="1a5c12"] { background: rgba(5,150,105,0.2) !important; }
+[data-theme="light"] span[style*="5c1212"] { background: rgba(220,38,38,0.15) !important; }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
