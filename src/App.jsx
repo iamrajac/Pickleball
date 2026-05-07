@@ -66,14 +66,24 @@ const safePlayoffs = (p) => {
     played: m.played || false, duration: m.duration || null,
     label: m.label || label, note: m.note || note
   } : null;
-  const mode = p.mode || (p.isMini ? "final_only" : "ipl8");
+
+  // Auto-detect mode from old data that has no mode field
+  let mode = p.mode;
+  if (!mode) {
+    if (p.isMini || (!p.q1 && p.final)) mode = "final_only";
+    else if (p.q1 && p.elim && p.q2) mode = "ipl8";
+    else if (p.q1 && !p.elim) mode = "top4";
+    else mode = "ipl8"; // safe fallback
+  }
+
   const base = { mode, champion: p.champion || null };
-  if (mode === "final_only") return { ...base, final: safe(p.final, "GRAND FINAL", "") };
-  if (mode === "top4") return { ...base, sf1: safe(p.sf1, "SEMI FINAL 1", ""), final: safe(p.final, "GRAND FINAL", "") };
+  if (mode === "final_only") return { ...base, final: safe(p.final || p.q1, "GRAND FINAL", "") };
+  if (mode === "top4") return { ...base, sf1: safe(p.sf1 || p.q1, "SEMI FINAL 1", "1st+4th vs 2nd+3rd"), final: safe(p.final, "GRAND FINAL", "Winner SF1 vs Runner SF1") };
   if (mode === "ipl8") return { ...base, q1: safe(p.q1, "QUALIFIER 1", "1st+4th vs 2nd+3rd"), elim: safe(p.elim, "ELIMINATOR", "5th+8th vs 6th+7th"), q2: safe(p.q2, "QUALIFIER 2", "Loser Q1 vs Winner Elim"), final: safe(p.final, "THE FINAL", "Winner Q1 vs Winner Q2") };
   if (mode === "top8") return { ...base, qf1: safe(p.qf1, "QF 1", ""), qf2: safe(p.qf2, "QF 2", ""), sf1: safe(p.sf1, "SEMI FINAL 1", ""), sf2: safe(p.sf2, "SEMI FINAL 2", ""), final: safe(p.final, "GRAND FINAL", "") };
   if (mode === "top8_ipl") return { ...base, q1: safe(p.q1, "QUALIFIER 1", ""), q2_b: safe(p.q2_b, "QUALIFIER 2", ""), elim: safe(p.elim, "ELIMINATOR", ""), sf: safe(p.sf, "SEMI FINAL", ""), final: safe(p.final, "THE FINAL", "") };
-  return { ...base, final: safe(p.final, "FINAL", "") };
+  // ultimate fallback — just show what we have
+  return { ...base, q1: safe(p.q1, "QUALIFIER 1", ""), elim: safe(p.elim, "ELIMINATOR", ""), q2: safe(p.q2, "QUALIFIER 2", ""), final: safe(p.final, "FINAL", "") };
 };
 
 async function fbSet(path, data) {
@@ -455,7 +465,7 @@ function PickleballApp() {
                   </div>
                 )}
               </div>
-            ) : playoffs.q1 ? (
+            ) : (playoffs.q1 || playoffs.final || playoffs.sf1) ? (
               <div style={{ maxWidth: 800, margin: "0 auto" }}>
                 {/* Bracket mode label */}
                 {(() => {
