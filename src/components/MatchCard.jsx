@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTimer } from "../utils/useTimer";
 import { Play, Pause, X } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
@@ -29,16 +29,22 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     });
   }
 
-  // Deactivate H2H when user blurs away from the score area
-  const handleBlur = (e) => {
-    // Small delay to allow focus to move within the card
-    setTimeout(() => {
-      const card = e.currentTarget?.closest?.(".match-score-area");
-      if (card && !card.contains(document.activeElement)) {
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const handleClickOutside = (e) => {
+      if (cardRef.current && !cardRef.current.contains(e.target)) {
         setIsActive(false);
       }
-    }, 150);
-  };
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isActive]);
 
   const handleSave = () => {
     if (!canSave) return;
@@ -51,7 +57,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   };
 
   return (
-    <div className="mc fu glass-card" onClick={() => { if (!match.played && !readOnly) setIsActive(true); }} style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
+    <div ref={cardRef} className="mc fu glass-card" onClick={() => { if (!match.played && !readOnly) setIsActive(true); }} style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
       {match.played && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-lime)' }} />}
       {timer.running && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-cyan)', animation: "pulse 1s infinite" }} />}
 
@@ -78,7 +84,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         ) : readOnly ? (
           <div style={{ textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-muted)', letterSpacing: 2 }}>VS</div>
         ) : (
-          <div className="match-score-area" onBlur={handleBlur} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 170 }}>
+          <div className="match-score-area" style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 170 }}>
             <input type="number" min={0} value={sA}
               onChange={e => { const v = e.target.value; setSA(v); if (v !== "") setIsActive(true); }}
               onFocus={() => setIsActive(true)}

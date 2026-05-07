@@ -67,8 +67,25 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     });
   }
 
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const handleClickOutside = (e) => {
+      if (cardRef.current && !cardRef.current.contains(e.target)) {
+        setIsActive(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isActive]);
+
   return (
-    <div className="glass-card fu" style={{ borderRadius: 'var(--radius-md)', padding: '1.2rem', position: "relative", overflow: "hidden" }}>
+    <div ref={cardRef} className="glass-card fu" onClick={() => { if (!match?.played && !readOnly) setIsActive(true); }} style={{ borderRadius: 'var(--radius-md)', padding: '1.2rem', position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: ac }} />
       <div style={{ fontSize: 10, letterSpacing: 2, color: ac, marginBottom: 2, marginTop: 4 }}>{match.label}</div>
       <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 16 }}>{match.note}</div>
