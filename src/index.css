@@ -319,3 +319,49 @@ html, body, #root {
   /* Setup screen — single column player grid */
   .player-grid { grid-template-columns: 1fr !important; }
 }
+
+/* ══════════════════════════════════════════════════
+   LIGHT MODE — Dark-screen fixes + hover effects
+   ══════════════════════════════════════════════════ */
+
+/* Hover effects — restore */
+[data-theme="light"] .mc { transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s; }
+[data-theme="light"] .mc:hover {
+  border-color: #c2410c !important;
+  box-shadow: 0 4px 16px rgba(194,65,12,0.12) !important;
+  transform: translateY(-2px) !important;
+}
+[data-theme="light"] .pb:hover { opacity: 0.82 !important; }
+[data-theme="light"] .rh { transition: background 0.15s; cursor: pointer; }
+[data-theme="light"] .rh:hover { background: #e2e8f0 !important; }
+
+/* Career / History / PlayerDetail screens use dark bg inline —
+   detect by minHeight+background pattern and flip to a dark-navy surface */
+[data-theme="light"] [style*="minHeight:\"100vh\""][style*="background:G"],
+[data-theme="light"] [style*="minHeight: \"100vh\""] {
+  /* These are full-page screens — keep white bg, override text */
+}
+
+/* The Career, History and PlayerDetail screens pass G.dark as background.
+   Since G.dark = #0d0f0a in dark mode, we target those exact dark values */
+[data-theme="light"] [style*="#0d0f0a"],
+[data-theme="light"] [style*="0d0f0a"] {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="light"] [style*="#0d0f0a"] *,
+[data-theme="light"] [style*="0d0f0a"] * {
+  color: #f1f5f9;
+}
+/* But don't override glass-card inside — give it a lighter navy */
+[data-theme="light"] [style*="0d0f0a"] .glass-card {
+  background: #273549 !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #f1f5f9 !important;
+}
+/* Inputs inside dark screens */
+[data-theme="light"] [style*="0d0f0a"] input {
+  background: rgba(255,255,255,0.12) !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
