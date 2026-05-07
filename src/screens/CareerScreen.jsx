@@ -4,16 +4,23 @@ import { computeCareerStats, getH2HBetween } from "../utils/careerStats";
 import { ACOLORS } from "../utils/theme";
 import { ArrowLeft, Trophy, Zap, Users, Target, TrendingUp, Award } from "lucide-react";
 
-const G = {
-  lime: "var(--color-lime)", cyan: "var(--color-cyan)", gold: "var(--color-gold)",
-  danger: "var(--color-danger)", muted: "var(--color-muted)", text: "var(--color-text)",
-  border: "var(--color-border)",
-};
+// G is computed per render based on theme
+const getG = (theme) => ({
+  lime:   theme === 'light' ? "#1e3a5f" : "var(--color-lime)",
+  accent: theme === 'light' ? "#c2410c" : "var(--color-lime)",
+  cyan:   theme === 'light' ? "#0369a1" : "var(--color-cyan)",
+  gold:   theme === 'light' ? "#b45309" : "var(--color-gold)",
+  danger: theme === 'light' ? "#dc2626" : "var(--color-danger)",
+  muted:  theme === 'light' ? "#64748b" : "var(--color-muted)",
+  text:   theme === 'light' ? "#0f172a" : "var(--color-text)",
+  border: theme === 'light' ? "#e2e8f0" : "var(--color-border)",
+});
 
-function StatCard({ icon, label, value, sub, color }) {
+function StatCard({ icon, label, value, sub, color, G = {} }) {
+  const muted = G.muted || "var(--color-muted)";
   return (
     <div className="glass-card fu" style={{ borderRadius: 14, padding: "1rem 1.1rem", display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, letterSpacing: 2, color: G.muted, fontWeight: 600 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, letterSpacing: 2, color: muted, fontWeight: 600 }}>
         {icon} {label}
       </div>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: color || G.lime, lineHeight: 1, letterSpacing: 1 }}>{value}</div>
@@ -30,7 +37,7 @@ function Avatar({ name, size = 36, index = 0 }) {
   );
 }
 
-function PlayerCard({ player, rank, onClick, isSelected }) {
+function PlayerCard({ player, rank, onClick, isSelected, G }) {
   const winPct = player.winRate;
   const diff = player.scored - player.conceded;
   return (
@@ -86,7 +93,8 @@ function PlayerCard({ player, rank, onClick, isSelected }) {
   );
 }
 
-function PlayerDetail({ player, allPlayers, h2h, onClose }) {
+function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
+  const G = getG(theme);
   const [h2hTarget, setH2hTarget] = useState(null);
   const otherPlayers = allPlayers.filter(p => p.name !== player.name);
   const winRate = player.winRate;
@@ -196,14 +204,15 @@ function PlayerDetail({ player, allPlayers, h2h, onClose }) {
   );
 }
 
-export function CareerScreen({ onBack }) {
+export function CareerScreen({ onBack, theme = 'dark' }) {
   const history = loadH();
   const stats = useMemo(() => computeCareerStats(history), []);
   const [tab, setTab] = useState("players");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const G = getG(theme);
 
   if (selectedPlayer) {
-    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players} h2h={stats.h2h} onClose={() => setSelectedPlayer(null)} />;
+    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players} h2h={stats.h2h} onClose={() => setSelectedPlayer(null)} theme={theme} />;
   }
 
   const { players, partnerships, records, totalTournaments, totalMatches } = stats;

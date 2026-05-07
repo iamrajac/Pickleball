@@ -101,13 +101,10 @@
 /* ── Hover ── */
 [data-theme="light"] .ni:hover { color: #c2410c !important; }
 
-/* ── Bebas Neue headings — force dark in light mode ── */
-[data-theme="light"] [style*="font-family: 'Bebas Neue'"],
-/* Bebas Neue color override removed — handled per-component */
-
-/* ── Override ALL inline lime (yellow-green) → navy in light mode ── */
-/* Scores, standings numbers, round headers etc */
-/* lime color overrides removed — handled per-component */
+/* ── Bebas Neue headings — navy in light mode (body only, not topbar) ── */
+[data-theme="light"] .glass-card [style*="Bebas Neue"] { color: #1e3a5f !important; }
+[data-theme="light"] .mc [style*="Bebas Neue"] { color: #c2410c !important; }
+[data-theme="light"] .glass-card [style*="var(--color-lime)"] { color: #1e3a5f !important; }
 
 /* ── Standings top-4 highlight — light blue tint ── */
 [data-theme="light"] [style*="rgba(23, 29, 15"] { background: rgba(30,58,95,0.06) !important; }

@@ -476,9 +476,9 @@ function PickleballApp() {
   };
 
   // ── Screens ─────────────────────────────────────────────────────────────
-  if (viewCareer) return <CareerScreen onBack={() => setViewCareer(false)} />;
-  if (viewHist === "list") return <HistoryScreen onBack={() => setViewHist(null)} onOpen={t => setViewHist(t)} />;
-  if (viewHist) return <HistoryDetail tournament={viewHist} onBack={() => setViewHist("list")} />;
+  if (viewCareer) return <CareerScreen onBack={() => setViewCareer(false)} theme={theme} />;
+  if (viewHist === "list") return <HistoryScreen onBack={() => setViewHist(null)} onOpen={t => setViewHist(t)} theme={theme} />;
+  if (viewHist) return <HistoryDetail tournament={viewHist} onBack={() => setViewHist("list")} theme={theme} />;
   if (!code) return <SetupScreen onStart={handleStart} onJoin={handleJoin} onHistory={() => setViewHist("list")} onCareer={() => setViewCareer(true)} onToggleTheme={toggleTheme} theme={theme} />;
 
   const standings = computeStandings(players, rounds);
