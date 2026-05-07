@@ -23,8 +23,8 @@ function StatCard({ icon, label, value, sub, color, G = {} }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, letterSpacing: 2, color: muted, fontWeight: 600 }}>
         {icon} {label}
       </div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: color || G.lime, lineHeight: 1, letterSpacing: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: G.muted }}>{sub}</div>}
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: color || G.lime || "var(--color-lime)", lineHeight: 1, letterSpacing: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: muted }}>{sub}</div>}
     </div>
   );
 }
@@ -307,7 +307,7 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
             {tab === "players" && (
               <div>
                 {players.map((p, i) => (
-                  <PlayerCard key={p.name} player={p} rank={i + 1} onClick={() => setSelectedPlayer(p)} isSelected={false} />
+                  <PlayerCard key={p.name} player={p} rank={i + 1} onClick={() => setSelectedPlayer(p)} isSelected={false} G={G} />
                 ))}
               </div>
             )}
@@ -320,6 +320,7 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
                     <div>Need at least 2 matches as partners to show stats</div>
                   </div>
                 ) : partnerships.map((pair, i) => {
+                  if (!G) return null;
                   const wr = Math.round((pair.wins / pair.matches) * 100);
                   const diff = pair.scored - pair.conceded;
                   return (
