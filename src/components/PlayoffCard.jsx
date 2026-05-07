@@ -1,15 +1,32 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTimer } from "../utils/useTimer";
 import { Play, Pause } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
 
+// Global score buffer — persists across remounts caused by Firebase listener
+const scoreBuffer = {};
+
 export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {} }) {
-  const [sA, setSA] = useState(match?.scoreA ?? "");
-  const [sB, setSB] = useState(match?.scoreB ?? "");
+  const matchKey = match ? `${match.label}-${(match.teamA||[]).join("-")}` : "none";
+
+  // Read from buffer first so scores survive Firebase-triggered remounts
+  const [sA, setSA] = useState(() => scoreBuffer[matchKey]?.sA ?? match?.scoreA ?? "");
+  const [sB, setSB] = useState(() => scoreBuffer[matchKey]?.sB ?? match?.scoreB ?? "");
+  const [isActive, setIsActive] = useState(false);
   const timer = useTimer();
   const ac = accent || 'var(--color-lime)';
+
+  // Keep buffer in sync
+  useEffect(() => {
+    if (!match?.played) scoreBuffer[matchKey] = { sA, sB };
+  }, [sA, sB, matchKey, match?.played]);
+
+  // Clear buffer once played
+  useEffect(() => {
+    if (match?.played) delete scoreBuffer[matchKey];
+  }, [match?.played, matchKey]);
 
   if (!match?.teamA || !match?.teamB) return (
     <div className="glass-card" style={{ borderRadius: 'var(--radius-md)', padding: '1.2rem', opacity: .5 }}>
@@ -34,8 +51,21 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     if (!canSave) return;
     const dur = timer.running ? timer.stop() : timer.elapsed || null;
     timer.reset();
+    delete scoreBuffer[matchKey];
+    setIsActive(false);
     onSave(Number(sA), Number(sB), dur);
   };
+
+  // H2H only when active
+  const h2hData = [];
+  if (isActive && !match.played && h2hMatrix && match.teamA && match.teamB) {
+    match.teamA.forEach(a => {
+      match.teamB.forEach(b => {
+        const stat = getH2HStats(a, b, h2hMatrix);
+        if (stat) h2hData.push({ a, b, stat });
+      });
+    });
+  }
 
   return (
     <div className="glass-card fu" style={{ borderRadius: 'var(--radius-md)', padding: '1.2rem', position: "relative", overflow: "hidden" }}>
@@ -62,10 +92,16 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
       {!match.played && !readOnly && (
         <>
           <div style={{ display: "flex", gap: 10, alignItems: "center", borderTop: `1px solid var(--color-border)`, paddingTop: 14, marginTop: 8 }}>
-            <input type="number" min={0} value={sA} onChange={e => setSA(e.target.value)} placeholder="0" className="si score-input-sm"
+            <input type="number" min={0} value={sA}
+              onChange={e => { setSA(e.target.value); setIsActive(true); }}
+              onFocus={() => setIsActive(true)}
+              placeholder="0" className="si score-input-sm"
               style={{ width: 54, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, textAlign: "center", padding: "8px 0", boxSizing: "border-box" }} />
             <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16 }}>VS</span>
-            <input type="number" min={0} value={sB} onChange={e => setSB(e.target.value)} placeholder="0" className="si score-input-sm"
+            <input type="number" min={0} value={sB}
+              onChange={e => { setSB(e.target.value); setIsActive(true); }}
+              onFocus={() => setIsActive(true)}
+              placeholder="0" className="si score-input-sm"
               style={{ width: 54, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, textAlign: "center", padding: "8px 0", boxSizing: "border-box" }} />
             <button className="pb" onClick={handleSave} disabled={!canSave}
               style={{ flex: 1, background: canSave ? ac : 'rgba(200,241,53,0.15)', border: "none", borderRadius: 'var(--radius-sm)', padding: "12px 0", fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed" }}>
@@ -73,7 +109,6 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
             </button>
           </div>
 
-          {/* Score validation hint */}
           {hint && sA !== "" && sB !== "" && (
             <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(255,85,85,0.1)", border: "1px solid rgba(255,85,85,0.3)", fontSize: 11, color: 'var(--color-danger)', display: "flex", alignItems: "center", gap: 6 }}>
               ⚠ {hint}
@@ -82,7 +117,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
             {timer.running && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: 'var(--color-cyan)', letterSpacing: 2 }}>{timer.fmt(timer.elapsed)}</span>}
-            <button className="pb" onClick={timer.running ? timer.stop : timer.start}
+            <button className="pb" onClick={() => { setIsActive(true); timer.running ? timer.stop() : timer.start(); }}
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.running ? 'rgba(53, 200, 241, 0.1)' : 'var(--color-surface)', border: `1px solid ${timer.running ? 'var(--color-cyan)' : 'var(--color-border)'}`, color: timer.running ? 'var(--color-cyan)' : 'var(--color-muted)', borderRadius: 'var(--radius-sm)', padding: "6px 12px", fontSize: 12, fontWeight: 500 }}>
               {timer.running ? <Pause size={14} /> : <Play size={14} />}
               {timer.running ? "PAUSE" : "TIMER"}
@@ -91,33 +126,19 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
         </>
       )}
 
-      {/* H2H Stats */}
-      {(() => {
-        const h2hData = [];
-        if (!match.played && h2hMatrix && match.teamA && match.teamB) {
-          match.teamA.forEach(a => {
-            match.teamB.forEach(b => {
-              const stat = getH2HStats(a, b, h2hMatrix);
-              if (stat) h2hData.push({ a, b, stat });
-            });
-          });
-        }
-        
-        if (h2hData.length === 0) return null;
-        
-        return (
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid var(--color-border)` }}>
-            <div style={{ fontSize: 10, letterSpacing: 2, color: 'var(--color-gold)', marginBottom: 6 }}>📊 HEAD-TO-HEAD</div>
-            <div style={{ display: 'grid', gridTemplateColumns: h2hData.length > 2 ? '1fr 1fr' : '1fr', gap: 6 }}>
-              {h2hData.map((d, i) => (
-                <div key={i} style={{ fontSize: 11, color: 'var(--color-muted)' }}>
-                  <strong style={{ color: 'var(--color-text)' }}>{d.a} vs {d.b}:</strong> {d.stat}
-                </div>
-              ))}
-            </div>
+      {/* H2H — only when active */}
+      {h2hData.length > 0 && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid var(--color-border)` }}>
+          <div style={{ fontSize: 10, letterSpacing: 2, color: 'var(--color-gold)', marginBottom: 6 }}>📊 HEAD-TO-HEAD</div>
+          <div style={{ display: 'grid', gridTemplateColumns: h2hData.length > 2 ? '1fr 1fr' : '1fr', gap: 6 }}>
+            {h2hData.map((d, i) => (
+              <div key={i} style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+                <strong style={{ color: 'var(--color-text)' }}>{d.a} vs {d.b}:</strong> {d.stat}
+              </div>
+            ))}
           </div>
-        );
-      })()}
+        </div>
+      )}
     </div>
   );
 }

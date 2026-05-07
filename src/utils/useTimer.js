@@ -3,34 +3,50 @@ import { useState, useRef, useEffect } from "react";
 export function useTimer() {
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
-  const startRef = useRef(null);
-  const rafRef = useRef(null);
-  function tick() {
-    setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
-    rafRef.current = requestAnimationFrame(tick);
-  }
-  
+  const startTsRef = useRef(null); // absolute timestamp when timer started
+  const intervalRef = useRef(null);
+
+  const tick = () => {
+    if (startTsRef.current) {
+      setElapsed(Math.floor((Date.now() - startTsRef.current) / 1000));
+    }
+  };
+
+  // When screen comes back from background, recalculate immediately
+  useEffect(() => {
+    const onVisible = () => {
+      if (running && startTsRef.current) tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [running]);
+
   const start = () => {
-    startRef.current = Date.now() - elapsed * 1000;
+    // If resuming, adjust start time to account for already-elapsed seconds
+    startTsRef.current = Date.now() - elapsed * 1000;
     setRunning(true);
-    rafRef.current = requestAnimationFrame(tick);
+    intervalRef.current = setInterval(tick, 1000);
   };
-  
+
   const stop = () => {
+    clearInterval(intervalRef.current);
     setRunning(false);
-    cancelAnimationFrame(rafRef.current);
-    return elapsed;
+    // Final accurate calculation
+    const final = startTsRef.current ? Math.floor((Date.now() - startTsRef.current) / 1000) : elapsed;
+    setElapsed(final);
+    return final;
   };
-  
+
   const reset = () => {
+    clearInterval(intervalRef.current);
     setRunning(false);
-    cancelAnimationFrame(rafRef.current);
+    startTsRef.current = null;
     setElapsed(0);
   };
-  
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
-  
+
+  useEffect(() => () => clearInterval(intervalRef.current), []);
+
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  
+
   return { elapsed, running, start, stop, reset, fmt };
 }

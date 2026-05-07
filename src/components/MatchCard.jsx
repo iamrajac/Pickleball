@@ -8,17 +8,8 @@ import { PlayerAvatar } from "./PlayerAvatar";
 export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {} }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
+  const [isActive, setIsActive] = useState(false); // true when user starts entering scores
   const timer = useTimer();
-
-  const h2hData = [];
-  if (!match.played && h2hMatrix && match.teamA && match.teamB) {
-    match.teamA.forEach(a => {
-      match.teamB.forEach(b => {
-        const stat = getH2HStats(a, b, h2hMatrix);
-        if (stat) h2hData.push({ a, b, stat });
-      });
-    });
-  }
 
   const wA = match.played && match.scoreA > match.scoreB;
   const wB = match.played && match.scoreB > match.scoreA;
@@ -27,12 +18,24 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const hint = scoreHint(sA, sB);
   const canSave = sA !== "" && sB !== "" && !hint;
 
+  // Only compute H2H when match is active (user focused on it)
+  const h2hData = [];
+  if (isActive && !match.played && h2hMatrix && match.teamA && match.teamB) {
+    match.teamA.forEach(a => {
+      match.teamB.forEach(b => {
+        const stat = getH2HStats(a, b, h2hMatrix);
+        if (stat) h2hData.push({ a, b, stat });
+      });
+    });
+  }
+
   const handleSave = () => {
     if (!canSave) return;
     const { valid } = validatePickleballScore(sA, sB);
     if (!valid) return;
     const dur = timer.running ? timer.stop() : timer.elapsed || null;
     timer.reset();
+    setIsActive(false);
     onSave(Number(sA), Number(sB), dur);
   };
 
@@ -65,10 +68,16 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
           <div style={{ textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-muted)', letterSpacing: 2 }}>VS</div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 170 }}>
-            <input type="number" min={0} value={sA} onChange={e => setSA(e.target.value)} placeholder="—" className="si score-input-sm"
+            <input type="number" min={0} value={sA}
+              onChange={e => { setSA(e.target.value); setIsActive(true); }}
+              onFocus={() => setIsActive(true)}
+              placeholder="—" className="si score-input-sm"
               style={{ width: 44, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, textAlign: "center", padding: "6px 0", boxSizing: "border-box" }} />
             <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 14 }}>VS</span>
-            <input type="number" min={0} value={sB} onChange={e => setSB(e.target.value)} placeholder="—" className="si score-input-sm"
+            <input type="number" min={0} value={sB}
+              onChange={e => { setSB(e.target.value); setIsActive(true); }}
+              onFocus={() => setIsActive(true)}
+              placeholder="—" className="si score-input-sm"
               style={{ width: 44, background: 'var(--color-surface)', border: `1px solid ${hint && sA !== "" && sB !== "" ? 'var(--color-danger)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, textAlign: "center", padding: "6px 0", boxSizing: "border-box" }} />
             <button className="pb" onClick={handleSave} disabled={!canSave}
               style={{ flex: 1, background: canSave ? 'var(--color-lime)' : 'rgba(200,241,53,0.2)', border: "none", borderRadius: 'var(--radius-sm)', padding: "10px 8px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed" }}>
@@ -102,7 +111,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 10, paddingTop: 10, borderTop: `1px solid var(--color-border)` }}>
           {timer.running && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-cyan)', letterSpacing: 2 }}>{timer.fmt(timer.elapsed)}</span>}
           {!timer.running && timer.elapsed > 0 && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, color: 'var(--color-muted)' }}>{timer.fmt(timer.elapsed)}</span>}
-          <button className="pb" onClick={timer.running ? timer.stop : timer.start}
+          <button className="pb" onClick={() => { setIsActive(true); timer.running ? timer.stop() : timer.start(); }}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.running ? 'rgba(53, 200, 241, 0.1)' : 'var(--color-surface)', border: `1px solid ${timer.running ? 'var(--color-cyan)' : 'var(--color-border)'}`, color: timer.running ? 'var(--color-cyan)' : 'var(--color-muted)', borderRadius: 'var(--radius-sm)', padding: "6px 12px", fontSize: 12, fontWeight: 500 }}>
             {timer.running ? <Pause size={14} /> : <Play size={14} />}
             {timer.running ? "PAUSE" : "TIMER"}
@@ -114,7 +123,8 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
           )}
         </div>
       )}
-      {/* H2H Stats */}
+
+      {/* H2H — only shown when match is active */}
       {h2hData.length > 0 && (
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid var(--color-border)` }}>
           <div style={{ fontSize: 10, letterSpacing: 2, color: 'var(--color-gold)', marginBottom: 6 }}>📊 HEAD-TO-HEAD</div>
