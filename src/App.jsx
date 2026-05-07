@@ -226,16 +226,24 @@ function PickleballApp() {
     setChampion(data.champion || null);
     setCode(c);
     const creator = isCreator(c);
-    setReadOnly(!creator);
     setTab("rounds");
-    // Check if they have a saved scorer PIN
+    
     const savedPin = getScorerPin(c);
-    if (savedPin && data.scorerPin && String(savedPin).trim() === String(data.scorerPin).trim()) {
+    const isSavedScorer = savedPin && data.scorerPin && String(savedPin).trim() === String(data.scorerPin).trim();
+    
+    if (creator) {
+      setReadOnly(false);
+      setScorerPin(data.scorerPin || null);
+      if (data.scorerPin) saveScorerPin(c, data.scorerPin);
+      addToast(`Joined #${c} (Creator)`, "success");
+    } else if (isSavedScorer) {
       setReadOnly(false);
       setScorerPin(data.scorerPin);
       addToast(`Joined #${c} (Scorer Access)`, "success");
     } else {
-      addToast(`Joined #${c} ${creator ? "(Creator)" : "(Spectator — tap 🔒 for scorer access)"}`, "success");
+      setReadOnly(true);
+      setScorerPin(null);
+      addToast(`Joined #${c} (Spectator — tap 🔒 for scorer access)`, "success");
     }
   };
 
