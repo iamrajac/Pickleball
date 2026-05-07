@@ -52,6 +52,7 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
 
   return (
     <div className="glass-card fu" style={{ borderRadius: 'var(--radius-lg)', overflow: "hidden" }}>
+      <div className="standings-wrapper" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
       <div className="standings-grid" style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "12px 14px", borderBottom: `1px solid var(--color-border)`, fontSize: 10, letterSpacing: 2, color: 'var(--color-muted)', fontWeight: 600 }}>
         <span>#</span><span>PLAYER</span>
         <span style={{ textAlign: "center" }}>P</span>
@@ -59,9 +60,9 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
         <span style={{ textAlign: "center" }}>L</span>
         <span style={{ textAlign: "center" }}>PTS</span>
         <span style={{ textAlign: "center" }}>+/-</span>
-        <span style={{ textAlign: "center" }} className="hide-mobile">FOR</span>
-        <span style={{ textAlign: "center" }} className="hide-mobile">AGN</span>
-        <span style={{ textAlign: "center" }} className="hide-mobile">ELO</span>
+        <span style={{ textAlign: "center" }}>FOR</span>
+        <span style={{ textAlign: "center" }}>AGN</span>
+        <span style={{ textAlign: "center" }}>ELO</span>
         <span style={{ textAlign: "center" }}>FORM</span>
       </div>
       
@@ -79,7 +80,7 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
           return (
             <div key={s.name}>
               <div className="rh standings-grid" onClick={() => setExpandedRow(expanded ? null : s.name)}
-                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "12px 14px", borderBottom: `1px solid var(--color-border)`, background: top ? "rgba(23, 29, 15, 0.4)" : "transparent", cursor: "pointer", position: "relative", alignItems: "center" }}>
+                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "10px 14px", borderBottom: `1px solid var(--color-border)`, background: top ? "rgba(23, 29, 15, 0.4)" : "transparent", cursor: "pointer", alignItems: "center" }}>
               
               <span className="standings-rank" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: i === 0 ? 'var(--color-gold)' : i < 4 ? 'var(--color-lime)' : 'var(--color-muted)', lineHeight: 1.1 }}>
                 {i === 0 ? <Trophy size={16} /> : i + 1}
@@ -106,9 +107,9 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-danger)' }}>{s.lost}</span>
               <span className="standings-pts" style={{ textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: 'var(--color-lime)', lineHeight: 1.1 }}>{s.pts}</span>
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: diff > 0 ? 'var(--color-lime)' : diff < 0 ? 'var(--color-danger)' : 'var(--color-muted)' }}>{diff > 0 ? "+" : ""}{diff}</span>
-              <span className="standings-num hide-mobile" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-text)' }}>{s.scored}</span>
-              <span className="standings-num hide-mobile" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-muted)' }}>{s.conceded}</span>
-              <span className="standings-num hide-mobile" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-gold)', fontWeight: 600 }}>{elos[s.name]}</span>
+              <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-text)' }}>{s.scored}</span>
+              <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-muted)' }}>{s.conceded}</span>
+              <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-gold)', fontWeight: 600 }}>{elos[s.name]}</span>
               
               <span style={{ display: "flex", gap: 2, alignItems: "center", justifyContent: "center", flexWrap: "nowrap", overflow: "hidden" }}>
                 {recentForm.slice(-5).map((f, fi) => (
@@ -181,7 +182,8 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
         );
       });
       })()}
-      <div style={{ padding: "10px 14px", fontSize: 11, color: 'var(--color-muted)', letterSpacing: 1, background: 'rgba(0,0,0,0.2)' }}>
+      </div>{/* end standings-wrapper */}
+      <div style={{ padding: "10px 14px", fontSize: 11, color: 'var(--color-muted)', letterSpacing: 1, background: 'rgba(0,0,0,0.1)' }}>
         ● TOP 4 ADVANCE TO PLAYOFFS · TAP ROW FOR MATCH HISTORY
       </div>
     </div>

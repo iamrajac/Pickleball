@@ -29,22 +29,60 @@
   --bg-body: #0d0f0a;
 }
 
-/* Light mode */
+/* Light mode — clean white with dark text, lime as accent only */
 [data-theme="light"] {
-  --color-lime: #6aaa00;
-  --color-dark: #f0f4e8;
-  --color-surface: rgba(235, 242, 220, 0.95);
-  --color-card: rgba(220, 232, 200, 0.98);
-  --color-border: rgba(120, 150, 80, 0.4);
-  --color-text: #0f1a08;
-  --color-muted: #3a5020;
+  --color-lime: #4a8a00;
+  --color-dark: #ffffff;
+  --color-surface: #f8f9fa;
+  --color-card: #ffffff;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-text: #111111;
+  --color-muted: #555555;
   --color-danger: #cc2200;
-  --color-cyan: #006080;
-  --color-gold: #8a6000;
-  --bg-body: #e8f0d8;
-  --color-win: rgba(20, 80, 10, 0.12);
-  --color-lose: rgba(150, 20, 10, 0.1);
+  --color-cyan: #0066aa;
+  --color-gold: #8a6600;
+  --bg-body: #f0f2f0;
+  --color-win: rgba(0, 100, 0, 0.08);
+  --color-lose: rgba(180, 0, 0, 0.08);
 }
+
+/* Light mode — solid opaque surfaces, no blur */
+[data-theme="light"] html,
+[data-theme="light"] body,
+[data-theme="light"] #root { background: #f0f2f0 !important; }
+
+[data-theme="light"] .glass {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  border-bottom: 1px solid rgba(0,0,0,0.1) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+}
+[data-theme="light"] .glass-card {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+[data-theme="light"] .tab-btn.off {
+  color: #555555 !important;
+}
+[data-theme="light"] .tab-btn.off:hover {
+  background: rgba(0,0,0,0.05) !important;
+  color: #111111 !important;
+}
+[data-theme="light"] .tab-btn.on {
+  background: #4a8a00 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+[data-theme="light"] .rh:hover {
+  background: rgba(0,0,0,0.04) !important;
+}
+[data-theme="light"] .live-dot {
+  background: #4a8a00 !important;
+  box-shadow: 0 0 6px #4a8a00 !important;
+}
+[data-theme="light"] .ni:hover { color: #4a8a00 !important; }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -191,14 +229,16 @@ html, body, #root {
 /* ── Mobile improvements ── */
 @media (max-width: 600px) {
   /* Standings table — hide AGN on mobile, tighter layout */
-  /* Standings: on mobile hide FOR AGN ELO, tighter grid */
+  /* Standings mobile: horizontal scroll so all columns visible, no compression */
+  .standings-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .standings-grid {
-    grid-template-columns: 22px 1fr 22px 22px 22px 32px 32px 0 0 0 60px !important;
-    padding: 9px 10px !important;
+    grid-template-columns: 24px minmax(80px,1fr) 28px 28px 28px 38px 38px 36px 36px 40px 70px !important;
+    min-width: 480px;
+    padding: 8px 10px !important;
   }
-  .standings-rank { font-size: 15px !important; }
-  .standings-pts  { font-size: 18px !important; }
-  .standings-name { font-size: 12px !important; }
+  .standings-rank { font-size: 14px !important; }
+  .standings-pts  { font-size: 17px !important; }
+  .standings-name { font-size: 11px !important; }
   .standings-num  { font-size: 11px !important; }
 
   /* Match card — tighter padding on mobile */

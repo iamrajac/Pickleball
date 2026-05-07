@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ref, get } from "firebase/database";
 import { db } from "../firebase";
-import { ChevronRight, History, Wifi, BarChart2 } from "lucide-react";
+import { ChevronRight, History, Wifi, BarChart2, Moon, Sun } from "lucide-react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { AvatarPickerModal } from "../components/AvatarPickerModal";
 
-export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
+export function SetupScreen({ onStart, onHistory, onJoin, onCareer, onToggleTheme, theme }) {
   const [numP, setNumP] = useState(8);
   const [names, setNames] = useState(Array(8).fill("").map((_, i) => `Player ${i + 1}`));
   const [rounds, setRounds] = useState(7);
@@ -69,12 +69,17 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
               PICKLE<br />BALL
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <button className="pb glass" onClick={onHistory} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', padding: "8px 16px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500 }}>
-              <History size={16} /> HISTORY
-            </button>
-            <button className="pb glass" onClick={onCareer} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-lime)', padding: "8px 16px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, border: '1px solid rgba(200,241,53,0.3)' }}>
-              <BarChart2 size={16} /> CAREER
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="pb glass" onClick={onToggleTheme} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, color: 'var(--color-muted)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+                {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button className="pb glass" onClick={onHistory} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500 }}>
+                <History size={16} /> HISTORY
+              </button>
+            </div>
+            <button className="pb glass" onClick={onCareer} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-lime)', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, border: '1px solid rgba(200,241,53,0.3)', width: '100%', justifyContent: 'center' }}>
+              <BarChart2 size={16} /> CAREER STATS
             </button>
           </div>
         </div>
