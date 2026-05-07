@@ -126,64 +126,85 @@ export function computeStandings(players, rounds) {
 export function initPlayoffs(standings) {
   const t = standings.map(s => s.name);
   const n = t.length;
+  // Helper: make a match object
   const mk = (tA, tB, label, note) => ({
     teamA: tA, teamB: tB, scoreA: null, scoreB: null,
     played: false, label, note
   });
+  // Safe player getter — fallback to avoid undefined
+  const p = (i) => t[i] || t[Math.min(i, t.length - 1)];
 
-  // ── 4 players: single final ──────────────────────────────────────────
+  // Competitive seeding rule:
+  // Always pair STRONGEST with WEAKEST so both teams are balanced
+  // e.g. 1+4 vs 2+3, 5+8 vs 6+7, 9+12 vs 10+11
+
+  // ── 4 players: single final (1+4 vs 2+3) ────────────────────────────
   if (n <= 4) {
     return {
       mode: "final_only",
-      final: mk([t[0],t[1]], [t[2]||t[0], t[3]||t[1]], "GRAND FINAL", "Top 2 vs Bottom 2"),
+      final: mk([p(0),p(3)], [p(1),p(2)], "GRAND FINAL", "1st+4th vs 2nd+3rd"),
       champion: null
     };
   }
 
-  // ── 5–7 players: top 4 semi + final ─────────────────────────────────
+  // ── 5–7 players: top 4 — semi final then final ───────────────────────
+  // SF: 1+4 vs 2+3 → winner goes to final, loser goes to final (both sides play)
+  // Since only 1 semi, winner gets title, no second chance
   if (n <= 7) {
     return {
       mode: "top4",
-      sf1: mk([t[0],t[3]], [t[1],t[2]], "SEMI FINAL 1", "1st+4th vs 2nd+3rd"),
-      sf2: null,
-      final: mk(null, null, "GRAND FINAL", "Winner SF1 vs Runner SF1"),
+      sf1: mk([p(0),p(3)], [p(1),p(2)], "SEMI FINAL", "1st+4th vs 2nd+3rd"),
+      final: mk(null, null, "GRAND FINAL", "Winner SF vs Runner-up SF"),
       champion: null
     };
   }
 
   // ── 8–11 players: full IPL bracket ───────────────────────────────────
+  // Q1: 1+4 vs 2+3 (winner → Final, loser → Q2)
+  // Elim: 5+8 vs 6+7 (loser out, winner → Q2)
+  // Q2: Loser Q1 vs Winner Elim (winner → Final)
+  // Final: Winner Q1 vs Winner Q2
   if (n <= 11) {
     return {
       mode: "ipl8",
-      q1:   mk([t[0],t[3]], [t[1],t[2]], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
-      elim: mk([t[4],t[7]||t[5]], [t[5],t[6]||t[4]], "ELIMINATOR", "5th+8th vs 6th+7th"),
-      q2:   mk(null, null, "QUALIFIER 2", "Loser Q1 vs Winner Elim"),
-      final:mk(null, null, "THE FINAL",   "Winner Q1 vs Winner Q2"),
+      q1:   mk([p(0),p(3)], [p(1),p(2)], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
+      elim: mk([p(4),p(7)], [p(5),p(6)], "ELIMINATOR",  "5th+8th vs 6th+7th"),
+      q2:   mk(null, null,               "QUALIFIER 2",  "Loser Q1 vs Winner Elim"),
+      final:mk(null, null,               "THE FINAL",    "Winner Q1 vs Winner Q2"),
       champion: null
     };
   }
 
   // ── 12–15 players: top 8 bracket ─────────────────────────────────────
+  // QF1: 1+4 vs 2+3, QF2: 5+8 vs 6+7
+  // SF1: Winner QF1 vs Winner QF2
+  // SF2: 9+12 vs 10+11 (bottom 4 of top 8)
+  // Final: Winner SF1 vs Winner SF2
   if (n <= 15) {
     return {
       mode: "top8",
-      qf1: mk([t[0],t[3]], [t[1],t[2]], "QF 1", "1st+4th vs 2nd+3rd"),
-      qf2: mk([t[4],t[7]], [t[5],t[6]], "QF 2", "5th+8th vs 6th+7th"),
-      sf1: mk(null, null, "SEMI FINAL 1", "Winner QF1 vs Winner QF2"),
-      sf2: mk([t[8]||t[0],t[11]||t[3]], [t[9]||t[1],t[10]||t[2]], "SEMI FINAL 2", "9th+12th vs 10th+11th"),
-      final: mk(null, null, "GRAND FINAL", "Winner SF1 vs Winner SF2"),
+      qf1:  mk([p(0),p(3)], [p(1),p(2)],   "QF 1",         "1st+4th vs 2nd+3rd"),
+      qf2:  mk([p(4),p(7)], [p(5),p(6)],   "QF 2",         "5th+8th vs 6th+7th"),
+      sf1:  mk(null, null,                   "SEMI FINAL 1", "Winner QF1 vs Winner QF2"),
+      sf2:  mk([p(8),p(11)],[p(9),p(10)],  "SEMI FINAL 2", "9th+12th vs 10th+11th"),
+      final:mk(null, null,                   "GRAND FINAL",  "Winner SF1 vs Winner SF2"),
       champion: null
     };
   }
 
-  // ── 16-20 players: top 8 IPL-style ───────────────────────────────────
+  // ── 16–20 players: top 8 IPL-style ───────────────────────────────────
+  // Q1: 1+4 vs 2+3 (winner → Final, loser → SF)
+  // Q2: 5+8 vs 6+7 (winner → Final, loser out... or winner → SF)
+  // Elim: 9+12 vs 10+11 (winner → SF, loser out)
+  // SF: Loser Q1 vs Winner Elim
+  // Final: Winner Q1 vs Winner Q2
   return {
     mode: "top8_ipl",
-    q1:   mk([t[0],t[3]], [t[1],t[2]], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
-    q2_b: mk([t[4],t[7]], [t[5],t[6]], "QUALIFIER 2", "5th+8th vs 6th+7th"),
-    elim: mk([t[8],t[11]||t[8]], [t[9],t[10]||t[9]], "ELIMINATOR", "9th+12th vs 10th+11th"),
-    sf:   mk(null, null, "SEMI FINAL", "Loser Q1 vs Winner Elim"),
-    final:mk(null, null, "THE FINAL", "Winner Q1 vs Winner Q2B/SF"),
+    q1:   mk([p(0),p(3)],  [p(1),p(2)],  "QUALIFIER 1",  "1st+4th vs 2nd+3rd"),
+    q2_b: mk([p(4),p(7)],  [p(5),p(6)],  "QUALIFIER 2",  "5th+8th vs 6th+7th"),
+    elim: mk([p(8),p(11)], [p(9),p(10)], "ELIMINATOR",   "9th+12th vs 10th+11th"),
+    sf:   mk(null, null,                   "SEMI FINAL",   "Loser Q1 vs Winner Elim"),
+    final:mk(null, null,                   "THE FINAL",    "Winner Q1 vs Winner Q2"),
     champion: null
   };
 }
