@@ -245,7 +245,7 @@ function PickleballApp() {
     const r = generateSchedule(p, numRounds);
     const c = genCode();
     const pin = generateScorerPin();
-    setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null); setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
+    window.scrollTo(0, 0); setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null); setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
     canEditRef.current = true;
     setScorerPin(pin);
     setProfiles(newProfiles);
@@ -297,6 +297,7 @@ function PickleballApp() {
     }
     // Mark join as complete — listener can now safely re-apply permissions
     joinCompleteRef.current = true;
+    window.scrollTo(0, 0);
   };
 
   const saveResult = (ri, mi, sA, sB, dur, notes = "") => {
@@ -556,7 +557,7 @@ function PickleballApp() {
           {/* Tab strip */}
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
             {[{ id: "rounds", label: "⚡ ROUNDS" }, { id: "standings", label: "📊 TABLE" }, { id: "playoffs", label: "🏆 PLAYOFFS" }].map(t => (
-              <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => { setTab(t.id); playAudio("tick"); }} style={{ flex: 1 }}>{t.label}</button>
+              <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => { setTab(t.id); playAudio("tick"); window.scrollTo(0, 0); }} style={{ flex: 1 }}>{t.label}</button>
             ))}
           </div>
         </div>
