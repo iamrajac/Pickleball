@@ -286,10 +286,10 @@ function PickleballApp() {
     }
   };
 
-  const saveResult = (ri, mi, sA, sB, dur) => {
+  const saveResult = (ri, mi, sA, sB, dur, notes = "") => {
     try {
       const nx = JSON.parse(JSON.stringify(rounds));
-      nx[ri][mi] = { ...nx[ri][mi], scoreA: sA, scoreB: sB, played: true, duration: dur || null };
+      nx[ri][mi] = { ...nx[ri][mi], scoreA: sA, scoreB: sB, played: true, duration: dur || null, notes };
       setRounds(nx);
       setAnimatingScore(`${ri}-${mi}`);
       setTimeout(() => setAnimatingScore(null), 500);
@@ -323,10 +323,10 @@ function PickleballApp() {
     addToast("Quick Final created!", "info");
   };
 
-  const savePlayoff = (stage, sA, sB, dur) => {
+  const savePlayoff = (stage, sA, sB, dur, notes = "") => {
     try {
       const nx = JSON.parse(JSON.stringify(playoffs));
-      nx[stage] = { ...nx[stage], scoreA: sA, scoreB: sB, played: true, duration: dur || null };
+      nx[stage] = { ...nx[stage], scoreA: sA, scoreB: sB, played: true, duration: dur || null, notes };
       const m = nx[stage];
       if (!m.teamA || !m.teamB) return;
       const win = [...(sA > sB ? m.teamA : m.teamB)];

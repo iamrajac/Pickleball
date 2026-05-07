@@ -15,14 +15,24 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   // Read from buffer first so scores survive Firebase-triggered remounts
   const [sA, setSA] = useState(() => scoreBuffer[matchKey]?.sA ?? match?.scoreA ?? "");
   const [sB, setSB] = useState(() => scoreBuffer[matchKey]?.sB ?? match?.scoreB ?? "");
+  const [matchNotes, setMatchNotes] = useState(() => scoreBuffer[matchKey]?.notes ?? match?.notes ?? "");
   const [isActive, setIsActive] = useState(false);
+  const timer = useTimer();
+  const ac = accent || 'var(--color-lime)';
+
+  // Fair serve & side assignment algorithm (deterministic hash)
+  const hash = String((match.teamA || []).join("") + (match.label || "")).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const serveTeamA = hash % 2 === 0;
+  const sideLeftA = (hash >> 1) % 2 === 0;
+  const servingTeam = serveTeamA ? match?.teamA?.join(" & ") : match?.teamB?.join(" & ");
+  const serveSide = serveTeamA ? (sideLeftA ? "Left" : "Right") : (!sideLeftA ? "Left" : "Right");
   const timer = useTimer();
   const ac = accent || 'var(--color-lime)';
 
   // Keep buffer in sync
   useEffect(() => {
-    if (!match?.played) scoreBuffer[matchKey] = { sA, sB };
-  }, [sA, sB, matchKey, match?.played]);
+    if (!match?.played) scoreBuffer[matchKey] = { sA, sB, notes: matchNotes };
+  }, [sA, sB, matchNotes, matchKey, match?.played]);
 
   // Clear buffer once played
   useEffect(() => {
@@ -55,7 +65,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     delete scoreBuffer[matchKey];
     setIsActive(false);
     playAudio("pop");
-    onSave(Number(sA), Number(sB), dur);
+    onSave(Number(sA), Number(sB), dur, matchNotes);
   };
 
   // H2H only when active
@@ -133,6 +143,16 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
           {hint && sA !== "" && sB !== "" && (
             <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(255,85,85,0.1)", border: "1px solid rgba(255,85,85,0.3)", fontSize: 11, color: 'var(--color-danger)', display: "flex", alignItems: "center", gap: 6 }}>
               ⚠ {hint}
+            </div>
+          )}
+
+          {isActive && (
+            <div style={{ marginTop: 12, padding: "10px", background: 'rgba(0,0,0,0.2)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                🎾 <strong style={{ color: 'var(--color-text)' }}>{servingTeam || "TBD"}</strong> serves first from the <strong style={{ color: 'var(--color-text)' }}>{serveSide}</strong> side.
+              </div>
+              <input type="text" placeholder="Add match notes (e.g. game-winning shot...)" value={matchNotes} onChange={e => setMatchNotes(e.target.value)} 
+                style={{ width: '100%', background: 'var(--color-surface)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', padding: "8px", fontSize: 12, boxSizing: "border-box" }} />
             </div>
           )}
 
