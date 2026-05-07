@@ -573,7 +573,7 @@ function PickleballApp() {
                     )}
                     {round.map((m, mi) => (
                       <div key={mi} className={animatingScore === `${ri}-${mi}` ? "score-flash" : ""}>
-                        <MatchCard match={m} delay={mi * .04} readOnly={readOnly} onSave={(a, b, dur) => saveResult(ri, mi, a, b, dur)} h2hMatrix={h2hMatrix} profiles={profiles} />
+                        <MatchCard match={m} delay={mi * .04} readOnly={readOnly} onSave={(a, b, dur, notes) => saveResult(ri, mi, a, b, dur, notes)} h2hMatrix={h2hMatrix} profiles={profiles} />
                       </div>
                     ))}
                   </div>
@@ -649,7 +649,7 @@ function PickleballApp() {
                 {(() => {
                   const mode = playoffs.mode || "ipl8";
                   const PC = ({ stage, match, accent }) => match ? (
-                    <PlayoffCard match={match} onSave={(a,b,d) => savePlayoff(stage,a,b,d)} accent={accent||"var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} />
+                    <PlayoffCard match={match} onSave={(a,b,d,n) => savePlayoff(stage,a,b,d,n)} accent={accent||"var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} />
                   ) : null;
 
                   if (mode === "final_only") return (

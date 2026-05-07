@@ -37,14 +37,15 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
   };
 
   const CircularProgress = ({ pct }) => {
+    const safePct = isNaN(pct) ? 0 : pct;
     const r = 24;
     const circ = 2 * Math.PI * r;
-    const dash = (pct * circ) / 100;
+    const dash = (safePct * circ) / 100;
     return (
       <svg width="60" height="60" viewBox="0 0 60 60" style={{ display: 'block' }}>
         <circle cx="30" cy="30" r={r} fill="none" stroke="var(--color-border)" strokeWidth="5" />
-        <circle cx="30" cy="30" r={r} fill="none" stroke="var(--color-lime)" strokeWidth="5" strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" transform="rotate(-90 30 30)" />
-        <text x="30" y="35" textAnchor="middle" fill="var(--color-lime)" fontSize="15" fontWeight="bold" fontFamily="'Bebas Neue', sans-serif" letterSpacing="1">{pct}%</text>
+        <circle cx="30" cy="30" r={r} fill="none" stroke="var(--color-lime)" strokeWidth="5" strokeDasharray={`${dash || 0} ${circ}`} strokeLinecap="round" transform="rotate(-90 30 30)" />
+        <text x="30" y="35" textAnchor="middle" fill="var(--color-lime)" fontSize="15" fontWeight="bold" fontFamily="'Bebas Neue', sans-serif" letterSpacing="1">{safePct}%</text>
       </svg>
     );
   };
@@ -70,7 +71,8 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
           const diff = s.scored - s.conceded;
           const top = i < 4;
           const recentForm = s.form.slice(-5);
-          const streakW = s.form.match(/W+$/)?.[0]?.length || 0;
+          const formStr = Array.isArray(s.form) ? s.form.join("") : (s.form || "");
+          const streakW = formStr.match(/W+$/)?.[0]?.length || 0;
           const expanded = expandedRow === s.name;
           const matches = playerMatches[s.name] || [];
           
@@ -119,57 +121,61 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
             </div>
             
             {expanded && matches.length > 0 && (() => {
-              const stats = getPlayerStats(matches);
-              return (
-              <div className="fu" style={{ background: "rgba(10, 12, 8, 0.6)", borderBottom: `1px solid var(--color-border)`, padding: "20px", boxShadow: "inset 0 4px 12px rgba(0,0,0,0.2)" }}>
-                <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 20, background: "var(--color-surface)", padding: 16, borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
-                  <PlayerAvatar name={s.name} profile={profiles[s.name]} size={60} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, color: "var(--color-lime)", lineHeight: 1 }}>{s.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>PLAYER PROFILE</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, marginBottom: 4 }}>BEST PARTNER</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                        <PlayerAvatar name={stats.bestPartner} profile={profiles[stats.bestPartner]} size={20} />
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{stats.bestPartner}</span>
-                      </div>
+              try {
+                const stats = getPlayerStats(matches);
+                return (
+                <div className="fu" style={{ background: "rgba(10, 12, 8, 0.6)", borderBottom: `1px solid var(--color-border)`, padding: "20px", boxShadow: "inset 0 4px 12px rgba(0,0,0,0.2)" }}>
+                  <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 20, background: "var(--color-surface)", padding: 16, borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
+                    <PlayerAvatar name={s.name} profile={profiles[s.name]} size={60} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, color: "var(--color-lime)", lineHeight: 1 }}>{s.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>PLAYER PROFILE</div>
                     </div>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, marginBottom: 4 }}>BIGGEST RIVAL</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                        <PlayerAvatar name={stats.rival} profile={profiles[stats.rival]} size={20} />
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{stats.rival}</span>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "center", marginLeft: 8 }}>
-                      <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, marginBottom: 4 }}>WIN RATE</div>
-                      <CircularProgress pct={stats.winRate} />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ fontSize: 10, letterSpacing: 2, color: 'var(--color-muted)', marginBottom: 10, fontWeight: 600 }}>MATCH HISTORY</div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  {matches.map((m, mi) => (
-                    <div key={mi} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 'var(--radius-sm)', background: m.win ? 'var(--color-win)' : 'var(--color-lose)', borderLeft: `3px solid ${m.win ? 'var(--color-lime)' : 'var(--color-danger)'}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 12, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', fontWeight: 600, width: 20 }}>{m.win ? "W" : "L"}</span>
-                        <span style={{ fontSize: 13, color: 'var(--color-text)', flex: 1 }}>w/ {m.partner} vs {m.opp ? m.opp.join(" & ") : "TBD"}</span>
-                        <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', margin: "0 12px" }}>{m.myScore}–{m.oppScore}</span>
-                        {m.duration && <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>⏱{Math.floor(m.duration / 60)}m{m.duration % 60}s</span>}
-                      </div>
-                      {m.notes && (
-                        <div style={{ fontSize: 11, color: 'var(--color-text)', paddingLeft: 20, fontStyle: "italic", opacity: 0.8 }}>
-                          "{m.notes}"
+                    <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, marginBottom: 4 }}>BEST PARTNER</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+                          <PlayerAvatar name={stats.bestPartner} profile={profiles[stats.bestPartner]} size={20} />
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{stats.bestPartner}</span>
                         </div>
-                      )}
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, marginBottom: 4 }}>BIGGEST RIVAL</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+                          <PlayerAvatar name={stats.rival} profile={profiles[stats.rival]} size={20} />
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{stats.rival}</span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "center", marginLeft: 8 }}>
+                        <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, marginBottom: 4 }}>WIN RATE</div>
+                        <CircularProgress pct={stats.winRate} />
+                      </div>
                     </div>
-                  ))}
+                  </div>
+
+                  <div style={{ fontSize: 10, letterSpacing: 2, color: 'var(--color-muted)', marginBottom: 10, fontWeight: 600 }}>MATCH HISTORY</div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {matches.map((m, mi) => (
+                      <div key={mi} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 'var(--radius-sm)', background: m.win ? 'var(--color-win)' : 'var(--color-lose)', borderLeft: `3px solid ${m.win ? 'var(--color-lime)' : 'var(--color-danger)'}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 12, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', fontWeight: 600, width: 20 }}>{m.win ? "W" : "L"}</span>
+                          <span style={{ fontSize: 13, color: 'var(--color-text)', flex: 1 }}>w/ {m.partner} vs {m.opp ? m.opp.join(" & ") : "TBD"}</span>
+                          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', margin: "0 12px" }}>{m.myScore}–{m.oppScore}</span>
+                          {m.duration && <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>⏱{Math.floor(m.duration / 60)}m{m.duration % 60}s</span>}
+                        </div>
+                        {m.notes && (
+                          <div style={{ fontSize: 11, color: 'var(--color-text)', paddingLeft: 20, fontStyle: "italic", opacity: 0.8 }}>
+                            "{m.notes}"
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              );
+                );
+              } catch (err) {
+                return <div style={{ color: "red", padding: 20 }}>ERROR EXPANDING: {err.toString()}</div>;
+              }
             })()}
           </div>
         );
