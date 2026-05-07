@@ -115,6 +115,7 @@ function PickleballApp() {
   const [scorerPin, setScorerPin] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [h2hMatrix, setH2hMatrix] = useState({});
+  const [profiles, setProfiles] = useState({});
 
   const isWriting = useRef(false);
   const { addToast } = useToast();
@@ -159,6 +160,7 @@ function PickleballApp() {
         if (v.rounds) setRounds(v.rounds.map(r => r ? Object.values(r) : []));
         if (v.playoffs !== undefined) setPlayoffs(safePlayoffs(v.playoffs));
         if (v.champion !== undefined) setChampion(v.champion || null);
+        if (v.profiles) setProfiles(v.profiles);
       }
       setSyncing(false);
     });
@@ -203,37 +205,38 @@ function PickleballApp() {
   }, [champion, savedToHist, readOnly, addToast, playoffs, _saveHist]);
 
   // ── Firebase push ───────────────────────────────────────────────────────
-  const pushToFirebase = async (newRounds, newPlayoffs, newChamp) => {
+  const pushToFirebase = async (newRounds, newPlayoffs, newChamp, currentProfiles = profiles) => {
     if (!code || readOnly) return;
     isWriting.current = true;
     try {
-      await fbSet(`tournaments/${code}`, { players, rounds: newRounds, playoffs: newPlayoffs, champion: newChamp, ts: Date.now() });
+      await fbSet(`tournaments/${code}`, { players, rounds: newRounds, playoffs: newPlayoffs, champion: newChamp, profiles: currentProfiles, ts: Date.now() });
     } finally {
       setTimeout(() => { isWriting.current = false; }, 800);
     }
   };
 
-  const _upsertHist = (newRounds, newPlayoffs, newChamp) => {
+  const _upsertHist = (newRounds, newPlayoffs, newChamp, currentProfiles = profiles) => {
     const h = loadH();
     const idx = h.findIndex(t => t.code === code);
-    const entry = { date: idx >= 0 ? h[idx].date : new Date().toISOString(), players, code, champion: newChamp || null, status: newChamp ? "completed" : "in-progress", finalStandings: computeStandings(players, newRounds), playoffs: newPlayoffs || null, rounds: newRounds };
+    const entry = { date: idx >= 0 ? h[idx].date : new Date().toISOString(), players, code, champion: newChamp || null, status: newChamp ? "completed" : "in-progress", finalStandings: computeStandings(players, newRounds), playoffs: newPlayoffs || null, rounds: newRounds, profiles: currentProfiles };
     if (idx >= 0) h[idx] = entry; else h.push(entry);
     saveH(h);
   };
 
   // ── Actions ─────────────────────────────────────────────────────────────
-  const handleStart = async (p, numRounds) => {
+  const handleStart = async (p, numRounds, newProfiles = {}) => {
     const r = generateSchedule(p, numRounds);
     const c = genCode();
     const pin = generateScorerPin();
     setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null); setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
     setScorerPin(pin);
+    setProfiles(newProfiles);
     registerAsCreator(c);
     saveScorerPin(c, pin);
     isWriting.current = true;
     try {
-      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: pin, ts: Date.now() });
-      _upsertHist(r, null, null);
+      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: pin, profiles: newProfiles, ts: Date.now() });
+      _upsertHist(r, null, null, newProfiles);
       addToast("Tournament created! Share the code.", "success");
     } finally { isWriting.current = false; }
   };
@@ -243,6 +246,7 @@ function PickleballApp() {
     setRounds(data.rounds ? data.rounds.map(r => r ? Object.values(r) : []) : []);
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
+    setProfiles(data.profiles || {});
     setCode(c);
     const creator = isCreator(c);
     setTab("rounds");
@@ -526,7 +530,7 @@ function PickleballApp() {
                     )}
                     {round.map((m, mi) => (
                       <div key={mi} className={animatingScore === `${ri}-${mi}` ? "score-flash" : ""}>
-                        <MatchCard match={m} delay={mi * .04} readOnly={readOnly} onSave={(a, b, dur) => saveResult(ri, mi, a, b, dur)} h2hMatrix={h2hMatrix} />
+                        <MatchCard match={m} delay={mi * .04} readOnly={readOnly} onSave={(a, b, dur) => saveResult(ri, mi, a, b, dur)} h2hMatrix={h2hMatrix} profiles={profiles} />
                       </div>
                     ))}
                   </div>
@@ -553,8 +557,8 @@ function PickleballApp() {
                 <Camera size={14} /> SHARE IMAGE
               </button>
             </div>
-            <TournamentAwards players={players} rounds={rounds} champion={champion} />
-            <StandingsTable standings={standings} rounds={rounds} />
+            <TournamentAwards players={players} rounds={rounds} champion={champion} profiles={profiles} />
+            <StandingsTable standings={standings} rounds={rounds} profiles={profiles} />
             {allDone && !playoffs && !readOnly && (
               <div className="fu" style={{ display: "flex", gap: 16, marginTop: 24, flexWrap: "wrap", animationDelay: "0.2s" }}>
                 <button className="pb" style={{ flex: 1, minWidth: 200, padding: 18, background: "var(--color-lime)", border: "none", borderRadius: "var(--radius-md)", fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, color: "var(--color-dark)" }} onClick={startPlayoffs}>🏆 FULL PLAYOFFS</button>
@@ -602,7 +606,7 @@ function PickleballApp() {
                 {(() => {
                   const mode = playoffs.mode || "ipl8";
                   const PC = ({ stage, match, accent }) => match ? (
-                    <PlayoffCard match={match} onSave={(a,b,d) => savePlayoff(stage,a,b,d)} accent={accent||"var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} />
+                    <PlayoffCard match={match} onSave={(a,b,d) => savePlayoff(stage,a,b,d)} accent={accent||"var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} />
                   ) : null;
 
                   if (mode === "final_only") return (

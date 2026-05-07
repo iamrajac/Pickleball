@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Trophy, ChevronDown, ChevronUp } from "lucide-react";
+import { PlayerAvatar } from "./PlayerAvatar";
 
-export function StandingsTable({ standings, rounds }) {
+export function StandingsTable({ standings, rounds, profiles = {} }) {
   const [expandedRow, setExpandedRow] = useState(null);
   const playerMatches = {};
   
@@ -47,6 +48,7 @@ export function StandingsTable({ standings, rounds }) {
               
               <span className="standings-name" style={{ fontWeight: 500, fontSize: 14, color: top ? 'var(--color-text)' : 'var(--color-muted)', display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                 {top && <span className="live-dot" style={{ width: 6, height: 6, flexShrink: 0, animation: 'none' }} />}
+                <PlayerAvatar name={s.name} profile={profiles[s.name]} size={20} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                 {matches.length > 0 && (
                   <span style={{ color: 'var(--color-muted)', marginLeft: 'auto', marginRight: 8 }}>

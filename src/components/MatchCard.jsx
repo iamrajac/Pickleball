@@ -3,8 +3,9 @@ import { useTimer } from "../utils/useTimer";
 import { Play, Pause, X } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
+import { PlayerAvatar } from "./PlayerAvatar";
 
-export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {} }) {
+export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {} }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
   const timer = useTimer();
@@ -42,6 +43,11 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
         <div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+            {match?.teamA?.map((p, i) => (
+              <div key={p} style={{ marginLeft: i > 0 ? -12 : 0, zIndex: 10 - i }}><PlayerAvatar name={p} profile={profiles[p]} size={22} /></div>
+            ))}
+          </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: wA ? 'var(--color-lime)' : wB ? 'var(--color-muted)' : 'var(--color-text)', lineHeight: 1.35 }}>
             {match?.teamA ? match.teamA.join(" & ") : "TBD"}
           </div>
@@ -71,7 +77,12 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
           </div>
         )}
 
-        <div style={{ textAlign: "right" }}>
+        <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+            {match?.teamB?.map((p, i) => (
+              <div key={p} style={{ marginLeft: i > 0 ? -12 : 0, zIndex: 10 - i }}><PlayerAvatar name={p} profile={profiles[p]} size={22} /></div>
+            ))}
+          </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: wB ? 'var(--color-lime)' : wA ? 'var(--color-muted)' : 'var(--color-text)', lineHeight: 1.35 }}>
             {match?.teamB ? match.teamB.join(" & ") : "TBD"}
           </div>

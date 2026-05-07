@@ -3,8 +3,9 @@ import { useTimer } from "../utils/useTimer";
 import { Play, Pause } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
+import { PlayerAvatar } from "./PlayerAvatar";
 
-export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {} }) {
+export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {} }) {
   const [sA, setSA] = useState(match?.scoreA ?? "");
   const [sB, setSB] = useState(match?.scoreB ?? "");
   const timer = useTimer();
@@ -44,7 +45,14 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
 
       {[{ team: match.teamA, win: wA, score: match.scoreA }, { team: match.teamB, win: wB, score: match.scoreB }].map(({ team, win, score }, ti) => (
         <div key={ti} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 'var(--radius-sm)', background: win ? 'rgba(26, 61, 18, 0.4)' : "transparent", marginBottom: 6, border: win ? `1px solid rgba(46, 90, 26, 0.5)` : `1px solid transparent`, transition: 'all 0.2s' }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: win ? 'var(--color-lime)' : (!match.played ? 'var(--color-text)' : 'var(--color-muted)') }}>{team ? team.join(" & ") : "TBD"}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", gap: 4 }}>
+              {team?.map((p, i) => (
+                <div key={p} style={{ marginLeft: i > 0 ? -10 : 0, zIndex: 10 - i }}><PlayerAvatar name={p} profile={profiles[p]} size={24} /></div>
+              ))}
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 500, color: win ? 'var(--color-lime)' : (!match.played ? 'var(--color-text)' : 'var(--color-muted)') }}>{team ? team.join(" & ") : "TBD"}</span>
+          </div>
           {match.played && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: win ? 'var(--color-lime)' : 'var(--color-muted)', lineHeight: 1 }}>{score}</span>}
         </div>
       ))}

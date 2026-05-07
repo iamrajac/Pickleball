@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { ref, get } from "firebase/database";
 import { db } from "../firebase";
-import { ACOLORS } from "../utils/theme";
 import { ChevronRight, History, Wifi, BarChart2 } from "lucide-react";
+import { PlayerAvatar } from "../components/PlayerAvatar";
+import { AvatarPickerModal } from "../components/AvatarPickerModal";
 
 export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
   const [numP, setNumP] = useState(8);
@@ -12,6 +13,8 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinErr, setJoinErr] = useState("");
+  const [profiles, setProfiles] = useState({});
+  const [editingAvatar, setEditingAvatar] = useState(null);
 
   const updateCount = n => {
     const c = Math.max(4, Math.min(20, Math.round(n)));
@@ -116,8 +119,8 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
             {Array.from({ length: numP }, (_, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: focus === i ? 'rgba(36, 44, 24, 0.6)' : 'var(--color-surface)', border: `1px solid ${focus === i ? 'var(--color-lime)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', padding: "10px 14px", transition: "all .2s ease" }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50%", background: ACOLORS[i % ACOLORS.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: 'var(--color-dark)', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-                  {names[i]?.[0]?.toUpperCase() || String(i + 1)}
+                <div onClick={() => setEditingAvatar(i)} style={{ cursor: "pointer", transition: "transform 0.1s" }} className="pb">
+                  <PlayerAvatar name={names[i]} profile={profiles[names[i]]} size={30} fallbackIndex={i} />
                 </div>
                 <input value={names[i] || ""} placeholder={`Player ${i + 1}`}
                   onFocus={() => setFocus(i)} onBlur={() => setFocus(null)}
@@ -131,10 +134,22 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer }) {
 
         {/* Start Button */}
         <button className="fu pb" style={{ animationDelay: ".14s", width: "100%", padding: "20px", background: canStart ? 'var(--color-lime)' : 'var(--color-border)', border: "none", borderRadius: 'var(--radius-md)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 3, color: canStart ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canStart ? "pointer" : "not-allowed", display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: canStart ? '0 8px 32px rgba(200, 241, 53, 0.25)' : 'none' }}
-          onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds)}>
+          onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles)}>
           CREATE TOURNAMENT <ChevronRight size={24} />
         </button>
       </div>
+
+      {editingAvatar !== null && (
+        <AvatarPickerModal 
+          name={names[editingAvatar]} 
+          currentProfile={profiles[names[editingAvatar]]} 
+          onSave={(prof) => {
+            setProfiles(prev => ({ ...prev, [names[editingAvatar]]: prof }));
+            setEditingAvatar(null);
+          }} 
+          onClose={() => setEditingAvatar(null)} 
+        />
+      )}
     </div>
   );
 }

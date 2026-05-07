@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ACOLORS } from "../utils/theme";
+import { PlayerAvatar } from "./PlayerAvatar";
 
 function computeAwards(players, rounds) {
   if (!rounds || rounds.length === 0) return null;
@@ -53,7 +53,7 @@ function computeAwards(players, rounds) {
   return { mvp, bestRate, topScorer, bestPair };
 }
 
-export function TournamentAwards({ players, rounds, champion }) {
+export function TournamentAwards({ players, rounds, champion, profiles = {} }) {
   const awards = useMemo(() => computeAwards(players, rounds), [players, rounds]);
   if (!awards) return null;
 
@@ -81,8 +81,19 @@ export function TournamentAwards({ players, rounds, champion }) {
                 <div style={{ fontSize: 9, color: "var(--color-border)" }}>{sub}</div>
               </div>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name || "—"}</div>
-            <div style={{ fontSize: 12, color: "var(--color-lime)" }}>{val}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+              {name && name !== "—" && (
+                <div style={{ display: "flex", gap: 2 }}>
+                  {name.split(" & ").map((p, i) => (
+                    <div key={p} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 10 - i }}>
+                      <PlayerAvatar name={p} profile={profiles[p]} size={18} />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name || "—"}</div>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-lime)", marginTop: 2 }}>{val}</div>
           </div>
         ))}
       </div>
