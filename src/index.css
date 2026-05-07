@@ -30,88 +30,128 @@
 }
 
 /* ══════════════════════════════════════════════════════
-   LIGHT MODE — Independent sporty theme
-   Deep navy + vivid orange accent + clean white surfaces
+   LIGHT MODE — Clean slate
+   White cards, gray body, navy text, orange accent
+   ALL inline lime/green colors overridden to navy
    ══════════════════════════════════════════════════════ */
 [data-theme="light"] {
-  --color-lime: #e85d04;        /* vivid orange — primary accent */
-  --color-dark: #1a1f2e;        /* deep navy — headers, titles */
-  --color-surface: #f0f4ff;     /* soft blue-white — surfaces */
-  --color-card: #ffffff;        /* pure white — cards */
-  --color-border: rgba(26,31,46,0.12);
-  --color-text: #1a1f2e;        /* navy — all body text */
-  --color-muted: #6b7280;       /* cool gray — secondary text */
-  --color-danger: #dc2626;
-  --color-cyan: #0369a1;        /* deep sky blue */
-  --color-gold: #b45309;        /* warm amber */
-  --bg-body: #e8edf8;           /* light blue-gray body */
-  --color-win: rgba(5, 150, 105, 0.1);
-  --color-lose: rgba(220, 38, 38, 0.08);
+  --color-lime: #1e3a5f;        /* deep navy — replaces lime everywhere */
+  --color-dark: #ffffff;
+  --color-surface: #f1f5f9;
+  --color-card: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-danger: #e11d48;
+  --color-cyan: #0369a1;
+  --color-gold: #c2410c;        /* orange — accent color */
+  --bg-body: #e2e8f0;
+  --color-win: rgba(5,150,105,0.1);
+  --color-lose: rgba(225,29,72,0.08);
 }
 
-/* ── Light mode base ── */
+/* ── Base ── */
 [data-theme="light"] html,
 [data-theme="light"] body,
 [data-theme="light"] #root {
-  background: #e8edf8 !important;
-  color: #1a1f2e !important;
-  font-family: 'DM Sans', sans-serif;
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
 }
 
-/* ── Topbar / sticky header ── */
+/* ── Topbar — dark navy, white text ── */
 [data-theme="light"] .glass {
-  background: #1a1f2e !important;
+  background: #0f172a !important;
   backdrop-filter: none !important;
   border-bottom: none !important;
-  box-shadow: 0 2px 12px rgba(26,31,46,0.25) !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.2) !important;
 }
-/* Topbar text overrides — white on dark navy */
-[data-theme="light"] .glass * { color: #ffffff !important; }
+[data-theme="light"] .glass * { color: #f8fafc !important; }
 [data-theme="light"] .glass .tab-btn.on {
-  background: #e85d04 !important;
+  background: #c2410c !important;
   color: #ffffff !important;
+  box-shadow: none !important;
 }
 [data-theme="light"] .glass .tab-btn.off {
-  color: rgba(255,255,255,0.6) !important;
+  color: rgba(248,250,252,0.55) !important;
   background: transparent !important;
 }
 [data-theme="light"] .glass .tab-btn.off:hover {
-  background: rgba(255,255,255,0.1) !important;
-  color: #ffffff !important;
+  background: rgba(255,255,255,0.08) !important;
+  color: #f8fafc !important;
 }
 
 /* ── Cards ── */
 [data-theme="light"] .glass-card {
   background: #ffffff !important;
   backdrop-filter: none !important;
-  border: 1px solid rgba(26,31,46,0.1) !important;
-  box-shadow: 0 2px 10px rgba(26,31,46,0.08) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07) !important;
 }
 
-/* ── Table rows ── */
-[data-theme="light"] .rh:hover { background: #f0f4ff !important; }
+/* ── Rows ── */
+[data-theme="light"] .rh:hover { background: #f8fafc !important; }
 
 /* ── Live dot ── */
 [data-theme="light"] .live-dot {
-  background: #10b981 !important;
-  box-shadow: 0 0 8px #10b981 !important;
+  background: #16a34a !important;
+  box-shadow: 0 0 6px #16a34a !important;
 }
 
-/* ── Back arrow hover ── */
-[data-theme="light"] .ni:hover { color: #e85d04 !important; }
+/* ── Hover ── */
+[data-theme="light"] .ni:hover { color: #c2410c !important; }
 
-/* ── Bebas Neue headings — navy in light mode ── */
-[data-theme="light"] .font-heading { color: #1a1f2e; }
+/* ── Bebas Neue headings — force dark in light mode ── */
+[data-theme="light"] [style*="font-family: 'Bebas Neue'"],
+[data-theme="light"] [style*="Bebas Neue"] { color: #0f172a !important; }
 
-/* ── Home screen — keep body bg, not dark ── */
-[data-theme="light"] .setup-screen { background: #e8edf8 !important; }
+/* ── Override ALL inline lime (yellow-green) → navy in light mode ── */
+/* Scores, standings numbers, round headers etc */
+[data-theme="light"] [style*="var(--color-lime)"] { color: #1e3a5f !important; }
+[data-theme="light"] [style*="color-lime"] { color: #1e3a5f !important; }
 
-/* ── Progress bar ── */
-[data-theme="light"] .progress-bar { background: #e85d04 !important; }
+/* ── Standings top-4 highlight — light blue tint ── */
+[data-theme="light"] [style*="rgba(23, 29, 15"] { background: rgba(30,58,95,0.06) !important; }
+[data-theme="light"] [style*="rgba(23,29,15"] { background: rgba(30,58,95,0.06) !important; }
+
+/* ── Match card win highlight ── */
+[data-theme="light"] [style*="rgba(26, 61, 18"] { background: rgba(5,150,105,0.12) !important; }
+[data-theme="light"] [style*="rgba(26,61,18"] { background: rgba(5,150,105,0.12) !important; }
+[data-theme="light"] [style*="rgba(61, 18, 18"] { background: rgba(225,29,72,0.08) !important; }
+
+/* ── Progress bar fill ── */
+[data-theme="light"] [style*="background: var(--color-lime)"] { background: #c2410c !important; }
+[data-theme="light"] [style*="background:var(--color-lime)"] { background: #c2410c !important; }
 
 /* ── Form tiles ── */
-[data-theme="light"] span[style*="1a5c12"] { background: rgba(5,150,105,0.2) !important; }
-[data-theme="light"] span[style*="5c1212"] { background: rgba(220,38,38,0.15) !important; }
+[data-theme="light"] [style*="1a5c12"] { background: rgba(5,150,105,0.18) !important; }
+[data-theme="light"] [style*="5c1212"] { background: rgba(225,29,72,0.14) !important; }
+
+/* ── Playoff card top bar ── */
+[data-theme="light"] [style*="position: absolute"][style*="height: 4px"][style*="background: var(--color-lime)"] { background: #c2410c !important; }
+[data-theme="light"] [style*="height: 3px"][style*="background: var(--color-lime)"] { background: #c2410c !important; }
+
+/* ── Inputs ── */
+[data-theme="light"] input {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+[data-theme="light"] input::placeholder { color: #94a3b8 !important; }
+[data-theme="light"] input:focus {
+  border-color: #c2410c !important;
+  box-shadow: 0 0 0 2px rgba(194,65,12,0.15) !important;
+}
+
+/* ── Buttons — save/confirm ── */
+[data-theme="light"] [style*="background: var(--color-lime)"][style*="border: none"][style*="border-radius"] {
+  background: #c2410c !important;
+  color: #ffffff !important;
+}
+
+/* ── Live dot in standings ── */
+[data-theme="light"] span[style*="background: var(--color-lime)"][style*="border-radius: 50%"] {
+  background: #c2410c !important;
+}
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
