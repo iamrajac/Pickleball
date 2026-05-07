@@ -171,7 +171,7 @@ html, body, #root {
   .playoff-grid { grid-template-columns: 1fr !important; }
   .hide-mobile { display: none !important; }
   .score-input-sm { width: 38px !important; font-size: 20px !important; }
-  .standings-grid { grid-template-columns: 24px 1fr 30px 36px 30px 30px 44px 70px !important; padding: 8px !important; }
+  .standings-grid { grid-template-columns: 20px 1fr 20px 20px 20px 28px 26px 34px 50px !important; padding: 8px !important; gap: 2px; }
   .standings-rank { font-size: 16px !important; }
   .standings-pts { font-size: 18px !important; }
   .standings-name { font-size: 12px !important; }

@@ -1,6 +1,6 @@
 {
-  "name": "Pickleball Tournament Manager",
-  "short_name": "Pickleball App",
+  "name": "Pickleball",
+  "short_name": "Pickleball",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#11140d",
