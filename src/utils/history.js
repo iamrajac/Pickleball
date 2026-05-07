@@ -56,8 +56,8 @@ export const computeH2HMatrix = () => {
     
     m.teamA.forEach(a => {
       m.teamB.forEach(b => {
-        const key1 = `${a}_${b}`;
-        const key2 = `${b}_${a}`;
+        const key1 = `${String(a).trim().toLowerCase()}_${String(b).trim().toLowerCase()}`;
+        const key2 = `${String(b).trim().toLowerCase()}_${String(a).trim().toLowerCase()}`;
         if (!h2h[key1]) h2h[key1] = 0;
         if (!h2h[key2]) h2h[key2] = 0;
         
@@ -86,8 +86,10 @@ export const computeH2HMatrix = () => {
 
 export const getH2HStats = (p1, p2, h2hMatrix) => {
   if (!h2hMatrix) return null;
-  const p1Wins = h2hMatrix[`${p1}_${p2}`] || 0;
-  const p2Wins = h2hMatrix[`${p2}_${p1}`] || 0;
+  const k1 = `${String(p1).trim().toLowerCase()}_${String(p2).trim().toLowerCase()}`;
+  const k2 = `${String(p2).trim().toLowerCase()}_${String(p1).trim().toLowerCase()}`;
+  const p1Wins = h2hMatrix[k1] || 0;
+  const p2Wins = h2hMatrix[k2] || 0;
   
   if (p1Wins === 0 && p2Wins === 0) return null;
   
