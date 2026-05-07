@@ -173,7 +173,8 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
             })()}
           </div>
         );
-      })}
+      });
+      })()}
       <div style={{ padding: "10px 14px", fontSize: 11, color: 'var(--color-muted)', letterSpacing: 1, background: 'rgba(0,0,0,0.2)' }}>
         ● TOP 4 ADVANCE TO PLAYOFFS · TAP ROW FOR MATCH HISTORY
       </div>

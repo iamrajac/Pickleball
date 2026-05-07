@@ -26,8 +26,6 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   const sideLeftA = (hash >> 1) % 2 === 0;
   const servingTeam = serveTeamA ? match?.teamA?.join(" & ") : match?.teamB?.join(" & ");
   const serveSide = serveTeamA ? (sideLeftA ? "Left" : "Right") : (!sideLeftA ? "Left" : "Right");
-  const timer = useTimer();
-  const ac = accent || 'var(--color-lime)';
 
   // Keep buffer in sync
   useEffect(() => {
