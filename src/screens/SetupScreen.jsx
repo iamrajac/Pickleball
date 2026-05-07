@@ -71,14 +71,14 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer, onToggleThem
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
             <div style={{ display: "flex", gap: 6 }}>
-              <button className="pb glass" onClick={onToggleTheme} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, color: 'var(--color-muted)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+              <button className="pb" onClick={onToggleTheme} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, color: 'var(--color-text)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-card)', cursor: 'pointer' }}>
                 {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              <button className="pb glass" onClick={onHistory} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500 }}>
+              <button className="pb" onClick={onHistory} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600, background: 'var(--color-card)', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
                 <History size={16} /> HISTORY
               </button>
             </div>
-            <button className="pb glass" onClick={onCareer} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-lime)', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, border: '1px solid rgba(200,241,53,0.3)', width: '100%', justifyContent: 'center' }}>
+            <button className="pb" onClick={onCareer} style={{ display: 'flex', alignItems: 'center', gap: 6, color: theme === 'dark' ? '#c8f135' : '#c2410c', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600, border: `1px solid ${theme === 'dark' ? 'rgba(200,241,53,0.3)' : 'rgba(194,65,12,0.3)'}`, background: theme === 'dark' ? 'rgba(200,241,53,0.08)' : 'rgba(194,65,12,0.08)', width: '100%', justifyContent: 'center', cursor: 'pointer' }}>
               <BarChart2 size={16} /> CAREER STATS
             </button>
           </div>

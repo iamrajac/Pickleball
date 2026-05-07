@@ -495,23 +495,23 @@ function PickleballApp() {
           {/* Main row */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 52 }}>
             {/* Back */}
-            <button onClick={() => setShowConfirmEnd(true)} className="ni" style={{ background: "none", border: "none", color: "var(--color-muted)", padding: "4px", display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <button onClick={() => setShowConfirmEnd(true)} className="ni" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", padding: "4px", display: "flex", alignItems: "center", flexShrink: 0 }}>
               <ArrowLeft size={20} />
             </button>
 
             {/* Title + info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "var(--color-lime)", letterSpacing: 1.5, lineHeight: 1, whiteSpace: "nowrap" }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: theme === 'dark' ? 'var(--color-lime)' : '#f97316', letterSpacing: 1.5, lineHeight: 1, whiteSpace: "nowrap" }}>
                   {readOnly ? "👁 SPECTATING" : "LIVE"}
                 </div>
                 <span className="live-dot" style={{ width: 6, height: 6 }} />
-                {syncing && <RefreshCw size={10} className="spin" style={{ color: "var(--color-muted)" }} />}
-                {isOffline && <WifiOff size={12} color="var(--color-danger)" />}
+                {syncing && <RefreshCw size={10} className="spin" style={{ color: "rgba(255,255,255,0.6)" }} />}
+                {isOffline && <WifiOff size={12} color="#fca5a5" />}
               </div>
-              <div style={{ fontSize: 10, color: "var(--color-muted)", display: "flex", gap: 6, alignItems: "center", marginTop: 1, overflow: "hidden" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", display: "flex", gap: 6, alignItems: "center", marginTop: 1, overflow: "hidden" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Users size={9} /> {onlineCount}</span>
-                <span style={{ color: "var(--color-cyan)", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1, fontSize: 11 }}>{code}</span>
+                <span style={{ color: "#93c5fd", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1, fontSize: 11 }}>{code}</span>
                 <span>· {totalPlayed}/{totalM}</span>
               </div>
             </div>
@@ -521,25 +521,25 @@ function PickleballApp() {
               {/* Scorer lock */}
               {readOnly ? (
                 <button className="pb" onClick={() => setShowScorerEntry(true)}
-                  style={{ background: "rgba(241,200,53,0.15)", border: "1px solid rgba(241,200,53,0.4)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "var(--color-gold)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  style={{ background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.5)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "#fbbf24", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                   <Lock size={13} /> SCORER
                 </button>
               ) : scorerPin ? (
                 <button className="pb" onClick={() => setShowScorerPin(true)}
-                  style={{ background: "rgba(241,200,53,0.15)", border: "1px solid rgba(241,200,53,0.4)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "var(--color-gold)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  style={{ background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.5)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "#fbbf24", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                   <Lock size={13} /> PIN
                 </button>
               ) : null}
 
               {/* Share */}
               <button className="pb" onClick={() => setShowShare(true)}
-                style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-cyan)", cursor: "pointer" }}>
+                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "#93c5fd", cursor: "pointer" }}>
                 <Share2 size={14} />
               </button>
 
               {/* Theme */}
               <button className="pb" onClick={toggleTheme}
-                style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-muted)", cursor: "pointer" }}>
+                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>
                 {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
               </button>
 
@@ -548,7 +548,7 @@ function PickleballApp() {
                 <div style={{ width: 40, height: 3, background: "var(--color-border)", borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: "100%", background: "var(--color-lime)", width: `${pct}%`, transition: "width 0.5s" }} />
                 </div>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: "var(--color-lime)" }}>{pct}%</span>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.9)" }}>{pct}%</span>
               </div>
             </div>
           </div>
