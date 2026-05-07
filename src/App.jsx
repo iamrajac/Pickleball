@@ -16,8 +16,10 @@ import { PlayoffCard } from "./components/PlayoffCard";
 import { ShareModal } from "./components/ShareModal";
 import { StandingsShareModal } from "./components/StandingsShare";
 import { ReactionsOverlay } from "./components/Reactions";
+import { TournamentAwards } from "./components/TournamentAwards";
+import { ScorerPinModal, ScorerPinEntry, generateScorerPin, saveScorerPin, getScorerPin } from "./components/ScorerModal";
 
-import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera } from "lucide-react";
+import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, Wifi, WifiOff } from "lucide-react";
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 function useTheme() {
@@ -108,10 +110,23 @@ function PickleballApp() {
   const [showShare, setShowShare] = useState(false);
   const [showStandingsShare, setShowStandingsShare] = useState(false);
   const [animatingScore, setAnimatingScore] = useState(null);
+  const [showScorerPin, setShowScorerPin] = useState(false);
+  const [showScorerEntry, setShowScorerEntry] = useState(false);
+  const [scorerPin, setScorerPin] = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const isWriting = useRef(false);
   const { addToast } = useToast();
   const { theme, toggle: toggleTheme } = useTheme();
+
+  // ── Offline detection ───────────────────────────────────────────────────
+  useEffect(() => {
+    const onOnline = () => { setIsOffline(false); addToast("Back online — syncing...", "success", 2000); };
+    const onOffline = () => { setIsOffline(true); addToast("Offline — scores saved locally", "info", 3000); };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
+  }, [addToast]);
 
   // ── Auto-join from URL ──────────────────────────────────────────────────
   useEffect(() => {
@@ -191,11 +206,14 @@ function PickleballApp() {
   const handleStart = async (p, numRounds) => {
     const r = generateSchedule(p, numRounds);
     const c = genCode();
+    const pin = generateScorerPin();
     setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null); setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
+    setScorerPin(pin);
     registerAsCreator(c);
+    saveScorerPin(c, pin);
     isWriting.current = true;
     try {
-      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, ts: Date.now() });
+      await fbSet(`tournaments/${c}`, { players: p, rounds: r, playoffs: null, champion: null, scorerPin: pin, ts: Date.now() });
       _upsertHist(r, null, null);
       addToast("Tournament created! Share the code.", "success");
     } finally { isWriting.current = false; }
@@ -206,8 +224,19 @@ function PickleballApp() {
     setRounds(data.rounds ? data.rounds.map(r => r ? Object.values(r) : []) : []);
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
-    setCode(c); setReadOnly(!isCreator(c)); setTab("rounds");
-    addToast(`Joined #${c} ${isCreator(c) ? "(Creator)" : "(Spectator)"}`, "success");
+    setCode(c);
+    const creator = isCreator(c);
+    setReadOnly(!creator);
+    setTab("rounds");
+    // Check if they have a saved scorer PIN
+    const savedPin = getScorerPin(c);
+    if (savedPin && data.scorerPin && savedPin === data.scorerPin) {
+      setReadOnly(false);
+      setScorerPin(data.scorerPin);
+      addToast(`Joined #${c} (Scorer Access)`, "success");
+    } else {
+      addToast(`Joined #${c} ${creator ? "(Creator)" : "(Spectator — tap 🔒 for scorer access)"}`, "success");
+    }
   };
 
   const saveResult = (ri, mi, sA, sB, dur) => {
@@ -309,6 +338,36 @@ function PickleballApp() {
 
   const executeEnd = () => {
     setPlayers([]); setRounds([]); setPlayoffs(null); setCode(null); setChampion(null); setShowConfirmEnd(false);
+    setScorerPin(null);
+  };
+
+  const handleScorerPinEntered = async (enteredPin) => {
+    // Verify PIN against Firebase
+    try {
+      const snap = await get(ref(db, `tournaments/${code}/scorerPin`));
+      if (snap.exists() && snap.val() === enteredPin) {
+        saveScorerPin(code, enteredPin);
+        setScorerPin(enteredPin);
+        setReadOnly(false);
+        setShowScorerEntry(false);
+        addToast("Scorer access granted! You can now enter scores.", "success");
+      } else {
+        addToast("Wrong PIN. Ask the tournament creator.", "error");
+      }
+    } catch {
+      addToast("Could not verify PIN. Check connection.", "error");
+    }
+  };
+
+  const copyStandingsText = () => {
+    const st = computeStandings(players, rounds);
+    const lines = ["🏓 PICKLEBALL STANDINGS", ""];
+    st.forEach((s, i) => {
+      const diff = s.scored - s.conceded;
+      lines.push(`${i+1}. ${s.name} — ${s.pts}pts | ${s.won}W ${s.lost}L | ${diff>0?"+":""}${diff}`);
+    });
+    lines.push("", `Code: ${code}`);
+    navigator.clipboard?.writeText(lines.join("\n")).then(() => addToast("Standings copied! Paste to WhatsApp 📋", "success", 3000));
   };
 
   // ── Screens ─────────────────────────────────────────────────────────────
@@ -348,6 +407,25 @@ function PickleballApp() {
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {/* Offline indicator */}
+              {isOffline && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "rgba(255,85,85,0.15)", border: "1px solid rgba(255,85,85,0.3)", borderRadius: 6 }}>
+                  <WifiOff size={12} color="var(--color-danger)" />
+                  <span style={{ fontSize: 9, color: "var(--color-danger)", letterSpacing: 1, fontWeight: 600 }}>OFFLINE</span>
+                </div>
+              )}
+              {/* Scorer lock — show to spectators */}
+              {readOnly && (
+                <button className="pb" onClick={() => setShowScorerEntry(true)} style={{ background: "rgba(241,200,53,0.1)", border: `1px solid rgba(241,200,53,0.3)`, borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-gold)", cursor: "pointer" }} title="Enter scorer PIN">
+                  <Lock size={14} />
+                </button>
+              )}
+              {/* Scorer PIN share — show to creator */}
+              {!readOnly && scorerPin && (
+                <button className="pb" onClick={() => setShowScorerPin(true)} style={{ background: "rgba(241,200,53,0.1)", border: `1px solid rgba(241,200,53,0.3)`, borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-gold)", cursor: "pointer" }} title="Share scorer PIN">
+                  <Lock size={14} />
+                </button>
+              )}
               {/* Theme toggle */}
               <button className="pb" onClick={toggleTheme} style={{ background: "none", border: `1px solid var(--color-border)`, borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-muted)", cursor: "pointer" }}>
                 {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
@@ -375,6 +453,8 @@ function PickleballApp() {
       {/* Modals */}
       {showShare && <ShareModal code={code} onClose={() => setShowShare(false)} />}
       {showStandingsShare && <StandingsShareModal standings={standings} onClose={() => setShowStandingsShare(false)} />}
+      {showScorerPin && scorerPin && <ScorerPinModal code={code} pin={scorerPin} onClose={() => setShowScorerPin(false)} />}
+      {showScorerEntry && <ScorerPinEntry code={code} onGranted={handleScorerPinEntered} onClose={() => setShowScorerEntry(false)} />}
 
       {/* Confirm end */}
       {showConfirmEnd && (
@@ -436,11 +516,15 @@ function PickleballApp() {
         {/* STANDINGS */}
         {tab === "standings" && (
           <div className="fu">
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-              <button className="pb" onClick={() => setShowStandingsShare(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "var(--color-surface)", border: `1px solid var(--color-border)`, borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                <Camera size={14} /> SHARE STANDINGS
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <button className="pb" onClick={copyStandingsText} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                📋 COPY FOR WHATSAPP
+              </button>
+              <button className="pb" onClick={() => setShowStandingsShare(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "var(--color-surface)", border: `1px solid var(--color-border)`, borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                <Camera size={14} /> SHARE IMAGE
               </button>
             </div>
+            <TournamentAwards players={players} rounds={rounds} champion={champion} />
             <StandingsTable standings={standings} rounds={rounds} />
             {allDone && !playoffs && !readOnly && (
               <div className="fu" style={{ display: "flex", gap: 16, marginTop: 24, flexWrap: "wrap", animationDelay: "0.2s" }}>
@@ -549,6 +633,7 @@ function PickleballApp() {
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2 }}>FINAL STANDINGS</div>
                     <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
                   </div>
+                  <TournamentAwards players={players} rounds={rounds} champion={champion} />
                   <StandingsTable standings={standings} rounds={rounds} />
                 </div>
               </div>
