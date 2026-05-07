@@ -230,7 +230,7 @@ function PickleballApp() {
     setTab("rounds");
     // Check if they have a saved scorer PIN
     const savedPin = getScorerPin(c);
-    if (savedPin && data.scorerPin && savedPin === data.scorerPin) {
+    if (savedPin && data.scorerPin && String(savedPin).trim() === String(data.scorerPin).trim()) {
       setReadOnly(false);
       setScorerPin(data.scorerPin);
       addToast(`Joined #${c} (Scorer Access)`, "success");
@@ -345,7 +345,7 @@ function PickleballApp() {
     // Verify PIN against Firebase
     try {
       const snap = await get(ref(db, `tournaments/${code}/scorerPin`));
-      if (snap.exists() && snap.val() === enteredPin) {
+      if (snap.exists() && String(snap.val()).trim() === String(enteredPin).trim()) {
         saveScorerPin(code, enteredPin);
         setScorerPin(enteredPin);
         setReadOnly(false);
