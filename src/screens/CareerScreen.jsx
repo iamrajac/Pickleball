@@ -93,7 +93,7 @@ function PlayerDetail({ player, allPlayers, h2h, onClose }) {
   const diff = player.scored - player.conceded;
 
   return (
-    <div className="fu" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 100, overflowY: "auto", padding: "1rem" }}>
+    <div className="fu" style={{ position: "fixed", inset: 0, background: "var(--color-dark)", zIndex: 100, overflowY: "auto", padding: "1rem" }}>
       <div style={{ maxWidth: 500, margin: "0 auto", paddingBottom: "3rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, paddingTop: "1rem" }}>
           <button onClick={onClose} className="ni" style={{ background: "none", border: "none", color: G.muted, display: "flex", alignItems: "center" }}>
@@ -159,7 +159,10 @@ function PlayerDetail({ player, allPlayers, h2h, onClose }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
             {otherPlayers.map(op => (
               <button key={op.name} onClick={() => setH2hTarget(h2hTarget === op.name ? null : op.name)}
-                style={{ padding: "6px 12px", borderRadius: 20, border: `1px solid ${h2hTarget === op.name ? G.cyan : G.border}`, background: h2hTarget === op.name ? "rgba(53,200,241,0.15)" : "transparent", color: h2hTarget === op.name ? G.cyan : G.muted, fontSize: 12, cursor: "pointer", fontWeight: 500 }}>
+                className="pb"
+                onMouseEnter={e => { if(h2hTarget !== op.name) { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.borderColor = 'var(--color-cyan)'; }}}
+                onMouseLeave={e => { if(h2hTarget !== op.name) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}}
+                style={{ padding: "6px 12px", borderRadius: 20, border: `1px solid ${h2hTarget === op.name ? G.cyan : G.border}`, background: h2hTarget === op.name ? "rgba(53,200,241,0.15)" : "transparent", color: h2hTarget === op.name ? G.cyan : G.muted, fontSize: 12, cursor: "pointer", fontWeight: 500, transition: "all 0.15s" }}>
                 {op.name}
               </button>
             ))}

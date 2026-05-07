@@ -46,6 +46,7 @@
   --color-cyan: #0369a1;
   --color-gold: #c2410c;        /* orange — accent color */
   --bg-body: #e2e8f0;
+  --color-overlay: rgba(255,255,255,0.95);
   --color-win: rgba(5,150,105,0.1);
   --color-lose: rgba(225,29,72,0.08);
 }
