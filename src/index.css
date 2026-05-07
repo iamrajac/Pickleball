@@ -31,15 +31,19 @@
 
 /* Light mode */
 [data-theme="light"] {
-  --color-dark: #f5f7f0;
-  --color-surface: rgba(240, 244, 232, 0.8);
-  --color-card: rgba(230, 236, 218, 0.9);
-  --color-border: rgba(180, 196, 150, 0.5);
-  --color-text: #1a2010;
-  --color-muted: #5a6a45;
-  --bg-body: #eef2e6;
-  --color-win: rgba(26, 100, 18, 0.15);
-  --color-lose: rgba(180, 18, 18, 0.1);
+  --color-lime: #6aaa00;
+  --color-dark: #f0f4e8;
+  --color-surface: rgba(235, 242, 220, 0.95);
+  --color-card: rgba(220, 232, 200, 0.98);
+  --color-border: rgba(120, 150, 80, 0.4);
+  --color-text: #0f1a08;
+  --color-muted: #3a5020;
+  --color-danger: #cc2200;
+  --color-cyan: #006080;
+  --color-gold: #8a6000;
+  --bg-body: #e8f0d8;
+  --color-win: rgba(20, 80, 10, 0.12);
+  --color-lose: rgba(150, 20, 10, 0.1);
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -187,16 +191,15 @@ html, body, #root {
 /* ── Mobile improvements ── */
 @media (max-width: 600px) {
   /* Standings table — hide AGN on mobile, tighter layout */
+  /* Standings: on mobile hide FOR AGN ELO, tighter grid */
   .standings-grid {
-    grid-template-columns: 22px 1fr 28px 32px 28px 28px 40px 64px !important;
-    padding: 8px 10px !important;
-    font-size: 11px;
+    grid-template-columns: 22px 1fr 22px 22px 22px 32px 32px 0 0 0 60px !important;
+    padding: 9px 10px !important;
   }
   .standings-rank { font-size: 15px !important; }
-  .standings-pts  { font-size: 17px !important; }
+  .standings-pts  { font-size: 18px !important; }
   .standings-name { font-size: 12px !important; }
-  .standings-num  { font-size: 10px !important; }
-  .form-tile      { width: 12px !important; height: 12px !important; font-size: 7px !important; }
+  .standings-num  { font-size: 11px !important; }
 
   /* Match card — tighter padding on mobile */
   .mc { padding: 0.75rem 0.85rem !important; }

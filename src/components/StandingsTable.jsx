@@ -61,7 +61,7 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
         <span style={{ textAlign: "center" }}>+/-</span>
         <span style={{ textAlign: "center" }} className="hide-mobile">FOR</span>
         <span style={{ textAlign: "center" }} className="hide-mobile">AGN</span>
-        <span style={{ textAlign: "center" }}>ELO</span>
+        <span style={{ textAlign: "center" }} className="hide-mobile">ELO</span>
         <span style={{ textAlign: "center" }}>FORM</span>
       </div>
       
@@ -79,7 +79,7 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
           return (
             <div key={s.name}>
               <div className="rh standings-grid" onClick={() => setExpandedRow(expanded ? null : s.name)}
-                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "14px", borderBottom: `1px solid var(--color-border)`, background: top ? "rgba(23, 29, 15, 0.4)" : "transparent", cursor: "pointer", position: "relative" }}>
+                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "12px 14px", borderBottom: `1px solid var(--color-border)`, background: top ? "rgba(23, 29, 15, 0.4)" : "transparent", cursor: "pointer", position: "relative", alignItems: "center" }}>
               
               <span className="standings-rank" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: i === 0 ? 'var(--color-gold)' : i < 4 ? 'var(--color-lime)' : 'var(--color-muted)', lineHeight: 1.1 }}>
                 {i === 0 ? <Trophy size={16} /> : i + 1}
@@ -108,14 +108,14 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: diff > 0 ? 'var(--color-lime)' : diff < 0 ? 'var(--color-danger)' : 'var(--color-muted)' }}>{diff > 0 ? "+" : ""}{diff}</span>
               <span className="standings-num hide-mobile" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-text)' }}>{s.scored}</span>
               <span className="standings-num hide-mobile" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-muted)' }}>{s.conceded}</span>
-              <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-gold)', fontWeight: 600 }}>{elos[s.name]}</span>
+              <span className="standings-num hide-mobile" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-gold)', fontWeight: 600 }}>{elos[s.name]}</span>
               
-              <span style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
-                {recentForm.map((f, fi) => (
-                  <span key={fi} className="form-tile" style={{ width: 16, height: 16, borderRadius: 4, background: f === "W" ? 'rgba(26, 61, 18, 0.8)' : 'rgba(61, 18, 18, 0.8)', display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: f === "W" ? 'var(--color-lime)' : 'var(--color-danger)' }}>{f}</span>
+              <span style={{ display: "flex", gap: 2, alignItems: "center", justifyContent: "center", flexWrap: "nowrap", overflow: "hidden" }}>
+                {recentForm.slice(-5).map((f, fi) => (
+                  <span key={fi} style={{ width: 13, height: 13, borderRadius: 3, background: f === "W" ? 'rgba(26, 61, 18, 0.9)' : 'rgba(61, 18, 18, 0.9)', display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: f === "W" ? 'var(--color-lime)' : 'var(--color-danger)', flexShrink: 0 }}>{f}</span>
                 ))}
-                {Array(5 - recentForm.length).fill(0).map((_, fi) => (
-                  <span key={`e${fi}`} className="form-tile" style={{ width: 16, height: 16, borderRadius: 4, background: 'var(--color-border)' }} />
+                {Array(Math.max(0, 5 - recentForm.length)).fill(0).map((_, fi) => (
+                  <span key={`e${fi}`} style={{ width: 13, height: 13, borderRadius: 3, background: 'var(--color-border)', flexShrink: 0 }} />
                 ))}
               </span>
             </div>
