@@ -122,6 +122,7 @@ function PickleballApp() {
   const [touchEnd, setTouchEnd] = useState(null);
 
   const isWriting = useRef(false);
+  const canEditRef = useRef(false); // permanent - never overwritten by Firebase listener
   const { addToast } = useToast();
   const { theme, toggle: toggleTheme } = useTheme();
 
@@ -170,6 +171,9 @@ function PickleballApp() {
         if (v.champion !== undefined) setChampion(v.champion || null);
         if (v.profiles) setProfiles(v.profiles);
         if (v.themeColor) setThemeColor(v.themeColor);
+        // NEVER touch readOnly here — it is controlled only by handleJoin/handleStart
+        // Re-apply canEditRef to ensure readOnly stays correct after any re-render
+        setReadOnly(!canEditRef.current);
       }
       setSyncing(false);
     });
@@ -239,6 +243,7 @@ function PickleballApp() {
     const c = genCode();
     const pin = generateScorerPin();
     setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null); setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
+    canEditRef.current = true;
     setScorerPin(pin);
     setProfiles(newProfiles);
     setThemeColor(tColor);
@@ -253,12 +258,15 @@ function PickleballApp() {
   };
 
   const handleJoin = (c, data) => {
-    // Check creator/scorer status FIRST before setting any state
+    // Determine edit access BEFORE touching any state
     const creator = isCreator(c);
     const savedPin = getScorerPin(c);
     const fbPin = String(data.scorerPin || "").trim();
-    const isSavedScorer = savedPin && fbPin && String(savedPin).trim() === fbPin;
+    const isSavedScorer = !!(savedPin && fbPin && String(savedPin).trim() === fbPin);
     const canEdit = creator || isSavedScorer;
+
+    // Store in ref so Firebase listener NEVER overrides this decision
+    canEditRef.current = canEdit;
 
     setPlayers(data.players || []);
     setRounds(data.rounds ? data.rounds.map(r => r ? Object.values(r) : []) : []);
@@ -271,7 +279,6 @@ function PickleballApp() {
     setReadOnly(!canEdit);
 
     if (creator) {
-      // Always save the PIN from Firebase so creator can share it
       if (data.scorerPin) {
         saveScorerPin(c, String(data.scorerPin));
         setScorerPin(String(data.scorerPin));
@@ -282,7 +289,7 @@ function PickleballApp() {
       addToast(`Joined #${c} (Scorer Access ✓)`, "success");
     } else {
       setScorerPin(null);
-      addToast(`Joined #${c} as spectator — tap 🔒 for scorer access`, "info");
+      addToast(`Joined #${c} — spectator mode. Tap 🔒 for scorer access`, "info");
     }
   };
 
@@ -386,6 +393,7 @@ function PickleballApp() {
   };
 
   const executeEnd = () => {
+    canEditRef.current = false;
     setPlayers([]); setRounds([]); setPlayoffs(null); setCode(null); setChampion(null); setShowConfirmEnd(false);
     setScorerPin(null);
   };
@@ -399,6 +407,7 @@ function PickleballApp() {
       if (snap.exists() && fbPin === entered && fbPin.length > 0) {
         saveScorerPin(code, enteredPin);
         setScorerPin(enteredPin);
+        canEditRef.current = true;
         setReadOnly(false);
         setShowScorerEntry(false);
         addToast("Scorer access granted! You can now enter scores.", "success");
@@ -462,61 +471,69 @@ function PickleballApp() {
     <>
       {/* Topbar */}
       <div className="glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: `1px solid var(--color-border)` }}>
-        <div style={{ padding: "0 1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, height: 56 }}>
-            <button onClick={() => setShowConfirmEnd(true)} className="ni" style={{ background: "none", border: "none", color: "var(--color-muted)", padding: 0, display: "flex", alignItems: "center" }}>
-              <ArrowLeft size={22} />
+        <div style={{ padding: "0 0.75rem" }}>
+          {/* Main row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, height: 52 }}>
+            {/* Back */}
+            <button onClick={() => setShowConfirmEnd(true)} className="ni" style={{ background: "none", border: "none", color: "var(--color-muted)", padding: "4px", display: "flex", alignItems: "center", flexShrink: 0 }}>
+              <ArrowLeft size={20} />
             </button>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "var(--color-lime)", letterSpacing: 2, lineHeight: 1 }}>
-                  {readOnly ? "👁 SPECTATING" : "TOURNAMENT LIVE"}
+
+            {/* Title + info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "var(--color-lime)", letterSpacing: 1.5, lineHeight: 1, whiteSpace: "nowrap" }}>
+                  {readOnly ? "👁 SPECTATING" : "LIVE"}
                 </div>
-                <span className="live-dot" />
-                {syncing && <RefreshCw size={12} className="spin text-muted" />}
+                <span className="live-dot" style={{ width: 6, height: 6 }} />
+                {syncing && <RefreshCw size={10} className="spin" style={{ color: "var(--color-muted)" }} />}
+                {isOffline && <WifiOff size={12} color="var(--color-danger)" />}
               </div>
-              <div style={{ fontSize: 10, color: "var(--color-muted)", display: "flex", gap: 8, alignItems: "center", marginTop: 2 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Users size={10} /> {onlineCount}</span>
-                <span>· CODE: <span style={{ color: "var(--color-cyan)", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1 }}>{code}</span></span>
+              <div style={{ fontSize: 10, color: "var(--color-muted)", display: "flex", gap: 6, alignItems: "center", marginTop: 1, overflow: "hidden" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Users size={9} /> {onlineCount}</span>
+                <span style={{ color: "var(--color-cyan)", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1, fontSize: 11 }}>{code}</span>
                 <span>· {totalPlayed}/{totalM}</span>
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {/* Offline indicator */}
-              {isOffline && (
-                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "rgba(255,85,85,0.15)", border: "1px solid rgba(255,85,85,0.3)", borderRadius: 6 }}>
-                  <WifiOff size={12} color="var(--color-danger)" />
-                  <span style={{ fontSize: 9, color: "var(--color-danger)", letterSpacing: 1, fontWeight: 600 }}>OFFLINE</span>
-                </div>
-              )}
-              {/* Scorer lock — show to spectators */}
-              {readOnly && (
-                <button className="pb" onClick={() => setShowScorerEntry(true)} style={{ background: "rgba(241,200,53,0.1)", border: `1px solid rgba(241,200,53,0.3)`, borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-gold)", cursor: "pointer" }} title="Enter scorer PIN">
-                  <Lock size={14} />
+
+            {/* Right side actions — only essentials visible, rest in one row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+              {/* Scorer lock */}
+              {readOnly ? (
+                <button className="pb" onClick={() => setShowScorerEntry(true)}
+                  style={{ background: "rgba(241,200,53,0.15)", border: "1px solid rgba(241,200,53,0.4)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "var(--color-gold)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  <Lock size={13} /> SCORER
                 </button>
-              )}
-              {/* Scorer PIN share — show to creator */}
-              {!readOnly && scorerPin && (
-                <button className="pb" onClick={() => setShowScorerPin(true)} style={{ background: "rgba(241,200,53,0.1)", border: `1px solid rgba(241,200,53,0.3)`, borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-gold)", cursor: "pointer" }} title="Share scorer PIN">
-                  <Lock size={14} />
+              ) : scorerPin ? (
+                <button className="pb" onClick={() => setShowScorerPin(true)}
+                  style={{ background: "rgba(241,200,53,0.15)", border: "1px solid rgba(241,200,53,0.4)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "var(--color-gold)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  <Lock size={13} /> PIN
                 </button>
-              )}
-              {/* Theme toggle */}
-              <button className="pb" onClick={toggleTheme} style={{ background: "none", border: `1px solid var(--color-border)`, borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-muted)", cursor: "pointer" }}>
-                {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
-              </button>
-              {/* Share button */}
-              <button className="pb" onClick={() => setShowShare(true)} style={{ background: "none", border: `1px solid var(--color-border)`, borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-cyan)", cursor: "pointer" }}>
+              ) : null}
+
+              {/* Share */}
+              <button className="pb" onClick={() => setShowShare(true)}
+                style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-cyan)", cursor: "pointer" }}>
                 <Share2 size={14} />
               </button>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                <div style={{ width: 56, height: 3, background: "var(--color-border)", borderRadius: 2, overflow: "hidden" }}>
+
+              {/* Theme */}
+              <button className="pb" onClick={toggleTheme}
+                style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", color: "var(--color-muted)", cursor: "pointer" }}>
+                {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+              </button>
+
+              {/* Progress */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                <div style={{ width: 40, height: 3, background: "var(--color-border)", borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: "100%", background: "var(--color-lime)", width: `${pct}%`, transition: "width 0.5s" }} />
                 </div>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, color: "var(--color-lime)" }}>{pct}%</span>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: "var(--color-lime)" }}>{pct}%</span>
               </div>
             </div>
           </div>
+
+          {/* Tab strip */}
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
             {[{ id: "rounds", label: "⚡ ROUNDS" }, { id: "standings", label: "📊 TABLE" }, { id: "playoffs", label: "🏆 PLAYOFFS" }].map(t => (
               <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => { setTab(t.id); playAudio("tick"); }} style={{ flex: 1 }}>{t.label}</button>

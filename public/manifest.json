@@ -1,20 +1,13 @@
 {
-  "name": "Pickleball",
+  "name": "Pickleball Tournament",
   "short_name": "Pickleball",
+  "description": "Real-time pickleball tournament manager",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#11140d",
-  "theme_color": "#c8f135",
+  "background_color": "#0d0f0a",
+  "theme_color": "#0d0f0a",
   "icons": [
-    {
-      "src": "/favicon.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
-    },
-    {
-      "src": "/favicon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }

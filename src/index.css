@@ -183,3 +183,27 @@ html, body, #root {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+/* ── Mobile improvements ── */
+@media (max-width: 600px) {
+  /* Standings table — hide AGN on mobile, tighter layout */
+  .standings-grid {
+    grid-template-columns: 22px 1fr 28px 32px 28px 28px 40px 64px !important;
+    padding: 8px 10px !important;
+    font-size: 11px;
+  }
+  .standings-rank { font-size: 15px !important; }
+  .standings-pts  { font-size: 17px !important; }
+  .standings-name { font-size: 12px !important; }
+  .standings-num  { font-size: 10px !important; }
+  .form-tile      { width: 12px !important; height: 12px !important; font-size: 7px !important; }
+
+  /* Match card — tighter padding on mobile */
+  .mc { padding: 0.75rem 0.85rem !important; }
+
+  /* Tournament content padding */
+  .tournament-content { padding: 0.75rem 0.75rem 120px !important; }
+
+  /* Setup screen — single column player grid */
+  .player-grid { grid-template-columns: 1fr !important; }
+}
