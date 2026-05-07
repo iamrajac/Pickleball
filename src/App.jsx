@@ -437,19 +437,32 @@ function PickleballApp() {
     navigator.clipboard?.writeText(lines.join("\n")).then(() => addToast("Standings copied! Paste to WhatsApp 📋", "success", 3000));
   };
 
+  const swipeTargetRef = useRef(null);
+
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
+    swipeTargetRef.current = e.target;
   };
 
   const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
 
   const onTouchEndHandler = () => {
     if (!touchStart || !touchEnd) return;
+    // Don't swipe tabs if the touch started inside a horizontally scrollable element
+    const target = swipeTargetRef.current;
+    if (target) {
+      let el = target;
+      while (el && el !== document.body) {
+        const style = window.getComputedStyle(el);
+        const overflowX = style.overflowX;
+        if ((overflowX === "auto" || overflowX === "scroll") && el.scrollWidth > el.clientWidth) return;
+        el = el.parentElement;
+      }
+    }
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-    
+    const isLeftSwipe = distance > 60;
+    const isRightSwipe = distance < -60;
     if (isLeftSwipe) {
       if (tab === "rounds") setTab("standings");
       else if (tab === "standings") setTab("playoffs");
