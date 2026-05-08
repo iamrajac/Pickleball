@@ -70,22 +70,21 @@ const safePlayoffs = (p) => {
     label: m.label || label, note: m.note || note
   } : null;
 
-  // Auto-detect mode from old data that has no mode field
   let mode = p.mode;
   if (!mode) {
     if (p.isMini || (!p.q1 && p.final)) mode = "final_only";
     else if (p.q1 && p.elim && p.q2) mode = "ipl8";
-    else if (p.q1 && !p.elim) mode = "top4";
-    else mode = "ipl8"; // safe fallback
+    else if (p.q1 && !p.elim) mode = "elim_to_sf";
+    else mode = "ipl8";
   }
 
-  const base = { mode, champion: p.champion || null };
-  if (mode === "final_only") return { ...base, final: safe(p.final || p.q1, "GRAND FINAL", "") };
-  if (mode === "top4") return { ...base, sf1: safe(p.sf1 || p.q1, "SEMI FINAL 1", "1st+4th vs 2nd+3rd"), final: safe(p.final, "GRAND FINAL", "Winner SF1 vs Runner SF1") };
-  if (mode === "ipl8") return { ...base, q1: safe(p.q1, "QUALIFIER 1", "1st+4th vs 2nd+3rd"), elim: safe(p.elim, "ELIMINATOR", "5th+8th vs 6th+7th"), q2: safe(p.q2, "QUALIFIER 2", "Loser Q1 vs Winner Elim"), final: safe(p.final, "THE FINAL", "Winner Q1 vs Winner Q2") };
-  if (mode === "top8") return { ...base, qf1: safe(p.qf1, "QF 1", ""), qf2: safe(p.qf2, "QF 2", ""), sf1: safe(p.sf1, "SEMI FINAL 1", ""), sf2: safe(p.sf2, "SEMI FINAL 2", ""), final: safe(p.final, "GRAND FINAL", "") };
-  if (mode === "top8_ipl") return { ...base, q1: safe(p.q1, "QUALIFIER 1", ""), q2_b: safe(p.q2_b, "QUALIFIER 2", ""), elim: safe(p.elim, "ELIMINATOR", ""), sf: safe(p.sf, "SEMI FINAL", ""), final: safe(p.final, "THE FINAL", "") };
-  // ultimate fallback — just show what we have
+  const base = { mode, champion: p.champion || null, eliminated: p.eliminated || [] };
+  if (mode === "final_only")  return { ...base, final: safe(p.final || p.q1, "GRAND FINAL", "") };
+  if (mode === "elim_to_sf")  return { ...base, sf1: safe(p.sf1 || p.q1, "SEMI FINAL", "1st+4th vs 2nd+3rd"), final: safe(p.final, "GRAND FINAL", "Winner SF vs Runner-up SF") };
+  if (mode === "ipl6")        return { ...base, q1: safe(p.q1, "QUALIFIER 1", "1st+4th vs 2nd+3rd"), elim: safe(p.elim, "ELIMINATOR", "5th+6th vs Loser Q1"), final: safe(p.final, "THE FINAL", "Winner Q1 vs Winner Elim") };
+  if (mode === "ipl8")        return { ...base, q1: safe(p.q1, "QUALIFIER 1", "1st+4th vs 2nd+3rd"), elim: safe(p.elim, "ELIMINATOR", "5th+8th vs 6th+7th"), q2: safe(p.q2, "QUALIFIER 2", "Loser Q1 vs Winner Elim"), final: safe(p.final, "THE FINAL", "Winner Q1 vs Winner Q2") };
+  if (mode === "top8")        return { ...base, qf1: safe(p.qf1, "QF 1", ""), qf2: safe(p.qf2, "QF 2", ""), sf1: safe(p.sf1, "SEMI FINAL 1", ""), sf2: safe(p.sf2, "SEMI FINAL 2", ""), final: safe(p.final, "GRAND FINAL", "") };
+  if (mode === "top8_ipl")    return { ...base, q1: safe(p.q1, "QUALIFIER 1", ""), q2_b: safe(p.q2_b, "QUALIFIER 2", ""), elim: safe(p.elim, "ELIMINATOR", ""), sf: safe(p.sf, "SEMI FINAL", ""), final: safe(p.final, "THE FINAL", "") };
   return { ...base, q1: safe(p.q1, "QUALIFIER 1", ""), elim: safe(p.elim, "ELIMINATOR", ""), q2: safe(p.q2, "QUALIFIER 2", ""), final: safe(p.final, "FINAL", "") };
 };
 
@@ -351,10 +350,20 @@ function PickleballApp() {
       if (mode === "final_only") {
         if (stage === "final") { newChamp = win.join(" & "); nx.champion = newChamp; setChampion(newChamp); }
       }
-      else if (mode === "top4") {
+      else if (mode === "elim_to_sf") {
         if (stage === "sf1") {
-          // winner goes to final teamA, loser goes to final teamB (only 1 semi)
           nx.final = { ...nx.final, teamA: win, teamB: lose };
+        }
+        if (stage === "final") { newChamp = win.join(" & "); nx.champion = newChamp; setChampion(newChamp); }
+      }
+      else if (mode === "ipl6") {
+        // Q1: winner→Final, loser→Elim (loser joins existing 5+6 team as teamB)
+        if (stage === "q1") {
+          if (nx.final) nx.final = { ...nx.final, teamA: win };
+          if (nx.elim)  nx.elim  = { ...nx.elim,  teamB: lose };
+        }
+        if (stage === "elim") {
+          if (nx.final) nx.final = { ...nx.final, teamB: win };
         }
         if (stage === "final") { newChamp = win.join(" & "); nx.champion = newChamp; setChampion(newChamp); }
       }
@@ -487,6 +496,17 @@ function PickleballApp() {
   const totalPlayed = allM.filter(m => m.played).length;
   const pct = totalM ? Math.round((totalPlayed / totalM) * 100) : 0;
   const allDone = totalM > 0 && totalPlayed === totalM;
+
+  // Eliminated players banner component
+  const EliminatedBanner = ({ names }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 16, borderRadius: "var(--radius-sm)", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}>
+      <span style={{ fontSize: 16 }}>🚫</span>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-danger)", letterSpacing: 1 }}>ELIMINATED</div>
+        <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{names.join(", ")} — did not advance to playoffs</div>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -668,8 +688,8 @@ function PickleballApp() {
                 {/* Bracket mode label */}
                 {(() => {
                   const mode = playoffs.mode || "ipl8";
-                  const labels = { final_only: "GRAND FINAL", top4: "TOP 4 BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
-                  const desc = { final_only: "Single match final", top4: "Semi Final + Final", ipl8: "Q1 · Eliminator · Q2 · Final", top8: "QF · SF · Final", top8_ipl: "Q1 · Q2 · Elim · SF · Final" };
+                  const labels = { final_only: "GRAND FINAL", elim_to_sf: "TOP 4 BRACKET", ipl6: "6-TEAM IPL BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
+                  const desc = { final_only: "Single match final", elim_to_sf: "Semi Final + Final", ipl6: "Q1 · Eliminator · Final", ipl8: "Q1 · Eliminator · Q2 · Final", top8: "QF · SF · Final", top8_ipl: "Q1 · Q2 · Elim · SF · Final" };
                   return !champion && !playoffs.champion ? (
                     <div style={{ textAlign:"center", marginBottom: 20 }}>
                       <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize: 22, color:"var(--color-lime)", letterSpacing: 3 }}>{labels[mode]}</div>
@@ -690,13 +710,29 @@ function PickleballApp() {
                     <PlayoffCard match={match} onSave={(a,b,d,n) => savePlayoff(stage,a,b,d,n)} accent={accent||"var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} />
                   ) : null;
 
+                  // Eliminated players banner
+                  const eliminated = playoffs.eliminated || [];
+
                   if (mode === "final_only") return (
-                    <PC stage="final" match={playoffs.final} accent="var(--color-gold)" />
+                    <>
+                      {eliminated.length > 0 && <EliminatedBanner names={eliminated} />}
+                      <PC stage="final" match={playoffs.final} accent="var(--color-gold)" />
+                    </>
                   );
 
-                  if (mode === "top4") return (
+                  if (mode === "elim_to_sf") return (
                     <>
+                      {eliminated.length > 0 && <EliminatedBanner names={eliminated} />}
                       <PC stage="sf1" match={playoffs.sf1} accent="var(--color-lime)" />
+                      {playoffs.final?.teamA && <div style={{marginTop:16}}><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></div>}
+                    </>
+                  );
+
+                  if (mode === "ipl6") return (
+                    <>
+                      {eliminated.length > 0 && <EliminatedBanner names={eliminated} />}
+                      <PC stage="q1" match={playoffs.q1} accent="var(--color-lime)" />
+                      {playoffs.elim && <div style={{marginTop:16}}><PC stage="elim" match={playoffs.elim} accent="var(--color-cyan)" /></div>}
                       {playoffs.final?.teamA && <div style={{marginTop:16}}><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></div>}
                     </>
                   );
@@ -714,6 +750,7 @@ function PickleballApp() {
 
                   if (mode === "top8") return (
                     <>
+                      {eliminated.length > 0 && <EliminatedBanner names={eliminated} />}
                       <div className="playoff-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
                         <PC stage="qf1" match={playoffs.qf1} accent="var(--color-lime)" />
                         <PC stage="qf2" match={playoffs.qf2} accent="var(--color-cyan)" />
@@ -728,6 +765,7 @@ function PickleballApp() {
 
                   if (mode === "top8_ipl") return (
                     <>
+                      {eliminated.length > 0 && <EliminatedBanner names={eliminated} />}
                       <div className="playoff-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
                         <PC stage="q1"   match={playoffs.q1}   accent="var(--color-lime)" />
                         <PC stage="q2_b" match={playoffs.q2_b} accent="var(--color-cyan)" />

@@ -1,12 +1,10 @@
 // ── Schedule generator supporting any number of players ───────────────────
-// For non-multiples of 4, players sit out (bye) in rotation
 
 export function generateSchedule(players, numRounds) {
   const n = players.length;
-  const courtsPerRound = Math.floor(n / 4); // how many 2v2 matches fit per round
-  const byeCount = n % 4; // how many players sit out per round (0,1,2,3)
+  const courtsPerRound = Math.floor(n / 4);
+  const byeCount = n % 4;
 
-  // Build all possible 4-player group combos
   const allGroups = [];
   for (let a = 0; a < n; a++)
     for (let b = a+1; b < n; b++)
@@ -14,7 +12,6 @@ export function generateSchedule(players, numRounds) {
         for (let d = c+1; d < n; d++)
           allGroups.push([a, b, c, d]);
 
-  // For each group, enumerate both match arrangements: (ab vs cd) and (ac vs bd)
   const allMatches = [];
   for (const [a,b,c,d] of allGroups) {
     allMatches.push([[a,b],[c,d]]);
@@ -25,32 +22,27 @@ export function generateSchedule(players, numRounds) {
   const partnerCount = Array.from({length:n}, () => Array(n).fill(0));
   const oppCount     = Array.from({length:n}, () => Array(n).fill(0));
   const playCount    = Array(n).fill(0);
-  const byeCount_p   = Array(n).fill(0); // how many times each player has had a bye
-  let lastByePlayers = new Set(); // who sat out last round
+  const byeCount_p   = Array(n).fill(0);
+  let lastByePlayers = new Set();
 
   const rounds = [];
 
   for (let r = 0; r < numRounds; r++) {
-    // Decide who sits out this round (if byeCount > 0)
     let byePlayers = new Set();
     if (byeCount > 0) {
-      // Score each player for "most deserving bye" — least byes, but not last round's bye
       const byeCandidates = Array.from({length:n}, (_,i)=>i)
         .sort((a,b) => {
           const aLast = lastByePlayers.has(a) ? 1000 : 0;
           const bLast = lastByePlayers.has(b) ? 1000 : 0;
           return (byeCount_p[a] + aLast) - (byeCount_p[b] + bLast);
         });
-      // Pick byeCount players who most deserve to sit out
       for (let i = 0; i < byeCount; i++) byePlayers.add(byeCandidates[i]);
       byePlayers.forEach(p => byeCount_p[p]++);
       lastByePlayers = byePlayers;
     }
 
-    // Active players this round
     const active = new Set(Array.from({length:n}, (_,i)=>i).filter(i => !byePlayers.has(i)));
 
-    // Score all matches among active players
     const used = new Set();
     const scored = allMatches
       .filter(([[a1,a2],[b1,b2]]) => active.has(a1)&&active.has(a2)&&active.has(b1)&&active.has(b2))
@@ -72,7 +64,6 @@ export function generateSchedule(players, numRounds) {
       const [[a1,a2],[b1,b2]] = m;
       const p4 = [a1,a2,b1,b2];
       if (p4.some(p => used.has(p))) continue;
-
       rm.push(m);
       p4.forEach(p => used.add(p));
       partnerCount[a1][a2]++; partnerCount[a2][a1]++;
@@ -82,7 +73,6 @@ export function generateSchedule(players, numRounds) {
     }
 
     const byeNames = [...byePlayers].map(i => players[i]);
-
     rounds.push(rm.map(([[a1,a2],[b1,b2]]) => ({
       teamA: [players[a1], players[a2]],
       teamB: [players[b1], players[b2]],
@@ -99,13 +89,10 @@ export function computeStandings(players, rounds) {
   players.forEach(p => {
     s[p] = { name: p, pts: 0, scored: 0, conceded: 0, played: 0, won: 0, lost: 0, form: [] };
   });
-
   if (!rounds) return [];
-
   rounds.forEach(r => r.forEach(m => {
     if (!m.played) return;
-    const sA = Number(m.scoreA);
-    const sB = Number(m.scoreB);
+    const sA = Number(m.scoreA), sB = Number(m.scoreB);
     m.teamA.forEach(p => {
       if (!s[p]) return;
       s[p].played++; s[p].scored += sA; s[p].conceded += sB;
@@ -119,54 +106,90 @@ export function computeStandings(players, rounds) {
       else { s[p].lost++; s[p].form.push("L"); }
     });
   }));
-
   return Object.values(s).sort((a,b) => b.pts - a.pts || (b.scored-b.conceded) - (a.scored-a.conceded) || b.scored - a.scored);
 }
+
+// ── Smart Playoff Init ─────────────────────────────────────────────────────
+//
+// RULE: Always collapse to the nearest clean bracket size by eliminating
+// bottom players directly. No match needed — they're just out by standings.
+//
+// Clean bracket sizes and their formats:
+//   4  → Grand Final only        (1+4 vs 2+3)
+//   5  → Semi + Final            (eliminate 5th)
+//   6  → Q1 + Elim + Final       (no elimination)
+//   7  → Q1 + Elim + Final       (eliminate 7th, same as 6)
+//   8  → Full IPL                (no elimination)
+//   9  → Full IPL                (eliminate 9th)
+//  10  → Full IPL                (eliminate 9th+10th)
+//  11  → Full IPL                (eliminate 11th)
+//  12  → Top 8 bracket           (eliminate 9th-12th)
+//  16  → Top 8 IPL               (eliminate 9th-16th)
+//
+// For 6/7: Q1(1+4 vs 2+3) → winner→Final, loser→Elim
+//          Elim: Loser Q1 vs 5+6 → winner→Final
+//          Final: Winner Q1 vs Winner Elim
 
 export function initPlayoffs(standings) {
   const t = standings.map(s => s.name);
   const n = t.length;
-  // Helper: make a match object
+
   const mk = (tA, tB, label, note) => ({
     teamA: tA, teamB: tB, scoreA: null, scoreB: null,
     played: false, label, note
   });
-  // Safe player getter — fallback to avoid undefined
-  const p = (i) => t[i] || t[Math.min(i, t.length - 1)];
+  const p = (i) => t[i] || null;
 
-  // Competitive seeding rule:
-  // Always pair STRONGEST with WEAKEST so both teams are balanced
-  // e.g. 1+4 vs 2+3, 5+8 vs 6+7, 9+12 vs 10+11
-
-  // ── 4 players: single final (1+4 vs 2+3) ────────────────────────────
+  // ── 4 players ────────────────────────────────────────────────────────────
   if (n <= 4) {
     return {
       mode: "final_only",
+      eliminated: [],
       final: mk([p(0),p(3)], [p(1),p(2)], "GRAND FINAL", "1st+4th vs 2nd+3rd"),
       champion: null
     };
   }
 
-  // ── 5–7 players: top 4 — semi final then final ───────────────────────
-  // SF: 1+4 vs 2+3 → winner goes to final, loser goes to final (both sides play)
-  // Since only 1 semi, winner gets title, no second chance
-  if (n <= 7) {
+  // ── 5 players: eliminate 5th → SF + Final ────────────────────────────────
+  if (n === 5) {
     return {
-      mode: "top4",
+      mode: "elim_to_sf",
+      eliminated: [p(4)],
       sf1: mk([p(0),p(3)], [p(1),p(2)], "SEMI FINAL", "1st+4th vs 2nd+3rd"),
       final: mk(null, null, "GRAND FINAL", "Winner SF vs Runner-up SF"),
       champion: null
     };
   }
 
-  // ── 8–11 players: full IPL bracket ───────────────────────────────────
-  // Q1: 1+4 vs 2+3 (winner → Final, loser → Q2)
-  // Elim: 5+8 vs 6+7 (loser out, winner → Q2)
-  // Q2: Loser Q1 vs Winner Elim (winner → Final)
-  // Final: Winner Q1 vs Winner Q2
-  if (n <= 11) {
+  // ── 6 players: Q1 + Elim(Loser Q1 vs 5+6) + Final ───────────────────────
+  if (n === 6) {
+    return {
+      mode: "ipl6",
+      eliminated: [],
+      q1:   mk([p(0),p(3)], [p(1),p(2)], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
+      elim: mk([p(4),p(5)], null,         "ELIMINATOR",  "5th+6th vs Loser Q1"),
+      final:mk(null, null,                "THE FINAL",   "Winner Q1 vs Winner Elim"),
+      champion: null
+    };
+  }
+
+  // ── 7 players: eliminate 7th → same as 6 ────────────────────────────────
+  if (n === 7) {
+    return {
+      mode: "ipl6",
+      eliminated: [p(6)],
+      q1:   mk([p(0),p(3)], [p(1),p(2)], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
+      elim: mk([p(4),p(5)], null,         "ELIMINATOR",  "5th+6th vs Loser Q1"),
+      final:mk(null, null,                "THE FINAL",   "Winner Q1 vs Winner Elim"),
+      champion: null
+    };
+  }
+
+  // ── 8 players: full IPL ──────────────────────────────────────────────────
+  if (n === 8) {
     return {
       mode: "ipl8",
+      eliminated: [],
       q1:   mk([p(0),p(3)], [p(1),p(2)], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
       elim: mk([p(4),p(7)], [p(5),p(6)], "ELIMINATOR",  "5th+8th vs 6th+7th"),
       q2:   mk(null, null,               "QUALIFIER 2",  "Loser Q1 vs Winner Elim"),
@@ -175,31 +198,67 @@ export function initPlayoffs(standings) {
     };
   }
 
-  // ── 12–15 players: top 8 bracket ─────────────────────────────────────
-  // QF1: 1+4 vs 2+3, QF2: 5+8 vs 6+7
-  // SF1: Winner QF1 vs Winner QF2
-  // SF2: 9+12 vs 10+11 (bottom 4 of top 8)
-  // Final: Winner SF1 vs Winner SF2
-  if (n <= 15) {
+  // ── 9 players: eliminate 9th → same as 8 ────────────────────────────────
+  if (n === 9) {
     return {
-      mode: "top8",
-      qf1:  mk([p(0),p(3)], [p(1),p(2)],   "QF 1",         "1st+4th vs 2nd+3rd"),
-      qf2:  mk([p(4),p(7)], [p(5),p(6)],   "QF 2",         "5th+8th vs 6th+7th"),
-      sf1:  mk(null, null,                   "SEMI FINAL 1", "Winner QF1 vs Winner QF2"),
-      sf2:  mk([p(8),p(11)],[p(9),p(10)],  "SEMI FINAL 2", "9th+12th vs 10th+11th"),
-      final:mk(null, null,                   "GRAND FINAL",  "Winner SF1 vs Winner SF2"),
+      mode: "ipl8",
+      eliminated: [p(8)],
+      q1:   mk([p(0),p(3)], [p(1),p(2)], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
+      elim: mk([p(4),p(7)], [p(5),p(6)], "ELIMINATOR",  "5th+8th vs 6th+7th"),
+      q2:   mk(null, null,               "QUALIFIER 2",  "Loser Q1 vs Winner Elim"),
+      final:mk(null, null,               "THE FINAL",    "Winner Q1 vs Winner Q2"),
       champion: null
     };
   }
 
-  // ── 16–20 players: top 8 IPL-style ───────────────────────────────────
-  // Q1: 1+4 vs 2+3 (winner → Final, loser → SF)
-  // Q2: 5+8 vs 6+7 (winner → Final, loser out... or winner → SF)
-  // Elim: 9+12 vs 10+11 (winner → SF, loser out)
-  // SF: Loser Q1 vs Winner Elim
-  // Final: Winner Q1 vs Winner Q2
+  // ── 10 players: eliminate 9th+10th → same as 8 ──────────────────────────
+  if (n === 10) {
+    return {
+      mode: "ipl8",
+      eliminated: [p(8), p(9)],
+      q1:   mk([p(0),p(3)], [p(1),p(2)], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
+      elim: mk([p(4),p(7)], [p(5),p(6)], "ELIMINATOR",  "5th+8th vs 6th+7th"),
+      q2:   mk(null, null,               "QUALIFIER 2",  "Loser Q1 vs Winner Elim"),
+      final:mk(null, null,               "THE FINAL",    "Winner Q1 vs Winner Q2"),
+      champion: null
+    };
+  }
+
+  // ── 11 players: eliminate 11th → same as 10 ─────────────────────────────
+  if (n === 11) {
+    return {
+      mode: "ipl8",
+      eliminated: [p(10)],
+      q1:   mk([p(0),p(3)], [p(1),p(2)], "QUALIFIER 1", "1st+4th vs 2nd+3rd"),
+      elim: mk([p(4),p(7)], [p(5),p(6)], "ELIMINATOR",  "5th+8th vs 6th+7th"),
+      q2:   mk(null, null,               "QUALIFIER 2",  "Loser Q1 vs Winner Elim"),
+      final:mk(null, null,               "THE FINAL",    "Winner Q1 vs Winner Q2"),
+      champion: null
+    };
+  }
+
+  // ── 12–15 players: top 8 bracket (eliminate rest) ───────────────────────
+  if (n <= 15) {
+    const elim = [];
+    for (let i = 8; i < n; i++) elim.push(p(i));
+    return {
+      mode: "top8",
+      eliminated: elim,
+      qf1:  mk([p(0),p(3)], [p(1),p(2)],  "QF 1",         "1st+4th vs 2nd+3rd"),
+      qf2:  mk([p(4),p(7)], [p(5),p(6)],  "QF 2",         "5th+8th vs 6th+7th"),
+      sf1:  mk(null, null,                  "SEMI FINAL 1", "Winner QF1 vs Winner QF2"),
+      sf2:  mk([p(8)??p(0),p(11)??p(3)], [p(9)??p(1),p(10)??p(2)], "SEMI FINAL 2", "9th+12th vs 10th+11th"),
+      final:mk(null, null,                  "GRAND FINAL",  "Winner SF1 vs Winner SF2"),
+      champion: null
+    };
+  }
+
+  // ── 16–20 players: top 8 IPL (eliminate rest) ───────────────────────────
+  const elim = [];
+  for (let i = 8; i < n; i++) elim.push(p(i));
   return {
     mode: "top8_ipl",
+    eliminated: elim,
     q1:   mk([p(0),p(3)],  [p(1),p(2)],  "QUALIFIER 1",  "1st+4th vs 2nd+3rd"),
     q2_b: mk([p(4),p(7)],  [p(5),p(6)],  "QUALIFIER 2",  "5th+8th vs 6th+7th"),
     elim: mk([p(8),p(11)], [p(9),p(10)], "ELIMINATOR",   "9th+12th vs 10th+11th"),
