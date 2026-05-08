@@ -109,6 +109,7 @@ function PickleballApp() {
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showStandingsShare, setShowStandingsShare] = useState(false);
+  const [showPlayoffShare, setShowPlayoffShare] = useState(false);
   const [animatingScore, setAnimatingScore] = useState(null);
   const [showScorerPin, setShowScorerPin] = useState(false);
   const [showScorerEntry, setShowScorerEntry] = useState(false);
@@ -587,6 +588,7 @@ function PickleballApp() {
       {/* Modals */}
       {showShare && <ShareModal code={code} onClose={() => setShowShare(false)} />}
       {showStandingsShare && <StandingsShareModal standings={standings} onClose={() => setShowStandingsShare(false)} />}
+      {showPlayoffShare && <StandingsShareModal standings={standings} onClose={() => setShowPlayoffShare(false)} playoffs={playoffs} champion={champion} />}
       {showScorerPin && scorerPin && <ScorerPinModal code={code} pin={scorerPin} onClose={() => setShowScorerPin(false)} />}
       {showScorerEntry && <ScorerPinEntry code={code} onGranted={handleScorerPinEntered} onClose={() => setShowScorerEntry(false)} />}
 
@@ -792,7 +794,7 @@ function PickleballApp() {
                       <button className="pb" onClick={copyStandingsText} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                         📋 COPY FOR WHATSAPP
                       </button>
-                      <button className="pb" onClick={() => setShowStandingsShare(true)} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "var(--color-surface)", border: `1px solid var(--color-border)`, borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                      <button className="pb" onClick={() => setShowPlayoffShare(true)} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "var(--color-surface)", border: `1px solid var(--color-border)`, borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                         <Camera size={14} /> SHARE IMAGE
                       </button>
                     </div>
