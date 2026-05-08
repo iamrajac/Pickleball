@@ -1,100 +1,353 @@
 # 🏓 Pickleball Tournament Manager
 
-A highly interactive, real-time, offline-capable progressive web application built with React and Vite, designed to manage round-robin pickleball tournaments with your friends. 
+A real-time, full-featured pickleball tournament management web application built for friend groups and local clubs. Manage round-robin tournaments, track live scores, run IPL-style playoffs, and build career statistics — all synced in real time across every device in the room.
 
-This app removes the hassle of manual scheduling, scorekeeping, and calculating standings. Simply input your players, and let the app handle the rest—from auto-generating fair matchups to rendering live playoff brackets.
-
----
-
-## ✨ Key Features
-
-### 🏆 Tournament Generation & Management
-- **Smart Auto-Scheduling:** Enter 4 to 20 players and select the number of rounds. The app automatically generates a fair, round-robin format schedule with rotating partners and opponents.
-- **Bye Management:** If you have an odd number of players or more players than available courts, the app automatically tracks and rotates "Byes" (sitting out) fairly across the roster.
-- **Multiple Playoff Modes:** Once the group stage finishes, seamlessly transition into playoff brackets like **Top 4**, **IPL Playoff Format**, **Top 8**, or a quick **Grand Final**.
-
-### ⚡ Real-time Collaboration & Offline First
-- **Firebase Sync:** Tournaments are assigned a unique 6-character code. Share the code with friends to let them view live score updates and standings on their own devices.
-- **Spectator vs. Scorer:** The creator is automatically the "Scorer". They can securely share a PIN to grant other trusted users score-entry permissions while keeping everyone else as view-only spectators.
-- **Offline Resilience:** If you lose internet connection on the courts, the app stores your scores locally and automatically syncs them to Firebase the moment you regain connectivity.
-
-### 📊 Deep Analytics & UI Polish
-- **Dynamic Standings:** A real-time leaderboard tracking Wins, Losses, Points Difference (+/-), Points For, Points Against, and Recent Form (WWLW).
-- **Head-to-Head (H2H) Insights:** Before a match begins, tap a Match Card to view the lifetime historical win/loss record between the competing players across all past tournaments.
-- **Match Timers:** Built-in stopwatch timers on every match card to keep play on schedule.
-- **Celebratory Animations:** Custom confetti bursts upon saving a score, and rising trophy + fireworks animations for the Grand Champion.
-
-### 🎨 Custom Player Avatars
-- **Deep Personalization:** During the setup phase, tap any player's initials to assign them a custom avatar.
-- **Avatar Types:** Choose from a curated color palette, popular emojis, or upload a real photo from your device's gallery.
-- **Auto-Compression:** Uploaded photos are instantly resized and compressed client-side (via Canvas API) to ensure blazing-fast network sync without bloating the database.
+**Live App:** [pickleball-eosin.vercel.app](https://pickleball-eosin.vercel.app)  
+**Repository:** [github.com/iamrajac/Pickleball](https://github.com/iamrajac/Pickleball)
 
 ---
 
-## 🛠 Tech Stack
+## Table of Contents
 
-- **Frontend Framework:** React 18
-- **Build Tool:** Vite (Ultra-fast HMR)
-- **Styling:** Custom CSS with CSS Variables for a dynamic, modern "glassmorphism" aesthetic.
-- **Backend / Database:** Firebase Realtime Database
-- **Icons:** Lucide React
-- **Animations:** Canvas-confetti & CSS Keyframes
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Tournament Flow](#tournament-flow)
+- [Scoring Rules](#scoring-rules)
+- [Playoff Formats](#playoff-formats)
+- [Career Stats](#career-stats)
+- [Multi-Device & Access Control](#multi-device--access-control)
+- [Deployment](#deployment)
 
 ---
 
-## 🚀 Getting Started
+## Overview
+
+This app was built to replace paper scoresheets for regular pickleball sessions. It supports any number of players (4–20), generates fair round-robin schedules, enforces official pickleball scoring rules, and syncs every score update live to all connected phones via Firebase Realtime Database — no refresh required.
+
+---
+
+## Features
+
+### 🗓 Tournament Management
+- **Round-robin scheduling** with smart rotation — unique partners and opponents prioritised before repeats
+- **Any player count** from 4 to 20, including odd numbers (5, 6, 7, 9…)
+- **Bye rotation** for odd counts — players sit out in fair rotation, never twice in a row
+- **Custom round count** — choose how many rounds to play
+
+### 📡 Real-Time Sync
+- Every score update syncs instantly to all connected devices via Firebase
+- **6-letter tournament code** — share to let anyone join as spectator
+- **Online presence counter** — see how many people are watching live
+- **Offline detection** — banner appears when connection drops, data syncs automatically on reconnect
+
+### 🔒 Access Control
+- **Creator identity** persisted in localStorage — rejoin as creator on same device after refresh
+- **Scorer PIN system** — creator generates a 4-digit PIN; anyone who enters it gets full scoring access
+- Spectators see read-only live view; scoring is locked behind creator or PIN
+
+### 📊 Points Table
+Columns: `# · Player · P · W · L · PTS · +/- · FOR · AGN · ELO · FORM`
+
+- **ELO ratings** updated dynamically after every match
+- **FORM** — last 5 results as coloured W/L tiles
+- **Tap any row** to expand full match history with partner, opponents, score, and duration
+- **Horizontal scroll** on mobile — all columns always visible
+- **Copy for WhatsApp** — formatted standings text in one tap
+- **Share as image** — downloadable standings card
+
+### 🏆 Playoffs
+Adaptive bracket format auto-selected based on player count:
+
+| Players | Format |
+|---------|--------|
+| 4 | Grand Final only (1st+4th vs 2nd+3rd) |
+| 5–7 | Semi Final + Grand Final |
+| 8–11 | Full IPL: Q1 → Eliminator → Q2 → Final |
+| 12–15 | Top 8: QF1 + QF2 → SF1 + SF2 → Final |
+| 16–20 | Top 8 IPL: Q1 + Q2 + Eliminator → SF → Final |
+
+All brackets use **competitive seeding** — 1st+4th vs 2nd+3rd, 5th+8th vs 6th+7th — ensuring balanced teams. Quick Final option available to skip straight to a single deciding match.
+
+### ✅ Official Scoring Rules
+- First to 11 points, win by 2
+- Score validation enforced on input — `11-10` rejected, `12-10` accepted
+- Extended games supported: if 10-10, play continues until 2-point lead is achieved
+- Save button disabled until score is valid per official rules
+
+### ⏱ Match Timer
+- Per-match timer with start/pause
+- Survives screen-off and tab switching — uses `Date.now()` timestamps, not frame counting
+- Duration saved alongside each match result
+
+### 📈 Tournament Awards
+Shown in TABLE and PLAYOFFS tabs after at least 2 matches are played:
+- ⚡ **MVP** — most wins in the tournament
+- 🎯 **Best Win Rate** — highest win % (min 2 matches)
+- 💥 **Top Scorer** — most points scored
+- 🤝 **Best Duo** — partnership with highest win rate (min 2 matches together)
+
+### 📊 Career Stats (All-Time)
+Aggregated across all saved tournaments on the device:
+- **Hall of Fame** — Most Titles, Best Win Rate, Longest Streak, Top Scorer
+- **All-Time Records** — highest scoring match, biggest winning margin
+- **Player leaderboard** — ranked by wins with full career stats
+- **Player profiles** — tap any player for detailed profile: stats, streaks, form history
+- **Head-to-Head** — visual win/loss bar between any two players
+- **Partnerships tab** — all duo combinations ranked by win rate
+
+### 🎉 Live Reactions
+- Single 🏓 button fixed at bottom-right corner
+- Tap to expand emoji picker (auto-closes after 5 seconds)
+- Reactions float up on every connected device's screen in real time via Firebase
+
+### 🌙 Dark / Light Mode
+- Toggle available in topbar and home screen
+- **Dark mode** — arena aesthetic with lime green accents
+- **Light mode** — white cards, navy topbar, orange accents — completely independent palette
+- Preference saved to localStorage across sessions
+
+### 📤 Sharing
+- **QR code** — scan to join tournament instantly
+- **WhatsApp share** — pre-filled message with tournament code and join link
+- **Standings image** — downloadable card with full player rankings
+- **Auto-join from URL** — WhatsApp link opens app and joins tournament automatically via `?join=CODE`
+
+### 🔊 Sound & Animation
+- 3-note score chime (Web Audio API, no external files)
+- Match card flashes lime on score save
+- Multi-wave confetti burst when champion is crowned
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18, Vite |
+| Database | Firebase Realtime Database (asia-southeast1) |
+| Fonts | Bebas Neue, DM Sans (Google Fonts) |
+| Icons | Lucide React |
+| Libraries | `qrcode.react`, `html2canvas`, `canvas-confetti` |
+| Hosting | Vercel (auto-deploy from GitHub) |
+
+---
+
+## Project Structure
+
+```
+pickleball-app/
+├── index.html                      # Entry point, PWA meta tags, icon links
+├── public/
+│   ├── favicon.ico
+│   ├── apple-touch-icon.png
+│   ├── icon-16/32/192/512.png
+│   └── manifest.json               # PWA manifest for home screen install
+└── src/
+    ├── App.jsx                     # Root component — all tournament state & logic
+    ├── firebase.js                 # Firebase initialisation
+    ├── index.css                   # Global styles, CSS variables, dark/light themes
+    ├── main.jsx                    # React entry point
+    ├── components/
+    │   ├── AvatarPickerModal.jsx   # Player avatar/colour picker
+    │   ├── MatchCard.jsx           # Match card with score input, timer, H2H
+    │   ├── MatchTicker.jsx         # Live score ticker
+    │   ├── PlayerAvatar.jsx        # Player avatar display component
+    │   ├── PlayoffCard.jsx         # Playoff match card with score buffer
+    │   ├── Reactions.jsx           # Live emoji reactions via Firebase
+    │   ├── ScorerModal.jsx         # Scorer PIN generation and entry modal
+    │   ├── ShareModal.jsx          # QR code + WhatsApp share modal
+    │   ├── StandingsShare.jsx      # Generate and share standings as image
+    │   ├── StandingsTable.jsx      # Full points table with ELO, form, history
+    │   ├── Toast.jsx               # Toast notification provider
+    │   └── TournamentAwards.jsx    # MVP, best duo, top scorer award cards
+    ├── screens/
+    │   ├── CareerScreen.jsx        # All-time career stats and player profiles
+    │   ├── HistoryScreen.jsx       # Past tournament history browser
+    │   └── SetupScreen.jsx         # Tournament setup and join screen
+    └── utils/
+        ├── audio.js               # Web Audio API sound effects
+        ├── careerStats.js         # Career statistics computation engine
+        ├── elo.js                 # ELO rating calculator
+        ├── history.js             # localStorage persistence helpers + H2H matrix
+        ├── pickleballRules.js     # Score validation (first to 11, win by 2)
+        ├── schedule.js            # Schedule generator, standings, playoff init
+        ├── theme.js               # Theme colour constants
+        └── useTimer.js            # Match timer hook (survives screen off)
+```
+
+---
+
+## Getting Started
 
 ### Prerequisites
-Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
+- Node.js 18+
+- A Firebase project with Realtime Database enabled
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd pickleball-app
-   ```
+```bash
+git clone https://github.com/iamrajac/Pickleball.git
+cd Pickleball
+npm install
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+### Firebase Setup
 
-3. **Configure Firebase (Optional but Recommended)**
-   The app expects a `src/firebase.js` file exporting your Firebase app and database instance. If you don't set this up, the app will still function completely locally!
-   
-4. **Run the development server**
-   ```bash
-   npm run dev
-   ```
-   
-5. **Open in Browser**
-   Navigate to `http://localhost:5173` to view the app.
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable **Realtime Database** and set region to `asia-southeast1` (or your preferred region)
+3. Set database rules to allow read/write during development:
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+```
+4. Copy your config into `src/firebase.js`:
+```js
+const firebaseConfig = {
+  apiKey: "your-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  databaseURL: "https://your-project-default-rtdb.region.firebasedatabase.app",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "your-sender-id",
+  appId: "your-app-id"
+};
+```
+
+### Run Locally
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Build for Production
+
+```bash
+npm run build
+```
 
 ---
 
-## 📖 Usage Guide
+## Tournament Flow
 
-1. **Setup Screen:** Open the app and set the total number of players. Type in their names.
-2. **Customize Avatars:** Tap the colorful circle next to any player's name to give them an emoji or photo avatar.
-3. **Generate:** Choose how many rounds you want to play, and tap "CREATE TOURNAMENT".
-4. **Share:** You will be given a Tournament Code. Friends can go to the app and enter this code to watch live.
-5. **Play:** Tap a Match Card to open it. Start the timer, play the game, enter the final score, and hit "SAVE". 
-6. **Review:** Swipe over to the "Standings" tab at any time to see the live leaderboard, MVP, Best Duo, and Top Scorer awards.
-7. **Playoffs:** Once all group-stage rounds are complete, hit "FULL PLAYOFFS" to generate the final elimination bracket and crown your champion!
+```
+1. Creator opens app
+   → Enters player names (4–20) and round count
+   → Taps START TOURNAMENT
+
+2. A 6-letter code is generated
+   → Share via WhatsApp or QR code
+
+3. Spectators open the link
+   → Auto-joined as read-only live viewers
+
+4. Creator (or scorer with PIN) enters scores as matches finish
+   → Standings and ELO update live on all devices
+
+5. When all group matches are done
+   → Start Full Playoffs (adaptive bracket) or Quick Final
+
+6. Playoffs proceed round by round
+   → Champion declared → confetti 🎉
+   → Tournament saved to history
+   → Career stats updated
+```
 
 ---
 
-## 📂 Project Structure Highlights
+## Scoring Rules
 
-- `src/App.jsx`: The core orchestration component managing Firebase sync, tabs, and top-level state.
-- `src/screens/`: Contains the major views (`SetupScreen`, `HistoryScreen`, `CareerScreen`).
-- `src/components/`: Reusable, isolated UI components (`MatchCard`, `PlayoffCard`, `StandingsTable`, `PlayerAvatar`, `AvatarPickerModal`).
-- `src/utils/`: Core logic modules.
-  - `scheduler.js`: The algorithmic engine that generates fair round-robin pairings.
-  - `history.js`: Manages LocalStorage H2H historical records and career stat aggregations.
-  - `pickleballRules.js`: Score validation (win by 2, minimum score of 11, etc.).
+Official pickleball scoring is enforced on all inputs:
+
+| Score | Valid | Reason |
+|-------|-------|--------|
+| 11–0 through 11–9 | ✅ | First to 11, lead of 2+ |
+| 11–10 | ❌ | Not a 2-point lead |
+| 12–10 | ✅ | Extended game, win by 2 |
+| 13–11 | ✅ | Extended game, win by 2 |
+| 10–8 | ❌ | Neither team has reached 11 |
+
+The SAVE button is disabled and a warning is shown until the score satisfies the official rules.
 
 ---
 
-*Built with ❤️ for the love of Pickleball.*
+## Playoff Formats
+
+All brackets use competitive seeding to balance every team:
+
+**IPL Format (8–11 players)**
+```
+Q1:    1st+4th vs 2nd+3rd    → Winner → Final  |  Loser → Q2
+Elim:  5th+8th vs 6th+7th   → Winner → Q2     |  Loser OUT
+Q2:    Loser Q1 vs Winner Elim → Winner → Final |  Loser OUT
+Final: Winner Q1 vs Winner Q2
+```
+
+**Top 8 Format (12–15 players)**
+```
+QF1:   1st+4th  vs 2nd+3rd   →  SF1
+QF2:   5th+8th  vs 6th+7th   →  SF1
+SF2:   9th+12th vs 10th+11th →  Final
+Final: Winner SF1 vs Winner SF2
+```
+
+---
+
+## Career Stats
+
+Career stats are computed from all tournaments saved in the device's localStorage. They accumulate across sessions automatically and are accessible from the home screen.
+
+**Per Player:**
+- Total matches, wins, losses, points scored/conceded
+- Win rate, ELO, current and best win streaks
+- Tournament appearances and titles won
+- Head-to-head record against every other player
+
+**Per Partnership:**
+- Matches played together, wins, losses, win rate, point differential
+
+---
+
+## Multi-Device & Access Control
+
+| Role | How to Obtain | Permissions |
+|------|--------------|-------------|
+| **Creator** | Started the tournament on this device | Full scoring + playoff control |
+| **Scorer** | Entered the 4-digit PIN from creator | Full scoring access |
+| **Spectator** | Joined with code only | Read-only live updates |
+
+Creator identity is stored in localStorage (`pkl_mine_v1`). Access level is held in a `useRef` (`canEditRef`) that the Firebase listener never overwrites — ensuring creator and scorer access survive reconnections, re-renders, and page refreshes.
+
+---
+
+## Deployment
+
+Connected to Vercel via GitHub. Every push to `main` triggers an automatic production redeploy.
+
+```bash
+# Standard deploy workflow
+git add .
+git commit -m "describe your change"
+git push
+# Vercel redeploys automatically in ~30 seconds
+```
+
+No environment variables are required — the Firebase config is included directly in `src/firebase.js`.
+
+---
+
+## License
+
+MIT — free to use, modify, and distribute.
+
+---
+
+*Built for the SRM Pickleball crew 🏓*
