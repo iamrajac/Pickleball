@@ -786,7 +786,7 @@ function PickleballApp() {
                     <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
                   </div>
                   <TournamentAwards players={players} rounds={rounds} champion={champion} />
-                  <StandingsTable standings={standings} rounds={rounds} />
+                  <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} />
                 </div>
               </div>
             ) : (

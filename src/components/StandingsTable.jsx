@@ -3,7 +3,38 @@ import { Trophy, ChevronDown, ChevronUp, Flame } from "lucide-react";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { computeElo } from "../utils/elo";
 
-export function StandingsTable({ standings, rounds, profiles = {} }) {
+export function StandingsTable({ standings, rounds, profiles = {}, playoffs = null, champion = null }) {
+
+  // Derive playoff result badges from playoffs object
+  const getPlayoffBadge = (name) => {
+    if (!playoffs) return null;
+    // Champion
+    if (champion && (champion === name || champion.includes(name))) return { symbol: "🏆", label: "CHAMPION", color: "#f1c835" };
+    // Runner up — lost the final
+    if (playoffs.final?.played) {
+      const winA = playoffs.final.scoreA > playoffs.final.scoreB;
+      const losers = winA ? playoffs.final.teamB : playoffs.final.teamA;
+      if (losers?.includes(name)) return { symbol: "🥈", label: "RUNNER UP", color: "#94a3b8" };
+    }
+    // 3rd place — lost in semi/q2/elim before final
+    const mode = playoffs.mode;
+    const checkMatch = (match) => {
+      if (!match?.played) return false;
+      const winA = match.scoreA > match.scoreB;
+      const losers = winA ? match.teamB : match.teamA;
+      return losers?.includes(name);
+    };
+    if (mode === "elim_to_sf" && checkMatch(playoffs.sf1)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
+    if (mode === "ipl6" && checkMatch(playoffs.elim)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
+    if (mode === "ipl8" && checkMatch(playoffs.q2)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
+    if (mode === "top8" && (checkMatch(playoffs.sf1) || checkMatch(playoffs.sf2))) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
+    if (mode === "top8_ipl" && checkMatch(playoffs.sf)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
+    // Eliminated from group stage (not in playoffs)
+    const eliminated = playoffs.eliminated || [];
+    if (eliminated.includes(name)) return { symbol: "E", label: "ELIMINATED", color: "#ef4444", isE: true };
+    return null;
+  };
+
   const [expandedRow, setExpandedRow] = useState(null);
   const playerMatches = {};
   
@@ -79,18 +110,35 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
           
           return (
             <div key={s.name}>
+              {(() => {
+                const badge = getPlayoffBadge(s.name);
+                const isElim = badge?.isE;
+                const isChamp = badge?.symbol === "🏆";
+                const isRunner = badge?.symbol === "🥈";
+                const rowBg = isChamp ? "rgba(241,200,53,0.12)" :
+                              isRunner ? "rgba(148,163,184,0.1)" :
+                              badge?.symbol === "🥉" ? "rgba(205,127,50,0.1)" :
+                              isElim ? "rgba(239,68,68,0.08)" :
+                              top ? "rgba(23, 29, 15, 0.4)" : "transparent";
+                const rowBorder = isElim ? "1px solid rgba(239,68,68,0.2)" :
+                                  isChamp ? "1px solid rgba(241,200,53,0.2)" : `1px solid var(--color-border)`;
+                return (
               <div className="rh standings-grid" onClick={() => setExpandedRow(expanded ? null : s.name)}
-                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "10px 14px", borderBottom: `1px solid var(--color-border)`, background: top ? "rgba(23, 29, 15, 0.4)" : "transparent", cursor: "pointer", alignItems: "center" }}>
+                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "10px 14px", borderBottom: rowBorder, background: rowBg, cursor: "pointer", alignItems: "center", opacity: isElim ? 0.65 : 1 }}>
               
               <span className="standings-rank" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: i === 0 ? 'var(--color-gold)' : i < 4 ? 'var(--color-lime)' : 'var(--color-muted)', lineHeight: 1.1 }}>
                 {i === 0 ? <Trophy size={16} /> : i + 1}
               </span>
               
-              <span className="standings-name" style={{ fontWeight: 500, fontSize: 14, color: top ? 'var(--color-text)' : 'var(--color-muted)', display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                {top && <span className="live-dot" style={{ width: 6, height: 6, flexShrink: 0, animation: 'none' }} />}
+              <span className="standings-name" style={{ fontWeight: 500, fontSize: 14, color: isElim ? 'var(--color-danger)' : top ? 'var(--color-text)' : 'var(--color-muted)', display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                {!badge && top && <span className="live-dot" style={{ width: 6, height: 6, flexShrink: 0, animation: 'none' }} />}
+                {badge && !badge.isE && <span style={{ fontSize: 14, flexShrink: 0 }}>{badge.symbol}</span>}
                 <PlayerAvatar name={s.name} profile={profiles[s.name]} size={20} />
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
-                {streakW >= 3 && (
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: isElim ? "line-through" : "none" }}>{s.name}</span>
+                {badge?.isE && (
+                  <span style={{ display: "flex", alignItems: "center", background: "rgba(239,68,68,0.2)", color: "#ef4444", padding: "1px 5px", borderRadius: 4, fontSize: 9, fontWeight: 700, letterSpacing: 1, flexShrink: 0 }}>E</span>
+                )}
+                {streakW >= 3 && !badge && (
                   <span style={{ display: "flex", alignItems: "center", gap: 2, background: "rgba(241, 53, 53, 0.2)", color: "var(--color-danger)", padding: "2px 6px", borderRadius: 12, fontSize: 10, fontWeight: 700, marginLeft: 4 }}>
                     <Flame size={10} fill="var(--color-danger)" /> {streakW}
                   </span>
@@ -120,6 +168,8 @@ export function StandingsTable({ standings, rounds, profiles = {} }) {
                 ))}
               </span>
             </div>
+            );
+          })()}
             
             {expanded && matches.length > 0 && (() => {
               try {
