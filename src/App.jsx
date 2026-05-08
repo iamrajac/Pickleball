@@ -150,10 +150,11 @@ function PickleballApp() {
     const joinCode = params.get("join");
     if (joinCode) {
       window.history.replaceState({}, "", window.location.pathname);
-      // fetch and join
-      get(ref(db, `tournaments/${joinCode}`)).then(snap => {
-        if (snap.exists()) handleJoin(joinCode, snap.val());
-      });
+      // fetch and join — always uppercase the code
+      const upperCode = joinCode.trim().toUpperCase();
+      get(ref(db, `tournaments/${upperCode}`)).then(snap => {
+        if (snap.exists() && snap.val()) handleJoin(upperCode, snap.val());
+      }).catch(e => console.error("Auto-join error:", e));
     }
   }, []);
 

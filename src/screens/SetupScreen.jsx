@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ref, get } from "firebase/database";
 import { db } from "../firebase";
 import { ChevronRight, History, Wifi, BarChart2, Moon, Sun } from "lucide-react";
@@ -7,6 +7,42 @@ import { AvatarPickerModal } from "../components/AvatarPickerModal";
 
 export function SetupScreen({ onStart, onHistory, onJoin, onCareer, onToggleTheme, theme }) {
   const [numP, setNumP] = useState(8);
+  const [showInstall, setShowInstall] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    // Show install banner on mobile browsers that support PWA
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const dismissed = localStorage.getItem('pkl_install_dismissed');
+    
+    if (isMobile && !isStandalone && !dismissed) {
+      setShowInstall(true);
+    }
+    // Capture the beforeinstallprompt event for Android
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (!dismissed) setShowInstall(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+    }
+    setShowInstall(false);
+    localStorage.setItem('pkl_install_dismissed', '1');
+  };
+
+  const dismissInstall = () => {
+    setShowInstall(false);
+    localStorage.setItem('pkl_install_dismissed', '1');
+  };
   const [names, setNames] = useState(Array(8).fill("").map((_, i) => `Player ${i + 1}`));
   const [rounds, setRounds] = useState(7);
   const [focus, setFocus] = useState(null);
@@ -41,24 +77,46 @@ export function SetupScreen({ onStart, onHistory, onJoin, onCareer, onToggleThem
   const canStart = names.slice(0, numP).every(n => n.trim());
 
   const handleJoin = async () => {
-    if (!joinCode.trim()) return;
+    const raw = joinCode.trim();
+    if (!raw) return;
     setJoining(true);
     setJoinErr("");
     try {
-      const snap = await get(ref(db, `tournaments/${joinCode.trim().toUpperCase()}`));
-      if (snap.exists()) {
-        onJoin(joinCode.trim().toUpperCase(), snap.val());
-      } else {
-        setJoinErr("Tournament not found. Check the code.");
+      // Try uppercase first (all codes are stored uppercase)
+      const upper = raw.toUpperCase();
+      let snap = await get(ref(db, `tournaments/${upper}`));
+      // If not found, try original case as fallback
+      if (!snap.exists() && raw !== upper) {
+        snap = await get(ref(db, `tournaments/${raw}`));
       }
-    } catch {
-      setJoinErr("Connection error. Try again.");
+      if (snap.exists() && snap.val()) {
+        onJoin(upper, snap.val());
+      } else {
+        setJoinErr(`Tournament "${upper}" not found. Double-check the code.`);
+      }
+    } catch (e) {
+      console.error("Join error:", e);
+      setJoinErr("Connection error. Check your internet and try again.");
     }
     setJoining(false);
   };
 
   return (
     <div style={{ padding: "0 1rem 4rem" }}>
+      {/* PWA Install Banner */}
+      {showInstall && (
+        <div className="fu" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 999, padding: "12px 16px", background: "#1a1f2e", borderTop: "2px solid rgba(200,241,53,0.4)", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 -4px 24px rgba(0,0,0,0.5)" }}>
+          <div style={{ fontSize: 28, flexShrink: 0 }}>🏓</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "#c8f135", letterSpacing: 1.5, lineHeight: 1 }}>ADD TO HOME SCREEN</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>Install for faster access — works offline too</div>
+          </div>
+          <button className="pb" onClick={handleInstall} style={{ background: "#c8f135", border: "none", borderRadius: 8, padding: "8px 14px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 1, color: "#0d0f0a", cursor: "pointer", flexShrink: 0 }}>
+            INSTALL
+          </button>
+          <button onClick={dismissInstall} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 20, padding: "4px", flexShrink: 0, lineHeight: 1 }}>✕</button>
+        </div>
+      )}
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         
         {/* Header */}
