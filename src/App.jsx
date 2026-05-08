@@ -786,6 +786,17 @@ function PickleballApp() {
                     <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
                   </div>
                   <TournamentAwards players={players} rounds={rounds} champion={champion} />
+                  {/* Share buttons — only shown when tournament is complete */}
+                  {(champion || playoffs?.champion) && (
+                    <div className="fu" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                      <button className="pb" onClick={copyStandingsText} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                        📋 COPY FOR WHATSAPP
+                      </button>
+                      <button className="pb" onClick={() => setShowStandingsShare(true)} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "var(--color-surface)", border: `1px solid var(--color-border)`, borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                        <Camera size={14} /> SHARE IMAGE
+                      </button>
+                    </div>
+                  )}
                   <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} />
                 </div>
               </div>
