@@ -586,7 +586,7 @@ function PickleballApp() {
 
       {/* Modals */}
       {showShare && <ShareModal code={code} onClose={() => setShowShare(false)} />}
-      {showStandingsShare && <StandingsShareModal standings={standings} onClose={() => setShowStandingsShare(false)} />}
+      {showStandingsShare && <StandingsShareModal standings={standings} onClose={() => setShowStandingsShare(false)} playoffs={playoffs} champion={champion} />}
       {showScorerPin && scorerPin && <ScorerPinModal code={code} pin={scorerPin} onClose={() => setShowScorerPin(false)} />}
       {showScorerEntry && <ScorerPinEntry code={code} onGranted={handleScorerPinEntered} onClose={() => setShowScorerEntry(false)} />}
 
