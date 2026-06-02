@@ -493,9 +493,10 @@ function AppInner() {
 
   const handleSync = async (doSync) => {
     setShowSyncPrompt(false);
+    const local = (JSON.parse(localStorage.getItem("pkl_hist_v2") || "[]")).filter(t => t.code);
     if (doSync && user?.uid) {
+      // Import to Firestore
       const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
-      const local = (JSON.parse(localStorage.getItem("pkl_hist_v2") || "[]")).filter(t => t.code);
       await Promise.all(local.map(entry =>
         setDoc(doc(firestore, "users", user.uid, "tournaments", entry.code), {
           code: entry.code, name: entry.name || "", status: entry.status || (entry.champion ? "done" : "live"),
@@ -503,6 +504,11 @@ function AppInner() {
           createdAt: serverTimestamp(), champion: entry.champion || null,
         }, { merge: true }).catch(() => {})
       ));
+    } else {
+      // "No Thanks" — archive old local data and clear it so it doesn't show in the Google account
+      // Data is preserved in the archive key and never deleted
+      localStorage.setItem(`pkl_hist_archived_${user.uid}`, JSON.stringify(local));
+      localStorage.setItem("pkl_hist_v2", JSON.stringify([]));
     }
     localStorage.setItem(`pkl_synced_${user.uid}`, "1");
   };
