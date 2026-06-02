@@ -107,8 +107,9 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
   const [matchNotes, setMatchNotes] = useState(match.notes || "");
-  const [notesEdited, setNotesEdited] = useState(false); // true once user manually types
-  const [scoreHistory, setScoreHistory] = useState([]); // sequence of {a, b} for auto-notes
+  const [notesEdited, setNotesEdited] = useState(false);
+  const [scoreHistory, setScoreHistory] = useState([]);
+  const [storyMoments, setStoryMoments] = useState([]); // all key moments in order
   const [isActive, setIsActive] = useState(false);
   // Use lifted timer state if provided, otherwise fall back to local timer
   const localTimer = useTimer();
@@ -160,15 +161,19 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
     setScoreHistory(prev => {
       const last = prev[prev.length - 1];
-      // Skip if nothing changed
       if (last && last.a === numA && last.b === numB) return prev;
       const newHistory = [...prev, next];
-      // Auto-generate note (only if user hasn't manually typed)
       if (!notesEditedRef.current) {
-        const auto = generateAutoNote(newHistory, match.teamA, match.teamB);
-        // Only replace note when a new key moment is detected
-        // Don't clear — last key moment note stays until a new one or manual edit
-        if (auto) setMatchNotes(auto);
+        const moment = generateAutoNote(newHistory, match.teamA, match.teamB);
+        if (moment) {
+          // Show current moment in the notes field during play
+          setMatchNotes(moment);
+          // Accumulate into story (skip if same as last moment)
+          setStoryMoments(prevStory => {
+            const lastMoment = prevStory[prevStory.length - 1];
+            return lastMoment === moment ? prevStory : [...prevStory, moment];
+          });
+        }
       }
       return newHistory;
     });
@@ -210,7 +215,19 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     timer.reset();
     setIsActive(false);
     playAudio("pop");
-    onSave(Number(sA), Number(sB), dur, matchNotes);
+
+    // Build full match narrative from accumulated story moments
+    let finalNote = matchNotes;
+    if (!notesEdited && storyMoments.length > 0) {
+      const numA = Number(sA), numB = Number(sB);
+      const winner = numA > numB ? match.teamA?.join(" & ") : match.teamB?.join(" & ");
+      const score = `${Math.max(numA, numB)}-${Math.min(numA, numB)}`;
+      // Deduplicate consecutive same moments
+      const deduped = storyMoments.filter((m, i) => i === 0 || m !== storyMoments[i - 1]);
+      finalNote = deduped.join(" · ") + ` · ${winner} won ${score}`;
+    }
+
+    onSave(Number(sA), Number(sB), dur, finalNote);
   };
 
   return (

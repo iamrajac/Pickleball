@@ -162,6 +162,7 @@ export function useTournament() {
         if (v.champion !== undefined) setChampion(v.champion || null);
         if (v.profiles) setProfiles(v.profiles);
         if (v.themeColor) setThemeColor(v.themeColor);
+        if (v.name !== undefined) setTournamentName(v.name || "");
         if (joinCompleteRef.current) setReadOnly(!canEditRef.current);
       }
       setSyncing(false);
@@ -336,12 +337,16 @@ export function useTournament() {
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
     setProfiles(data.profiles || {});
-    setThemeColor(data.themeColor || "#c8f135");
+    setThemeColor(data.themeColor || "#10d48e");
+    setTournamentName(data.name || "");
     setCode(c);
     setTab("rounds");
     setReadOnly(!canEdit);
 
-    if (creator) {
+    if (isUidCreator) {
+      if (data.scorerPin) { saveScorerPin(c, String(data.scorerPin)); setScorerPin(String(data.scorerPin)); }
+      addToast(`Joined #${c} (Creator ✓)`, "success");
+    } else if (creator) {
       if (data.scorerPin) { saveScorerPin(c, String(data.scorerPin)); setScorerPin(String(data.scorerPin)); }
       addToast(`Joined #${c} (Creator ✓)`, "success");
     } else if (isSavedScorer) {
