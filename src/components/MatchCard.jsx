@@ -38,51 +38,66 @@ function ScoreCounter({ value, onChange, hasError }) {
 
 // ── Auto note generator ────────────────────────────────────────────────────
 function generateAutoNote(history, teamA, teamB) {
-  if (history.length < 2) return "";
+  if (history.length === 0) return "";
   const curr = history[history.length - 1];
   const a = curr.a, b = curr.b;
   const tA = teamA?.join(" & ") || "Team A";
   const tB = teamB?.join(" & ") || "Team B";
-  const total = a + b;
 
-  // Perfect game
-  if ((a === 11 && b === 0)) return `🔥 Dominant! ${tA} win 11-0 — shutout!`;
-  if ((b === 11 && a === 0)) return `🔥 Dominant! ${tB} win 11-0 — shutout!`;
+  // First point ever
+  if (a + b === 1) return `First point to ${a === 1 ? tA : tB} 🏓`;
 
-  // Comeback — current leader was once down by 5+
+  // Perfect game possibility
+  if (a === 11 && b === 0) return `🔥 Dominant! ${tA} leading 11-0 — perfect start!`;
+  if (b === 11 && a === 0) return `🔥 Dominant! ${tB} leading 11-0 — perfect start!`;
+  if (a === 0 && b >= 5)   return `${tB} leading ${b}-0 — ${tA} yet to score`;
+  if (b === 0 && a >= 5)   return `${tA} leading ${a}-0 — ${tB} yet to score`;
+
+  // Tied moments
+  if (a === b) {
+    if (a >= 10) return `😱 ${a}-${a}! Deuce — next 2 points wins it!`;
+    if (a >= 8)  return `Tied ${a}-${a}! Anyone's game now`;
+    if (a >= 5)  return `Level at ${a}-${a}`;
+    if (a === 1) return `1-1 — all square`;
+    return "";
+  }
+
+  // Comeback detection — current leader was once trailing
   if (a !== b) {
     const leader = a > b ? "a" : "b";
     const leaderName = a > b ? tA : tB;
     let maxDeficit = 0;
-    for (let i = 0; i < history.length - 1; i++) {
-      const h = history[i];
+    for (const h of history) {
       const deficit = leader === "a" ? h.b - h.a : h.a - h.b;
       if (deficit > maxDeficit) maxDeficit = deficit;
     }
-    if (maxDeficit >= 7) return `🤯 Unbelievable comeback! ${leaderName} were down ${maxDeficit} points!`;
-    if (maxDeficit >= 5) return `💪 What a comeback! ${leaderName} came back from ${maxDeficit} down!`;
-    if (maxDeficit >= 3) return `${leaderName} fought back from ${maxDeficit} down.`;
+    if (maxDeficit >= 7) return `🤯 Unbelievable! ${leaderName} came back from ${maxDeficit} down!`;
+    if (maxDeficit >= 5) return `💪 What a comeback! ${leaderName} were down ${maxDeficit} points!`;
+    if (maxDeficit >= 3) return `${leaderName} fighting back — came from ${maxDeficit} down`;
   }
 
-  // Tied at high score
-  if (a === b && a >= 10) return `😱 Tied at ${a}-${a}! Nerve-wracking!`;
-  if (a === b && a >= 8)  return `Tied at ${a}-${a}! What a match!`;
-
-  // Current run of consecutive points
+  // Consecutive run by same team
   let run = 0;
-  let lastScorer = null;
+  let runTeam = null;
   for (let i = history.length - 1; i > 0; i--) {
     const cur = history[i], prev = history[i - 1];
-    const scorer = cur.a > prev.a ? "a" : "b";
-    if (lastScorer === null) lastScorer = scorer;
-    if (scorer === lastScorer) run++;
+    // Determine who scored this point
+    const scorer = cur.a > prev.a ? "a" : cur.b > prev.b ? "b" : null;
+    if (!scorer) break; // score decreased (manual correction), stop
+    if (runTeam === null) runTeam = scorer;
+    if (scorer === runTeam) run++;
     else break;
   }
-  if (run >= 6) return `🔥 ${lastScorer === "a" ? tA : tB} on fire — ${run} points in a row!`;
-  if (run >= 4) return `${lastScorer === "a" ? tA : tB} on a ${run}-point run!`;
+  const runName = runTeam === "a" ? tA : tB;
+  if (run >= 7) return `🔥 Unstoppable! ${runName} on a ${run}-point tear!`;
+  if (run >= 5) return `🔥 ${runName} on a ${run}-point run!`;
+  if (run >= 3) return `${runName} scoring ${run} in a row`;
 
-  // First point
-  if (total === 1) return `First point to ${a === 1 ? tA : tB}.`;
+  // Match point / game point situations
+  const high = Math.max(a, b), low = Math.min(a, b);
+  const leader = a > b ? tA : tB;
+  if (high === 10 && low <= 8) return `${leader} on match point!`;
+  if (high === 10 && low === 9) return `${leader} on match point — ${low <= 9 ? tA === leader ? tB : tA : ""} must score!`;
 
   return "";
 }
@@ -131,23 +146,31 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const hint = scoreHint(sA, sB);
   const canSave = sA !== "" && sB !== "" && !hint;
 
-  // Track score progression and auto-generate notes
+  // notesEdited ref — avoids stale closure in setScoreHistory callback
+  const notesEditedRef = useRef(false);
+  useEffect(() => { notesEditedRef.current = notesEdited; }, [notesEdited]);
+
+  // Track score progression — functional setState avoids stale closure on rapid taps
   const updateScore = (newA, newB) => {
-    const numA = newA === "" ? null : Number(newA);
-    const numB = newB === "" ? null : Number(newB);
-    if (numA === null || numB === null) return;
+    // Treat empty string as 0 so first tap always registers
+    const numA = newA === "" ? 0 : Number(newA);
+    const numB = newB === "" ? 0 : Number(newB);
+    if (isNaN(numA) || isNaN(numB)) return;
     const next = { a: numA, b: numB };
-    const prev = scoreHistory[scoreHistory.length - 1];
-    // Only append if score actually changed (not a reset)
-    if (!prev || prev.a !== numA || prev.b !== numB) {
-      const newHistory = [...scoreHistory, next];
-      setScoreHistory(newHistory);
-      // Auto-generate note only if user hasn't manually edited notes
-      if (!notesEdited) {
+
+    setScoreHistory(prev => {
+      const last = prev[prev.length - 1];
+      // Skip if nothing changed
+      if (last && last.a === numA && last.b === numB) return prev;
+      const newHistory = [...prev, next];
+      // Auto-generate note (only if user hasn't manually typed)
+      if (!notesEditedRef.current) {
         const auto = generateAutoNote(newHistory, match.teamA, match.teamB);
-        if (auto) setMatchNotes(auto);
+        // Always update — clears stale note when no key moment
+        setMatchNotes(auto);
       }
-    }
+      return newHistory;
+    });
   };
 
   // Only compute H2H when match is active (user focused on it)
