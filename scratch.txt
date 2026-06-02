@@ -1,0 +1,9 @@
+The app is already in an incredibly strong place with real-time sync, H2H stats, and custom avatars. However, to take it from a "great web app" to a **"premium, native-feeling killer app,"** here are some of the best enhancements we could implement:
+
+### 🎨 UI / UX Enhancements (The "Wow" Factor)
+1. **Subtle Sound Effects (Audio Feedback):** Visuals are great, but audio makes an app feel alive. We could add very subtle, satisfying sound effects:
+   * A satisfying "pop" or pickleball paddle "dink" when you save a score.
+   * A crowd cheer when the Champion trophy animation plays.
+   * A tiny UI "tick" when navigating between tabs.
+2. **Player "Baseball Cards" (Stats Profile):** Right now, clicking a player in the standings shows their match history. We could upgrade this into a beautiful, popup **Player Card** that shows their Avatar, a circular Win-Rate chart, their "Biggest Rival" (the person they lose to the most), and their "Best Partner".
+<truncated 2179 bytes>

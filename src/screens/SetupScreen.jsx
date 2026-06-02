@@ -1,0 +1,251 @@
+import { useState, useEffect } from "react";
+import { ref, get } from "firebase/database";
+import { db } from "../firebase";
+import { ChevronRight, History, Wifi, BarChart2, Moon, Sun } from "lucide-react";
+import { PlayerAvatar } from "../components/PlayerAvatar";
+import { AvatarPickerModal } from "../components/AvatarPickerModal";
+
+export function SetupScreen({ onStart, onHistory, onJoin, onCareer, onToggleTheme, theme }) {
+  const [numP, setNumP] = useState(8);
+  const [showInstall, setShowInstall] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    // Show install banner on mobile browsers that support PWA
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const dismissed = localStorage.getItem('pkl_install_dismissed');
+    
+    if (isMobile && !isStandalone && !dismissed) {
+      setShowInstall(true);
+    }
+    // Capture the beforeinstallprompt event for Android
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (!dismissed) setShowInstall(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+    }
+    setShowInstall(false);
+    localStorage.setItem('pkl_install_dismissed', '1');
+  };
+
+  const dismissInstall = () => {
+    setShowInstall(false);
+    localStorage.setItem('pkl_install_dismissed', '1');
+  };
+  const [names, setNames] = useState(Array(8).fill("").map((_, i) => `Player ${i + 1}`));
+  const [rounds, setRounds] = useState(7);
+  const [focus, setFocus] = useState(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [joinErr, setJoinErr] = useState("");
+  const [profiles, setProfiles] = useState({});
+  const [editingAvatar, setEditingAvatar] = useState(null);
+  const [themeColor, setThemeColor] = useState("#c8f135");
+
+  const THEMES = [
+    { name: "Lime", val: "#c8f135" },
+    { name: "Cyan", val: "#35c8f1" },
+    { name: "Pink", val: "#f135c8" },
+    { name: "Gold", val: "#f1c835" },
+    { name: "Purple", val: "#a535f1" }
+  ];
+
+  const updateCount = n => {
+    const c = Math.max(4, Math.min(20, Math.round(n)));
+    setNumP(c);
+    setNames(prev => {
+      const a = [...prev];
+      while (a.length < c) a.push(`Player ${a.length + 1}`);
+      return a.slice(0, c);
+    });
+  };
+  
+  const byeCount = numP % 4;
+  const courtsPerRound = Math.floor(numP / 4);
+  
+  const canStart = names.slice(0, numP).every(n => n.trim());
+
+  const handleJoin = async () => {
+    const raw = joinCode.trim();
+    if (!raw) return;
+    setJoining(true);
+    setJoinErr("");
+    try {
+      // Try uppercase first (all codes are stored uppercase)
+      const upper = raw.toUpperCase();
+      let snap = await get(ref(db, `tournaments/${upper}`));
+      // If not found, try original case as fallback
+      if (!snap.exists() && raw !== upper) {
+        snap = await get(ref(db, `tournaments/${raw}`));
+      }
+      if (snap.exists() && snap.val()) {
+        onJoin(upper, snap.val());
+      } else {
+        setJoinErr(`Tournament "${upper}" not found. Double-check the code.`);
+      }
+    } catch (e) {
+      console.error("Join error:", e);
+      setJoinErr("Connection error. Check your internet and try again.");
+    }
+    setJoining(false);
+  };
+
+  return (
+    <div style={{ padding: "0 1rem 4rem" }}>
+      {/* PWA Install Banner */}
+      {showInstall && (
+        <div className="fu" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 999, padding: "12px 16px", background: "#1a1f2e", borderTop: "2px solid rgba(200,241,53,0.4)", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 -4px 24px rgba(0,0,0,0.5)" }}>
+          <div style={{ fontSize: 28, flexShrink: 0 }}>🏓</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "#c8f135", letterSpacing: 1.5, lineHeight: 1 }}>ADD TO HOME SCREEN</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>Install for faster access — works offline too</div>
+          </div>
+          <button className="pb" onClick={handleInstall} style={{ background: "#c8f135", border: "none", borderRadius: 8, padding: "8px 14px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 1, color: "#0d0f0a", cursor: "pointer", flexShrink: 0 }}>
+            INSTALL
+          </button>
+          <button onClick={dismissInstall} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 20, padding: "4px", flexShrink: 0, lineHeight: 1 }}>✕</button>
+        </div>
+      )}
+      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+        
+        {/* Header */}
+        <div className="fu" style={{ paddingTop: "2.5rem", paddingBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: 3, color: 'var(--color-muted)', marginBottom: 4 }}>🏓 TOURNAMENT MANAGER</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 62, color: 'var(--color-lime)', lineHeight: .95, letterSpacing: 3 }}>
+              PICKLE<br />BALL
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="pb" onClick={onToggleTheme} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, color: 'var(--color-text)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-card)', cursor: 'pointer' }}>
+                {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button className="pb" onClick={onHistory} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600, background: 'var(--color-card)', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
+                <History size={16} /> HISTORY
+              </button>
+            </div>
+            <button className="pb" onClick={onCareer} style={{ display: 'flex', alignItems: 'center', gap: 6, color: theme === 'dark' ? '#c8f135' : '#c2410c', padding: "8px 14px", borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600, border: `1px solid ${theme === 'dark' ? 'rgba(200,241,53,0.3)' : 'rgba(194,65,12,0.3)'}`, background: theme === 'dark' ? 'rgba(200,241,53,0.08)' : 'rgba(194,65,12,0.08)', width: '100%', justifyContent: 'center', cursor: 'pointer' }}>
+              <BarChart2 size={16} /> CAREER STATS
+            </button>
+          </div>
+        </div>
+
+        {/* Join existing */}
+        <div className="fu glass-card" style={{ animationDelay: ".04s", borderRadius: 'var(--radius-md)', padding: "1.4rem", marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, letterSpacing: 2, color: 'var(--color-cyan)', marginBottom: 12, fontWeight: 600 }}>
+            <Wifi size={14} /> JOIN LIVE TOURNAMENT
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} placeholder="Enter Code (e.g. ABC123)"
+              onKeyDown={e => e.key === "Enter" && handleJoin()}
+              className="si"
+              style={{ flex: 1, background: 'var(--color-surface)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)', color: 'var(--color-lime)', fontSize: 16, padding: "12px 16px", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2 }} />
+            <button className="pb" onClick={handleJoin} disabled={joining}
+              style={{ background: 'var(--color-cyan)', border: "none", borderRadius: 'var(--radius-sm)', padding: "0 24px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 1, color: 'var(--color-dark)' }}>
+              {joining ? "..." : "JOIN"}
+            </button>
+          </div>
+          {joinErr && <div style={{ fontSize: 12, color: 'var(--color-danger)', marginTop: 8 }}>{joinErr}</div>}
+        </div>
+
+        {/* Settings Grid */}
+        <div className="fu" style={{ animationDelay: ".06s", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          {[
+            { label: "PLAYERS", val: numP, dec: () => updateCount(numP - 1), inc: () => updateCount(numP + 1), min: 4, max: 20 },
+            { label: "ROUNDS", val: rounds, dec: () => setRounds(r => Math.max(1, r - 1)), inc: () => setRounds(r => Math.min(30, r + 1)), min: 1, max: 30 }
+          ].map(({ label, val, dec, inc, min, max }) => (
+            <div key={label} className="glass-card" style={{ borderRadius: 'var(--radius-md)', padding: "1.4rem" }}>
+              <div style={{ fontSize: 11, letterSpacing: 2, color: 'var(--color-muted)', marginBottom: 12, fontWeight: 600 }}>{label}</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <button className="pb" onClick={dec} disabled={val <= min}
+                  style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', background: val <= min ? 'var(--color-surface)' : 'rgba(200,241,53,0.12)', border: `1px solid ${val <= min ? 'var(--color-border)' : 'rgba(200,241,53,0.4)'}`, color: val <= min ? 'var(--color-muted)' : 'var(--color-lime)', fontSize: 24, fontWeight: 700, cursor: val <= min ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  −
+                </button>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: 'var(--color-lime)', lineHeight: 1, textAlign: 'center', flex: 1 }}>
+                  {val}
+                </div>
+                <button className="pb" onClick={inc} disabled={val >= max}
+                  style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', background: val >= max ? 'var(--color-surface)' : 'rgba(200,241,53,0.12)', border: `1px solid ${val >= max ? 'var(--color-border)' : 'rgba(200,241,53,0.4)'}`, color: val >= max ? 'var(--color-muted)' : 'var(--color-lime)', fontSize: 24, fontWeight: 700, cursor: val >= max ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  +
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bye notice */}
+        {byeCount > 0 && (
+          <div className="fu glass-card" style={{ animationDelay: ".08s", borderRadius: 'var(--radius-sm)', padding: "10px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(241, 200, 53, 0.3)" }}>
+            <span style={{ fontSize: 18 }}>⚡</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-gold)' }}>{byeCount} player{byeCount > 1 ? "s" : ""} will sit out per round (bye rotation)</div>
+              <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>{courtsPerRound} match{courtsPerRound > 1 ? "es" : ""} per round · everyone gets equal play time</div>
+            </div>
+          </div>
+        )}
+
+        {/* Player Roster */}
+        <div className="fu glass-card" style={{ animationDelay: ".1s", borderRadius: 'var(--radius-lg)', padding: "1.6rem", marginBottom: 20 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: 'var(--color-muted)', marginBottom: 16, fontWeight: 600 }}>PLAYER ROSTER</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+            {Array.from({ length: numP }, (_, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: focus === i ? 'rgba(36, 44, 24, 0.6)' : 'var(--color-surface)', border: `1px solid ${focus === i ? 'var(--color-lime)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-sm)', padding: "10px 14px", transition: "all .2s ease" }}>
+                <div onClick={() => setEditingAvatar(i)} style={{ cursor: "pointer", transition: "transform 0.1s" }} className="pb">
+                  <PlayerAvatar name={names[i]} profile={profiles[names[i]]} size={30} fallbackIndex={i} />
+                </div>
+                <input value={names[i] || ""} placeholder={`Player ${i + 1}`}
+                  onFocus={() => setFocus(i)} onBlur={() => setFocus(null)}
+                  onChange={e => { const a = [...names]; a[i] = e.target.value; setNames(a); }}
+                  style={{ background: "transparent", border: "none", color: 'var(--color-text)', fontSize: 15, outline: "none", width: "100%", fontFamily: "'DM Sans', sans-serif" }} />
+                <div style={{ fontSize: 13, color: 'var(--color-border)', fontFamily: "'Bebas Neue', sans-serif" }}>{i + 1}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Theme Picker */}
+        <div className="fu glass-card" style={{ animationDelay: ".12s", borderRadius: 'var(--radius-lg)', padding: "1.6rem", marginBottom: 20 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: 'var(--color-muted)', marginBottom: 12, fontWeight: 600 }}>APP THEME</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {THEMES.map(t => (
+              <button key={t.val} className="pb" onClick={() => setThemeColor(t.val)}
+                style={{ width: 44, height: 44, borderRadius: "50%", background: t.val, border: themeColor === t.val ? `3px solid white` : `3px solid transparent`, outline: themeColor === t.val ? `2px solid ${t.val}` : "none", cursor: "pointer", transition: "all 0.2s" }}
+                title={t.name}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Start Button */}
+        <button className="fu pb" style={{ animationDelay: ".14s", width: "100%", padding: "20px", background: canStart ? themeColor : 'var(--color-border)', border: "none", borderRadius: 'var(--radius-md)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 3, color: canStart ? '#000' : 'var(--color-muted)', cursor: canStart ? "pointer" : "not-allowed", display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, boxShadow: canStart ? `0 8px 32px ${themeColor}40` : 'none' }}
+          onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles, themeColor)}>
+          CREATE TOURNAMENT <ChevronRight size={24} />
+        </button>
+      </div>
+
+      {editingAvatar !== null && (
+        <AvatarPickerModal 
+          name={names[editingAvatar]} 
+          currentProfile={profiles[names[editingAvatar]]} 
+          onSave={(prof) => {
+            setProfiles(prev => ({ ...prev, [names[editingAvatar]]: prof }));
+            setEditingAvatar(null);
+          }} 
+          onClose={() => setEditingAvatar(null)} 
+        />
+      )}
+    </div>
+  );
+}
