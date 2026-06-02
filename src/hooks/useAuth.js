@@ -1,9 +1,33 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import emailjs from "@emailjs/browser";
 import { auth, googleProvider, firestore } from "../firebase";
 
+// ── EmailJS config — replace these with your values from emailjs.com ──────
+const EMAILJS_SERVICE_ID  = "YOUR_SERVICE_ID";
+const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
+const EMAILJS_PUBLIC_KEY  = "YOUR_PUBLIC_KEY";
+
 const GUEST_KEY = "pkl_guest_mode";
+
+async function sendWelcomeEmail(firebaseUser) {
+  if (!EMAILJS_SERVICE_ID.startsWith("YOUR")) {
+    try {
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+          to_name:  firebaseUser.displayName || "Player",
+          to_email: firebaseUser.email,
+        },
+        EMAILJS_PUBLIC_KEY
+      );
+    } catch (e) {
+      console.warn("Welcome email failed:", e);
+    }
+  }
+}
 
 // Called once when a Google user signs in for the first time
 async function ensureUserProfile(firebaseUser) {
@@ -11,12 +35,14 @@ async function ensureUserProfile(firebaseUser) {
   const snap = await getDoc(ref);
   if (!snap.exists()) {
     await setDoc(ref, {
-      uid:       firebaseUser.uid,
-      name:      firebaseUser.displayName || "Player",
-      email:     firebaseUser.email,
-      photoURL:  firebaseUser.photoURL || null,
-      joinedAt:  serverTimestamp(),
+      uid:      firebaseUser.uid,
+      name:     firebaseUser.displayName || "Player",
+      email:    firebaseUser.email,
+      photoURL: firebaseUser.photoURL || null,
+      joinedAt: serverTimestamp(),
     });
+    // New user — send welcome email
+    await sendWelcomeEmail(firebaseUser);
   }
 }
 
