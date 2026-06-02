@@ -7,7 +7,17 @@ export function AuthModal({ onGoogle, onGuest }) {
   const handleGoogle = async () => {
     setLoading(true); setErr("");
     try { await onGoogle(); }
-    catch { setErr("Sign-in failed. Please try again."); }
+    catch (e) {
+      console.error("Google sign-in error:", e);
+      const msg = e?.code === "auth/unauthorized-domain"
+        ? "This domain is not authorized. Add it in Firebase Console → Authentication → Settings → Authorized domains."
+        : e?.code === "auth/popup-blocked"
+        ? "Popup was blocked. Please allow popups for this site."
+        : e?.code === "auth/popup-closed-by-user"
+        ? "Sign-in cancelled."
+        : `Sign-in failed: ${e?.code || e?.message || "unknown error"}`;
+      setErr(msg);
+    }
     finally { setLoading(false); }
   };
 
