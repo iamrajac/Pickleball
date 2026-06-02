@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ref, onValue, set, onDisconnect, get } from "firebase/database";
-import { db } from "../firebase";
+import { doc, setDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { db, firestore } from "../firebase";
 import confetti from "canvas-confetti";
 
 import { generateSchedule, computeStandings, initPlayoffs, genCode } from "../utils/schedule";
@@ -8,6 +10,22 @@ import { loadH, saveH, isCreator, registerAsCreator, computeH2HMatrix } from "..
 import { generateScorerPin, saveScorerPin, getScorerPin } from "../components/ScorerModal";
 import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
+
+// Write tournament metadata to Firestore under the signed-in user
+async function saveToUserAccount(uid, code, data) {
+  try {
+    await setDoc(doc(firestore, "users", uid, "tournaments", code), data, { merge: true });
+  } catch (e) { console.warn("Firestore write failed", e); }
+}
+
+// Fetch all tournaments for a signed-in user from Firestore
+export async function fetchUserTournaments(uid) {
+  try {
+    const q = query(collection(firestore, "users", uid, "tournaments"), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), firestoreId: d.id }));
+  } catch { return []; }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -164,6 +182,9 @@ export function useTournament() {
     }());
     _upsertHist(rounds, playoffs, champion);
     setSavedToHist(true);
+    // Update Firestore status to completed
+    const uid = getAuth().currentUser?.uid;
+    if (uid && code) saveToUserAccount(uid, code, { status: "done", champion });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, savedToHist, readOnly]);
 
@@ -259,6 +280,17 @@ export function useTournament() {
         scheduledAt: meta.scheduledAt || null, ts: Date.now()
       });
       _upsertHist(r, null, null, newProfiles, tColor, c);
+      // Save to Firestore user account for cross-device sync
+      const uid = getAuth().currentUser?.uid;
+      if (uid) {
+        await saveToUserAccount(uid, c, {
+          code: c, name: meta.name || "", status: "live",
+          playerCount: p.length, players: p,
+          isPublic: meta.isPublic !== false,
+          scheduledAt: meta.scheduledAt || null,
+          createdAt: serverTimestamp(), champion: null,
+        });
+      }
       addToast("Tournament created! Share the code.", "success");
       joinCompleteRef.current = true;
     } finally { isWriting.current = false; }
@@ -294,6 +326,16 @@ export function useTournament() {
     }
     joinCompleteRef.current = true;
     window.scrollTo(0, 0);
+    // Track in Firestore for cross-device history
+    const uid = getAuth().currentUser?.uid;
+    if (uid) {
+      saveToUserAccount(uid, c, {
+        code: c, name: data.name || "", status: data.champion ? "done" : "live",
+        playerCount: (data.players || []).length, isPublic: data.isPublic !== false,
+        createdAt: serverTimestamp(), champion: data.champion || null,
+        joinedAs: canEdit ? "scorer" : "viewer",
+      });
+    }
   };
 
   const saveResult = (ri, mi, sA, sB, dur, notes = "") => {

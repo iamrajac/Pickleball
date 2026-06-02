@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH } from "../utils/history";
+import { fetchUserTournaments } from "../hooks/useTournament";
 
 /* ── Tournament card ──────────────────────────────── */
 function TournamentCard({ t, onClick }) {
@@ -83,19 +84,36 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const [myTournaments, setMyTournaments] = useState([]);
   const [loadingPublic, setLoadingPublic] = useState(true);
 
-  // Load history from localStorage (guest + google users' local history)
+  // Load tournaments — Firestore for Google users, localStorage for guests
   useEffect(() => {
-    const hist = loadH().filter(t => t.code);
-    const seen = new Map();
-    hist.forEach(t => seen.set(t.code, t));
-    const deduped = Array.from(seen.values()).reverse();
-    setMyTournaments(deduped.map(t => ({
+    const normalize = (t) => ({
       ...t,
       status: t.status || (t.champion ? "done" : "live"),
-      playerCount: t.players?.length || 0,
-      roundInfo: t.rounds ? `Round ${t.rounds.flat().filter(m => m.played).length > 0 ? Math.ceil(t.rounds.flat().filter(m => m.played).length / (t.rounds[0]?.length || 1)) : 1}/${t.rounds.length}` : "",
-    })));
-  }, []);
+      playerCount: t.playerCount || t.players?.length || 0,
+      roundInfo: t.rounds ? `Round ${Math.ceil(t.rounds.flat().filter(m => m.played).length / Math.max(t.rounds[0]?.length || 1, 1))}/${t.rounds.length}` : "",
+    });
+
+    if (user?.uid) {
+      // Google user — fetch from Firestore for cross-device sync
+      fetchUserTournaments(user.uid).then(list => {
+        if (list.length > 0) {
+          setMyTournaments(list.map(normalize));
+        } else {
+          // Firestore empty — fall back to localStorage
+          const hist = loadH().filter(t => t.code);
+          const seen = new Map();
+          hist.forEach(t => seen.set(t.code, t));
+          setMyTournaments(Array.from(seen.values()).reverse().map(normalize));
+        }
+      });
+    } else {
+      // Guest — localStorage only
+      const hist = loadH().filter(t => t.code);
+      const seen = new Map();
+      hist.forEach(t => seen.set(t.code, t));
+      setMyTournaments(Array.from(seen.values()).reverse().map(normalize));
+    }
+  }, [user?.uid]);
 
   // Load public tournaments from Firestore
   useEffect(() => {

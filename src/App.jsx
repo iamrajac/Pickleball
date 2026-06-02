@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { HashRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { ref, get } from "firebase/database";
-import { db } from "./firebase";
+import { db, firestore } from "./firebase";
 
 import { computeStandings } from "./utils/schedule";
 import { useTournament } from "./hooks/useTournament";
@@ -476,6 +476,33 @@ function AppInner() {
   const t = useTournament();
   const { user, loading, isGuest, isAuthenticated, signInWithGoogle, continueAsGuest } = useAuth();
   const navigate = useNavigate();
+  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [localCount, setLocalCount] = useState(0);
+
+  // After Google sign-in, check for existing local data to offer sync
+  useEffect(() => {
+    if (!user) return;
+    const SYNCED_KEY = `pkl_synced_${user.uid}`;
+    if (localStorage.getItem(SYNCED_KEY)) return; // already synced before
+    const local = (JSON.parse(localStorage.getItem("pkl_hist_v2") || "[]")).filter(t => t.code);
+    if (local.length > 0) { setLocalCount(local.length); setShowSyncPrompt(true); }
+  }, [user?.uid]);
+
+  const handleSync = async (doSync) => {
+    setShowSyncPrompt(false);
+    if (doSync && user?.uid) {
+      const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
+      const local = (JSON.parse(localStorage.getItem("pkl_hist_v2") || "[]")).filter(t => t.code);
+      await Promise.all(local.map(entry =>
+        setDoc(doc(firestore, "users", user.uid, "tournaments", entry.code), {
+          code: entry.code, name: entry.name || "", status: entry.status || (entry.champion ? "done" : "live"),
+          playerCount: entry.players?.length || 0, isPublic: true,
+          createdAt: serverTimestamp(), champion: entry.champion || null,
+        }, { merge: true }).catch(() => {})
+      ));
+    }
+    localStorage.setItem(`pkl_synced_${user.uid}`, "1");
+  };
 
   // After auth completes, check if there's a pending join link
   useEffect(() => {
@@ -500,6 +527,30 @@ function AppInner() {
   // Show auth screen until user makes a choice
   if (!isAuthenticated) return (
     <AuthModal onGoogle={signInWithGoogle} onGuest={continueAsGuest} />
+  );
+
+  // Local data sync prompt — shown once after first Google sign-in if local data exists
+  if (showSyncPrompt) return (
+    <div style={{ position: "fixed", inset: 0, background: "var(--overlay)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+      <div className="card fu" style={{ maxWidth: 360, width: "100%", padding: "2rem", textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2, marginBottom: 8 }}>LOCAL DATA FOUND</div>
+        <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 24, lineHeight: 1.6 }}>
+          You have <strong style={{ color: "var(--text)" }}>{localCount} tournament{localCount !== 1 ? "s" : ""}</strong> saved on this device.<br />
+          Import them to your Google account so they appear on all your devices?
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="pb" onClick={() => handleSync(false)}
+            style={{ flex: 1, padding: "12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", color: "var(--text-secondary)", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
+            NO THANKS
+          </button>
+          <button className="pb" onClick={() => handleSync(true)}
+            style={{ flex: 1, padding: "12px", background: "var(--accent)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
+            YES, IMPORT
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   // Active tournament overrides all routes
