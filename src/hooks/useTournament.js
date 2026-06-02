@@ -326,9 +326,10 @@ export function useTournament() {
     }
     joinCompleteRef.current = true;
     window.scrollTo(0, 0);
-    // Track in Firestore for cross-device history
+    // Only write to Firestore if this is a NEW join (not an old local tournament being reopened)
     const uid = getAuth().currentUser?.uid;
-    if (uid) {
+    const alreadyLocal = loadH().some(t => t.code === c);
+    if (uid && !alreadyLocal) {
       saveToUserAccount(uid, c, {
         code: c, name: data.name || "", status: data.champion ? "done" : "live",
         playerCount: (data.players || []).length, isPublic: data.isPublic !== false,
