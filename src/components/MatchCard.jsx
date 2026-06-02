@@ -36,12 +36,33 @@ function ScoreCounter({ value, onChange, hasError }) {
   );
 }
 
-export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {} }) {
+export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {},
+  timerState, onTimerStart, onTimerStop, onTimerReset }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
   const [matchNotes, setMatchNotes] = useState(match.notes || "");
-  const [isActive, setIsActive] = useState(false); // true when user starts entering scores
-  const timer = useTimer();
+  const [isActive, setIsActive] = useState(false);
+  // Use lifted timer state if provided, otherwise fall back to local timer
+  const localTimer = useTimer();
+  const usingLiftedTimer = !!timerState;
+  const timer = usingLiftedTimer ? {
+    elapsed: timerState.startedAt && timerState.running
+      ? Math.floor((Date.now() - timerState.startedAt) / 1000)
+      : timerState.elapsed,
+    running: timerState.running,
+    start:   onTimerStart,
+    stop:    () => { onTimerStop(); return timerState.elapsed; },
+    reset:   onTimerReset,
+    fmt:     localTimer.fmt,
+  } : localTimer;
+
+  // Tick every second when lifted timer is running
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!usingLiftedTimer || !timerState?.running) return;
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [usingLiftedTimer, timerState?.running]);
 
   // Fair serve & side assignment algorithm (deterministic hash)
   const hash = String((match.teamA || []).join("") + match.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);

@@ -5,7 +5,9 @@ import { db } from "./firebase";
 
 import { computeStandings } from "./utils/schedule";
 import { useTournament } from "./hooks/useTournament";
+import { useAuth } from "./hooks/useAuth";
 
+import { HubScreen } from "./screens/HubScreen";
 import { SetupScreen } from "./screens/SetupScreen";
 import { HistoryScreen, HistoryDetail } from "./screens/HistoryScreen";
 import { CareerScreen } from "./screens/CareerScreen";
@@ -19,8 +21,10 @@ import { ReactionsOverlay } from "./components/Reactions";
 import { MatchTicker } from "./components/MatchTicker";
 import { TournamentAwards } from "./components/TournamentAwards";
 import { ScorerPinModal, ScorerPinEntry } from "./components/ScorerModal";
+import { AuthModal } from "./components/AuthModal";
+import { BottomNav } from "./components/BottomNav";
 import { playAudio } from "./utils/audio";
-import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, Wifi, WifiOff } from "lucide-react";
+import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, WifiOff } from "lucide-react";
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 function useTheme() {
@@ -226,13 +230,20 @@ function TournamentView({ t, theme, toggleTheme }) {
                         <span style={{ fontSize: 12, color: "var(--color-gold)" }}>Sitting out: <strong>{round[0].bye.join(", ")}</strong></span>
                       </div>
                     )}
-                    {round.map((m, mi) => (
-                      <div key={mi} className={animatingScore === `${ri}-${mi}` ? "score-flash" : ""}>
-                        <MatchCard match={m} delay={mi * 0.04} readOnly={readOnly}
-                          onSave={(a, b, dur, notes) => saveResult(ri, mi, a, b, dur, notes)}
-                          h2hMatrix={h2hMatrix} profiles={profiles} />
-                      </div>
-                    ))}
+                    {round.map((m, mi) => {
+                      const tk = `${ri}-${mi}`;
+                      return (
+                        <div key={mi} className={animatingScore === tk ? "score-flash" : ""}>
+                          <MatchCard match={m} delay={mi * 0.04} readOnly={readOnly}
+                            onSave={(a, b, dur, notes) => saveResult(ri, mi, a, b, dur, notes)}
+                            h2hMatrix={h2hMatrix} profiles={profiles}
+                            timerState={t.getMatchTimer(tk)}
+                            onTimerStart={() => t.startMatchTimer(tk)}
+                            onTimerStop={() => t.stopMatchTimer(tk)}
+                            onTimerReset={() => t.resetMatchTimer(tk)} />
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -396,6 +407,39 @@ function SetupRoute({ t, theme, toggleTheme }) {
   );
 }
 
+// ── Account screen ────────────────────────────────────────────────────────
+function AccountScreen({ user, isGuest, onBack, theme }) {
+  const { signOutUser, signInWithGoogle, clearGuest } = useAuth();
+  const navigate = useNavigate();
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 1rem 90px" }}>
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ paddingTop: "2.5rem", paddingBottom: "1.5rem", display: "flex", alignItems: "center", gap: 14 }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 20 }}>←</button>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 28, letterSpacing: 2, color: "var(--accent)" }}>ACCOUNT</div>
+        </div>
+        <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
+          {user ? (
+            <>
+              {user.photoURL && <img src={user.photoURL} alt="" style={{ width: 72, height: 72, borderRadius: "50%", marginBottom: 16, border: "3px solid var(--accent)" }} />}
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 24, letterSpacing: 2, marginBottom: 4 }}>{user.displayName}</div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 28 }}>{user.email}</div>
+              <button className="pb btn btn-danger" onClick={signOutUser} style={{ width: "100%" }}>SIGN OUT</button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2, marginBottom: 8 }}>GUEST MODE</div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 28 }}>Sign in with Google to sync history across devices.</div>
+              <button className="pb btn btn-primary" onClick={async () => { await signInWithGoogle(); clearGuest(); navigate("/"); }} style={{ width: "100%", marginBottom: 12 }}>SIGN IN WITH GOOGLE</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── History detail route ───────────────────────────────────────────────────
 function HistoryDetailRoute({ theme }) {
   const location = useLocation();
@@ -430,16 +474,74 @@ export default function App() {
 function AppInner() {
   const { theme, toggle: toggleTheme } = useTheme();
   const t = useTournament();
+  const { user, loading, isGuest, isAuthenticated, signInWithGoogle, continueAsGuest } = useAuth();
+  const navigate = useNavigate();
 
+  // After auth completes, check if there's a pending join link
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const params = new URLSearchParams(window.location.search);
+    const joinCode = params.get("join");
+    if (!joinCode) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    const upper = joinCode.trim().toUpperCase();
+    get(ref(db, `tournaments/${upper}`))
+      .then(snap => { if (snap.exists() && snap.val()) t.handleJoin(upper, snap.val()); })
+      .catch(e => console.error("Auto-join error:", e));
+  }, [isAuthenticated]);
+
+  // Show loading spinner
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ fontFamily: "var(--font-display)", fontSize: 32, color: "var(--accent)", letterSpacing: 4 }}>🏓</div>
+    </div>
+  );
+
+  // Show auth screen until user makes a choice
+  if (!isAuthenticated) return (
+    <AuthModal onGoogle={signInWithGoogle} onGuest={continueAsGuest} />
+  );
+
+  // Active tournament overrides all routes
   if (t.code) return <TournamentView t={t} theme={theme} toggleTheme={toggleTheme} />;
 
   return (
-    <Routes>
-      <Route path="/" element={<SetupRoute t={t} theme={theme} toggleTheme={toggleTheme} />} />
-      <Route path="/history" element={<HistoryRoute theme={theme} />} />
-      <Route path="/history/detail" element={<HistoryDetailRoute theme={theme} />} />
-      <Route path="/career" element={<CareerScreen onBack={() => window.history.back()} theme={theme} />} />
-      <Route path="*" element={<SetupRoute t={t} theme={theme} toggleTheme={toggleTheme} />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={
+          <HubScreen
+            user={user} isGuest={isGuest}
+            theme={theme} onToggleTheme={toggleTheme}
+            onCreateTournament={() => navigate("/create")}
+            onOpenTournament={(tournament) => {
+              // If it's a history entry, open it; if live, rejoin
+              if (tournament.code && tournament.rounds) {
+                if (tournament.status === "live" || tournament.status === "in-progress") {
+                  t.handleJoin(tournament.code, tournament);
+                } else {
+                  navigate("/history/detail", { state: { tournament } });
+                }
+              }
+            }}
+          />
+        } />
+        <Route path="/create" element={
+          <SetupScreen
+            onStart={t.handleStart}
+            onJoin={t.handleJoin}
+            onBack={() => navigate("/")}
+            theme={theme}
+          />
+        } />
+        <Route path="/history" element={<HistoryRoute theme={theme} />} />
+        <Route path="/history/detail" element={<HistoryDetailRoute theme={theme} />} />
+        <Route path="/career" element={<CareerScreen onBack={() => navigate("/")} theme={theme} />} />
+        <Route path="/account" element={
+          <AccountScreen user={user} isGuest={isGuest} onBack={() => navigate("/")} theme={theme} />
+        } />
+        <Route path="*" element={<HubScreen user={user} isGuest={isGuest} theme={theme} onToggleTheme={toggleTheme} onCreateTournament={() => navigate("/create")} onOpenTournament={() => {}} />} />
+      </Routes>
+      <BottomNav />
+    </>
   );
 }

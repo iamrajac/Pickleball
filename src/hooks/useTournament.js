@@ -84,8 +84,13 @@ export function useTournament() {
   const [animatingScore, setAnimatingScore] = useState(null);
   const [scorerPin, setScorerPin] = useState(null);
   const [profiles, setProfiles] = useState({});
-  const [themeColor, setThemeColor] = useState("#c8f135");
+  const [themeColor, setThemeColor] = useState("#10d48e");
   const [h2hMatrix, setH2hMatrix] = useState({});
+  // Timer state keyed by "roundIndex-matchIndex" — survives tab switches
+  const [matchTimers, setMatchTimers] = useState({});
+  // Tournament metadata
+  const [tournamentName, setTournamentName] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
 
   // Refs that must not trigger re-renders
   const isWriting = useRef(false);
@@ -209,24 +214,49 @@ export function useTournament() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  const handleStart = async (p, numRounds, newProfiles = {}, tColor = "#c8f135") => {
+  // ── Timer helpers (survive tab switches) ────────────────────────────────
+  const startMatchTimer = (key) => {
+    setMatchTimers(prev => ({
+      ...prev,
+      [key]: { startedAt: Date.now() - ((prev[key]?.elapsed || 0) * 1000), elapsed: prev[key]?.elapsed || 0, running: true },
+    }));
+  };
+  const stopMatchTimer = (key) => {
+    setMatchTimers(prev => {
+      const t = prev[key];
+      if (!t) return prev;
+      const elapsed = t.startedAt ? Math.floor((Date.now() - t.startedAt) / 1000) : t.elapsed;
+      return { ...prev, [key]: { ...t, elapsed, running: false } };
+    });
+  };
+  const resetMatchTimer = (key) => {
+    setMatchTimers(prev => ({ ...prev, [key]: { startedAt: null, elapsed: 0, running: false } }));
+  };
+  const getMatchTimer = (key) => matchTimers[key] || { startedAt: null, elapsed: 0, running: false };
+
+  const handleStart = async (p, numRounds, newProfiles = {}, tColor = "#10d48e", meta = {}) => {
     const r = generateSchedule(p, numRounds);
     const c = genCode();
     const pin = generateScorerPin();
     window.scrollTo(0, 0);
     setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null);
     setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
+    setMatchTimers({});
     canEditRef.current = true;
     setScorerPin(pin);
     setProfiles(newProfiles);
     setThemeColor(tColor);
+    setTournamentName(meta.name || "");
+    setIsPublic(meta.isPublic !== false);
     registerAsCreator(c);
     saveScorerPin(c, pin);
     isWriting.current = true;
     try {
       await fbSet(`tournaments/${c}`, {
         players: p, rounds: r, playoffs: null, champion: null,
-        scorerPin: String(pin), profiles: newProfiles, themeColor: tColor, ts: Date.now()
+        scorerPin: String(pin), profiles: newProfiles, themeColor: tColor,
+        name: meta.name || "", isPublic: meta.isPublic !== false,
+        scheduledAt: meta.scheduledAt || null, ts: Date.now()
       });
       _upsertHist(r, null, null, newProfiles, tColor, c);
       addToast("Tournament created! Share the code.", "success");
@@ -365,6 +395,7 @@ export function useTournament() {
     pendingSync.current = null;
     setPlayers([]); setRounds([]); setPlayoffs(null);
     setCode(null); setChampion(null); setScorerPin(null);
+    setMatchTimers({}); setTournamentName(""); setIsPublic(true);
   };
 
   const handleScorerPinEntered = async (enteredPin) => {
@@ -401,6 +432,9 @@ export function useTournament() {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin,
     profiles, themeColor, h2hMatrix, savedToHist,
+    tournamentName, isPublic,
+    // Timer helpers
+    startMatchTimer, stopMatchTimer, resetMatchTimer, getMatchTimer,
     // Actions
     handleStart, handleJoin, saveResult, savePlayoff, executeEnd,
     handleScorerPinEntered, copyStandingsText, startPlayoffs, declareAsFinal,
