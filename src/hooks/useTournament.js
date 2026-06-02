@@ -104,7 +104,7 @@ export function useTournament() {
   const [profiles, setProfiles] = useState({});
   const [themeColor, setThemeColor] = useState("#10d48e");
   const [h2hMatrix, setH2hMatrix] = useState({});
-  // Timer state keyed by "roundIndex-matchIndex" — survives tab switches
+  // Timer state keyed by "roundIndex-matchIndex" — survives tab switches + app close
   const [matchTimers, setMatchTimers] = useState({});
   // Tournament metadata
   const [tournamentName, setTournamentName] = useState("");
@@ -120,6 +120,31 @@ export function useTournament() {
 
   // ── H2H init ──────────────────────────────────────────────────────────────
   useEffect(() => { setH2hMatrix(computeH2HMatrix()); }, []);
+
+  // ── Timer persistence — save to localStorage on every change ─────────────
+  useEffect(() => {
+    if (!code) return;
+    localStorage.setItem(`pkl_timers_${code}`, JSON.stringify(matchTimers));
+  }, [matchTimers, code]);
+
+  // ── Restore timers when rejoining a tournament ────────────────────────────
+  useEffect(() => {
+    if (!code) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(`pkl_timers_${code}`) || "{}");
+      // Recalculate elapsed for any timer that was running when app closed
+      const restored = {};
+      Object.entries(saved).forEach(([key, t]) => {
+        if (t.running && t.startedAt) {
+          // Timer was running — compute how much time passed while app was closed
+          restored[key] = { ...t, elapsed: Math.floor((Date.now() - t.startedAt) / 1000) };
+        } else {
+          restored[key] = t;
+        }
+      });
+      if (Object.keys(restored).length > 0) setMatchTimers(restored);
+    } catch {}
+  }, [code]);
 
   // ── Theme color → CSS var ─────────────────────────────────────────────────
   useEffect(() => {

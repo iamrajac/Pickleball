@@ -36,11 +36,64 @@ function ScoreCounter({ value, onChange, hasError }) {
   );
 }
 
+// ── Auto note generator ────────────────────────────────────────────────────
+function generateAutoNote(history, teamA, teamB) {
+  if (history.length < 2) return "";
+  const curr = history[history.length - 1];
+  const a = curr.a, b = curr.b;
+  const tA = teamA?.join(" & ") || "Team A";
+  const tB = teamB?.join(" & ") || "Team B";
+  const total = a + b;
+
+  // Perfect game
+  if ((a === 11 && b === 0)) return `🔥 Dominant! ${tA} win 11-0 — shutout!`;
+  if ((b === 11 && a === 0)) return `🔥 Dominant! ${tB} win 11-0 — shutout!`;
+
+  // Comeback — current leader was once down by 5+
+  if (a !== b) {
+    const leader = a > b ? "a" : "b";
+    const leaderName = a > b ? tA : tB;
+    let maxDeficit = 0;
+    for (let i = 0; i < history.length - 1; i++) {
+      const h = history[i];
+      const deficit = leader === "a" ? h.b - h.a : h.a - h.b;
+      if (deficit > maxDeficit) maxDeficit = deficit;
+    }
+    if (maxDeficit >= 7) return `🤯 Unbelievable comeback! ${leaderName} were down ${maxDeficit} points!`;
+    if (maxDeficit >= 5) return `💪 What a comeback! ${leaderName} came back from ${maxDeficit} down!`;
+    if (maxDeficit >= 3) return `${leaderName} fought back from ${maxDeficit} down.`;
+  }
+
+  // Tied at high score
+  if (a === b && a >= 10) return `😱 Tied at ${a}-${a}! Nerve-wracking!`;
+  if (a === b && a >= 8)  return `Tied at ${a}-${a}! What a match!`;
+
+  // Current run of consecutive points
+  let run = 0;
+  let lastScorer = null;
+  for (let i = history.length - 1; i > 0; i--) {
+    const cur = history[i], prev = history[i - 1];
+    const scorer = cur.a > prev.a ? "a" : "b";
+    if (lastScorer === null) lastScorer = scorer;
+    if (scorer === lastScorer) run++;
+    else break;
+  }
+  if (run >= 6) return `🔥 ${lastScorer === "a" ? tA : tB} on fire — ${run} points in a row!`;
+  if (run >= 4) return `${lastScorer === "a" ? tA : tB} on a ${run}-point run!`;
+
+  // First point
+  if (total === 1) return `First point to ${a === 1 ? tA : tB}.`;
+
+  return "";
+}
+
 export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {},
   timerState, onTimerStart, onTimerStop, onTimerReset }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
   const [matchNotes, setMatchNotes] = useState(match.notes || "");
+  const [notesEdited, setNotesEdited] = useState(false); // true once user manually types
+  const [scoreHistory, setScoreHistory] = useState([]); // sequence of {a, b} for auto-notes
   const [isActive, setIsActive] = useState(false);
   // Use lifted timer state if provided, otherwise fall back to local timer
   const localTimer = useTimer();
@@ -77,6 +130,25 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
   const hint = scoreHint(sA, sB);
   const canSave = sA !== "" && sB !== "" && !hint;
+
+  // Track score progression and auto-generate notes
+  const updateScore = (newA, newB) => {
+    const numA = newA === "" ? null : Number(newA);
+    const numB = newB === "" ? null : Number(newB);
+    if (numA === null || numB === null) return;
+    const next = { a: numA, b: numB };
+    const prev = scoreHistory[scoreHistory.length - 1];
+    // Only append if score actually changed (not a reset)
+    if (!prev || prev.a !== numA || prev.b !== numB) {
+      const newHistory = [...scoreHistory, next];
+      setScoreHistory(newHistory);
+      // Auto-generate note only if user hasn't manually edited notes
+      if (!notesEdited) {
+        const auto = generateAutoNote(newHistory, match.teamA, match.teamB);
+        if (auto) setMatchNotes(auto);
+      }
+    }
+  };
 
   // Only compute H2H when match is active (user focused on it)
   const h2hData = [];
@@ -147,9 +219,9 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         ) : (
           <div className="match-score-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 120 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updateScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} />
               <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, margin: "0 2px" }}>VS</span>
-              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updateScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} />
             </div>
             <button className="pb" onClick={handleSave} disabled={!canSave}
               style={{ width: "100%", background: canSave ? 'var(--color-lime)' : 'rgba(200,241,53,0.2)', border: "none", borderRadius: 'var(--radius-sm)', padding: "8px 4px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed" }}>
@@ -184,8 +256,21 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
           <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
             🎾 <strong style={{ color: 'var(--color-text)' }}>{servingTeam || "TBD"}</strong> serves first from the <strong style={{ color: 'var(--color-text)' }}>{serveSide}</strong> side.
           </div>
-          <input type="text" placeholder="Add match notes (e.g. game-winning shot...)" value={matchNotes} onChange={e => setMatchNotes(e.target.value)} 
-            style={{ width: '100%', background: 'var(--color-surface)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', padding: "8px", fontSize: 12, boxSizing: "border-box" }} />
+          <div style={{ position: "relative" }}>
+            <input type="text" placeholder="Match notes (auto-generated or type your own...)"
+              value={matchNotes}
+              onChange={e => { setMatchNotes(e.target.value); setNotesEdited(true); }}
+              style={{ width: '100%', background: 'var(--color-surface)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', padding: "8px", paddingRight: matchNotes ? "28px" : "8px", fontSize: 12, boxSizing: "border-box" }} />
+            {matchNotes && (
+              <button onClick={() => { setMatchNotes(""); setNotesEdited(false); }}
+                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          {matchNotes && !notesEdited && (
+            <div style={{ fontSize: 10, color: "var(--color-muted)", marginTop: 4, fontStyle: "italic" }}>✨ Auto-generated — tap to edit</div>
+          )}
         </div>
       )}
 
