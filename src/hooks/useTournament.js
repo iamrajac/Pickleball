@@ -121,30 +121,26 @@ export function useTournament() {
   // ── H2H init ──────────────────────────────────────────────────────────────
   useEffect(() => { setH2hMatrix(computeH2HMatrix()); }, []);
 
-  // ── Timer persistence — save to localStorage on every change ─────────────
-  useEffect(() => {
-    if (!code) return;
-    localStorage.setItem(`pkl_timers_${code}`, JSON.stringify(matchTimers));
-  }, [matchTimers, code]);
-
-  // ── Restore timers when rejoining a tournament ────────────────────────────
+  // ── Restore timers when code is set (must run before save effect) ───────────
   useEffect(() => {
     if (!code) return;
     try {
       const saved = JSON.parse(localStorage.getItem(`pkl_timers_${code}`) || "{}");
-      // Recalculate elapsed for any timer that was running when app closed
       const restored = {};
       Object.entries(saved).forEach(([key, t]) => {
-        if (t.running && t.startedAt) {
-          // Timer was running — compute how much time passed while app was closed
-          restored[key] = { ...t, elapsed: Math.floor((Date.now() - t.startedAt) / 1000) };
-        } else {
-          restored[key] = t;
-        }
+        restored[key] = t.running && t.startedAt
+          ? { ...t, elapsed: Math.floor((Date.now() - t.startedAt) / 1000) }
+          : t;
       });
       if (Object.keys(restored).length > 0) setMatchTimers(restored);
     } catch {}
   }, [code]);
+
+  // ── Save timers — only when there is actual data (prevents overwriting on init) ──
+  useEffect(() => {
+    if (!code || Object.keys(matchTimers).length === 0) return;
+    localStorage.setItem(`pkl_timers_${code}`, JSON.stringify(matchTimers));
+  }, [matchTimers, code]);
 
   // ── Theme color → CSS var ─────────────────────────────────────────────────
   useEffect(() => {
@@ -302,7 +298,9 @@ export function useTournament() {
         players: p, rounds: r, playoffs: null, champion: null,
         scorerPin: String(pin), profiles: newProfiles, themeColor: tColor,
         name: meta.name || "", isPublic: meta.isPublic !== false,
-        scheduledAt: meta.scheduledAt || null, ts: Date.now()
+        scheduledAt: meta.scheduledAt || null,
+        creatorUid: getAuth().currentUser?.uid || null,
+        ts: Date.now()
       });
       _upsertHist(r, null, null, newProfiles, tColor, c);
       // Save to Firestore user account for cross-device sync
@@ -326,7 +324,11 @@ export function useTournament() {
     const savedPin = getScorerPin(c);
     const fbPin = String(data.scorerPin || "").trim();
     const isSavedScorer = !!(savedPin && fbPin && String(savedPin).trim() === fbPin);
-    const canEdit = creator || isSavedScorer;
+    // Same Google account on any device gets creator access
+    const uid = getAuth().currentUser?.uid;
+    const isUidCreator = !!(uid && data.creatorUid && uid === data.creatorUid);
+    if (isUidCreator && !creator) registerAsCreator(c); // sync localStorage too
+    const canEdit = creator || isSavedScorer || isUidCreator;
     canEditRef.current = canEdit;
 
     setPlayers(data.players || []);
@@ -352,7 +354,6 @@ export function useTournament() {
     joinCompleteRef.current = true;
     window.scrollTo(0, 0);
     // Only write to Firestore if this is a NEW join (not an old local tournament being reopened)
-    const uid = getAuth().currentUser?.uid;
     const alreadyLocal = loadH().some(t => t.code === c);
     if (uid && !alreadyLocal) {
       saveToUserAccount(uid, c, {
@@ -458,6 +459,7 @@ export function useTournament() {
   };
 
   const executeEnd = () => {
+    if (code) localStorage.removeItem(`pkl_timers_${code}`);
     canEditRef.current = false;
     joinCompleteRef.current = false;
     pendingSync.current = null;

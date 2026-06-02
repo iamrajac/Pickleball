@@ -166,8 +166,9 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
       // Auto-generate note (only if user hasn't manually typed)
       if (!notesEditedRef.current) {
         const auto = generateAutoNote(newHistory, match.teamA, match.teamB);
-        // Always update — clears stale note when no key moment
-        setMatchNotes(auto);
+        // Only replace note when a new key moment is detected
+        // Don't clear — last key moment note stays until a new one or manual edit
+        if (auto) setMatchNotes(auto);
       }
       return newHistory;
     });
