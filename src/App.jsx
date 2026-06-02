@@ -4,6 +4,7 @@ import { ref, get } from "firebase/database";
 import { db, firestore } from "./firebase";
 
 import { computeStandings } from "./utils/schedule";
+import { loadH } from "./utils/history";
 import { useTournament } from "./hooks/useTournament";
 import { useAuth } from "./hooks/useAuth";
 
@@ -479,11 +480,13 @@ function AppInner() {
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [localCount, setLocalCount] = useState(0);
 
-  // After Google sign-in, check for existing local data to offer sync
+  // After Google sign-in, check for existing local data to offer sync (runs once per uid)
+  const syncCheckedRef = useRef(false);
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || syncCheckedRef.current) return;
+    syncCheckedRef.current = true;
     const SYNCED_KEY = `pkl_synced_${user.uid}`;
-    if (localStorage.getItem(SYNCED_KEY)) return; // already synced before
+    if (localStorage.getItem(SYNCED_KEY)) return;
     const local = (JSON.parse(localStorage.getItem("pkl_hist_v2") || "[]")).filter(t => t.code);
     if (local.length > 0) { setLocalCount(local.length); setShowSyncPrompt(true); }
   }, [user?.uid]);
@@ -564,14 +567,19 @@ function AppInner() {
             user={user} isGuest={isGuest}
             theme={theme} onToggleTheme={toggleTheme}
             onCreateTournament={() => navigate("/create")}
-            onOpenTournament={(tournament) => {
-              // If it's a history entry, open it; if live, rejoin
-              if (tournament.code && tournament.rounds) {
-                if (tournament.status === "live" || tournament.status === "in-progress") {
-                  t.handleJoin(tournament.code, tournament);
-                } else {
-                  navigate("/history/detail", { state: { tournament } });
-                }
+            onOpenTournament={async (tournament) => {
+              if (!tournament.code) return;
+              const isLive = tournament.status === "live" || tournament.status === "in-progress";
+              if (isLive) {
+                // Always fetch fresh data from Realtime DB
+                try {
+                  const snap = await get(ref(db, `tournaments/${tournament.code}`));
+                  if (snap.exists() && snap.val()) t.handleJoin(tournament.code, snap.val());
+                } catch { t.handleJoin(tournament.code, tournament); }
+              } else {
+                // Completed — find full data in localStorage, fall back to Firestore metadata
+                const local = loadH().find(h => h.code === tournament.code);
+                navigate("/history/detail", { state: { tournament: local || tournament } });
               }
             }}
           />

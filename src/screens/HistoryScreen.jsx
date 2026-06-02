@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { getAuth } from "firebase/auth";
 import { loadH, saveH, isCreator } from "../utils/history";
+import { fetchUserTournaments } from "../hooks/useTournament";
 import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
@@ -13,13 +15,35 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
 
   const [hist, setHist] = useState(() => {
     const all = loadH().filter(t => t.code);
-    // deduplicate by code, keeping the last (most up-to-date) entry
     const seen = new Map();
     all.forEach(t => seen.set(t.code, t));
     const deduped = Array.from(seen.values());
-    if (deduped.length !== all.length) saveH(deduped); // fix storage in place
+    if (deduped.length !== all.length) saveH(deduped);
     return deduped;
   });
+
+  // Merge Firestore history for Google users
+  useEffect(() => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    fetchUserTournaments(uid).then(firestoreList => {
+      if (!firestoreList.length) return;
+      setHist(prev => {
+        const seen = new Map();
+        // Local data wins (has full rounds/playoffs), Firestore fills in the gaps
+        prev.forEach(t => seen.set(t.code, t));
+        firestoreList.forEach(t => {
+          if (!seen.has(t.code)) seen.set(t.code, t);
+          else {
+            // Merge name from Firestore if local entry is missing it
+            const local = seen.get(t.code);
+            if (!local.name && t.name) seen.set(t.code, { ...local, name: t.name });
+          }
+        });
+        return Array.from(seen.values());
+      });
+    });
+  }, []);
   const [deleteCode, setDeleteCode] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -78,13 +102,20 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
               <div className="fu rh glass-card" onClick={() => onOpen(t)}
                 style={{ animationDelay: `${i * .05}s`, borderRadius: 'var(--radius-md)', padding: "1.2rem 1.4rem", paddingRight: "4rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: text, letterSpacing: 1 }}>{new Date(t.date).toLocaleDateString()}</span>
-                    {t.status === "in-progress"
-                      ? <span style={{ fontSize: 9, background: 'rgba(53,200,241,0.2)', color: 'var(--color-cyan)', padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>IN PROGRESS</span>
-                      : <span style={{ fontSize: 9, background: 'rgba(200,241,53,0.2)', color: lime, padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>COMPLETED</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: text, letterSpacing: 1 }}>
+                      {t.name || new Date(t.date).toLocaleDateString()}
+                    </span>
+                    {t.status === "in-progress" || t.status === "live"
+                      ? <span className="badge badge-live" style={{ fontSize: 9 }}>LIVE</span>
+                      : <span className="badge badge-done" style={{ fontSize: 9 }}>DONE</span>
                     }
                   </div>
+                  {t.name && (
+                    <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>
+                      {new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" })}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: muted }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={14} /> {t.players.length} players</span>
                     {t.code && <span style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1 }}>#{t.code} {isCreator(t.code) ? "(Host)" : ""}</span>}
