@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { ref, get } from "firebase/database";
 import { db } from "../firebase";
-import { Wifi } from "lucide-react";
+import { Wifi, AlertCircle } from "lucide-react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { AvatarPickerModal } from "../components/AvatarPickerModal";
 import { suggestRounds } from "./HubScreen";
+import { findDuplicatePlayerNames, normalizePlayerName } from "../utils/players";
 
 const OPTIMAL_REASONS = {
   4: "3 rounds — everyone pairs with everyone once",
@@ -133,20 +134,40 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             {/* Players grid */}
             <div className="card" style={{ padding: "1.4rem", marginBottom: 16 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }} className="player-grid">
-                {Array.from({ length: numP }, (_, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: focus === i ? "var(--accent-dim)" : "var(--surface)", border: `1.5px solid ${focus === i ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--radius-md)", padding: "10px 14px", transition: "all 0.15s" }}>
-                    <div onClick={() => setEditingAvatar(i)} style={{ cursor: "pointer", flexShrink: 0 }}>
-                      <PlayerAvatar name={names[i]} profile={profiles[names[i]]} size={30} fallbackIndex={i} />
+                {Array.from({ length: numP }, (_, i) => {
+                  const normName = normalizePlayerName(names[i]);
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: focus === i ? "var(--accent-dim)" : "var(--surface)", border: `1.5px solid ${focus === i ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--radius-md)", padding: "10px 14px", transition: "all 0.15s" }}>
+                      <div onClick={() => setEditingAvatar(i)} style={{ cursor: "pointer", flexShrink: 0 }}>
+                        <PlayerAvatar name={names[i]} profile={profiles[normName]} size={30} fallbackIndex={i} />
+                      </div>
+                      <input value={names[i] || ""} placeholder={`Player ${i + 1}`}
+                        onFocus={() => setFocus(i)} onBlur={() => setFocus(null)}
+                        onChange={e => { const a = [...names]; a[i] = e.target.value; setNames(a); }}
+                        style={{ background: "transparent", border: "none", color: "var(--text)", fontSize: 15, outline: "none", flex: 1, fontFamily: "var(--font-body)" }} />
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-display)", flexShrink: 0 }}>{i + 1}</span>
                     </div>
-                    <input value={names[i] || ""} placeholder={`Player ${i + 1}`}
-                      onFocus={() => setFocus(i)} onBlur={() => setFocus(null)}
-                      onChange={e => { const a = [...names]; a[i] = e.target.value; setNames(a); }}
-                      style={{ background: "transparent", border: "none", color: "var(--text)", fontSize: 15, outline: "none", flex: 1, fontFamily: "var(--font-body)" }} />
-                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-display)", flexShrink: 0 }}>{i + 1}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
+
+            {(() => {
+              const dups = findDuplicatePlayerNames(names.slice(0, numP));
+              return dups.length > 0 && (
+                <div className="card" style={{ padding: "10px 16px", marginBottom: 16, borderLeft: "3px solid var(--danger)", display: "flex", alignItems: "center", gap: 10 }}>
+                  <AlertCircle size={18} style={{ color: "var(--danger)", flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--danger)" }}>Duplicate Player Names</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      {dups.map((d, i) => (
+                        <div key={i}>{d.displayNames.join(", ")} — will be treated as the same player</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {byeCount > 0 && (
               <div className="card" style={{ padding: "10px 16px", marginBottom: 16, borderLeft: "3px solid var(--gold)", display: "flex", alignItems: "center", gap: 10 }}>
@@ -165,8 +186,8 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
           </div>
         </div>
         {editingAvatar !== null && (
-          <AvatarPickerModal name={names[editingAvatar]} currentProfile={profiles[names[editingAvatar]]}
-            onSave={prof => { setProfiles(prev => ({ ...prev, [names[editingAvatar]]: prof })); setEditingAvatar(null); }}
+          <AvatarPickerModal name={names[editingAvatar]} currentProfile={profiles[normalizePlayerName(names[editingAvatar])]}
+            onSave={prof => { setProfiles(prev => ({ ...prev, [normalizePlayerName(names[editingAvatar])]: prof })); setEditingAvatar(null); }}
             onClose={() => setEditingAvatar(null)} />
         )}
       </div>

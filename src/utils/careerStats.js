@@ -1,34 +1,42 @@
 // ── Career Stats Engine ────────────────────────────────────────────────────
 // Computes all player stats across all saved tournaments
 
+import { normalizePlayerName } from "./players";
+
 export function computeCareerStats(history) {
   const completedTournaments = history.filter(t => t.rounds && t.rounds.length > 0);
   
-  const players = {}; // name -> stats
-  const partnerships = {}; // "A|B" -> stats
-  const h2h = {}; // "A|B" -> { aWins, bWins }
+  const players = {}; // normalized name -> stats (with display name preserved)
+  const partnerships = {}; // "normA|normB" -> stats
+  const h2h = {}; // "normA|normB" -> { aWins, bWins }
 
   const getPlayer = (name) => {
-    if (!players[name]) players[name] = {
-      name, matches: 0, wins: 0, losses: 0,
+    const norm = normalizePlayerName(name);
+    if (!players[norm]) players[norm] = {
+      name, // Store original display name for UI
+      matches: 0, wins: 0, losses: 0,
       scored: 0, conceded: 0, pts: 0,
       tournaments: 0, titles: 0,
       currentStreak: 0, bestStreak: 0, streakType: null,
       lastResults: [], // W/L array across all tournaments in order
       tournamentsPlayed: [],
     };
-    return players[name];
+    return players[norm];
   };
 
   const getPair = (a, b) => {
-    const key = [a, b].sort().join("|");
-    if (!partnerships[key]) partnerships[key] = { players: [a, b].sort(), matches: 0, wins: 0, losses: 0, scored: 0, conceded: 0 };
+    const normA = normalizePlayerName(a);
+    const normB = normalizePlayerName(b);
+    const key = [normA, normB].sort().join("|");
+    if (!partnerships[key]) partnerships[key] = { players: [a, b].sort((x, y) => normalizePlayerName(x).localeCompare(normalizePlayerName(y))), matches: 0, wins: 0, losses: 0, scored: 0, conceded: 0 };
     return partnerships[key];
   };
 
   const getH2H = (a, b) => {
-    const key = [a, b].sort().join("|");
-    if (!h2h[key]) h2h[key] = { players: [a, b].sort(), aWins: 0, bWins: 0, matches: 0 };
+    const normA = normalizePlayerName(a);
+    const normB = normalizePlayerName(b);
+    const key = [normA, normB].sort().join("|");
+    if (!h2h[key]) h2h[key] = { players: [a, b].sort((x, y) => normalizePlayerName(x).localeCompare(normalizePlayerName(y))), aWins: 0, bWins: 0, matches: 0 };
     return h2h[key];
   };
 
@@ -145,10 +153,12 @@ export function computeCareerStats(history) {
 }
 
 export function getH2HBetween(h2h, playerA, playerB) {
-  const key = [playerA, playerB].sort().join("|");
+  const normA = normalizePlayerName(playerA);
+  const normB = normalizePlayerName(playerB);
+  const key = [normA, normB].sort().join("|");
   const rec = h2h[key];
   if (!rec) return { aWins: 0, bWins: 0, matches: 0 };
-  const aIsFirst = rec.players[0] === playerA;
+  const aIsFirst = normalizePlayerName(rec.players[0]) === normA;
   return {
     aWins: aIsFirst ? rec.aWins : rec.bWins,
     bWins: aIsFirst ? rec.bWins : rec.aWins,

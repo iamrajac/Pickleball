@@ -10,6 +10,7 @@ import { loadH, saveH, isCreator, registerAsCreator, computeH2HMatrix } from "..
 import { generateScorerPin, saveScorerPin, getScorerPin } from "../components/ScorerModal";
 import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
+import { normalizePlayerName } from "../utils/players";
 
 // Write tournament metadata to Firestore under the signed-in user
 async function saveToUserAccount(uid, code, data) {
@@ -284,42 +285,75 @@ export function useTournament() {
     }, 250);
   }, [code, readOnly]);
 
+  // ── Fast timer update (no debounce - real-time sync) ─────────────────────
+  const syncTimerState = useCallback((key, timerState, sA = 0, sB = 0, note = "") => {
+    if (!code || readOnly) return;
+    set(ref(db, `tournaments/${code}/live/${key}`), {
+      a: sA,
+      b: sB,
+      note: note || "",
+      startedAt: timerState?.startedAt || null,
+      timerRunning: timerState?.running || false,
+      ts: Date.now(),
+    }).catch(() => {});
+  }, [code, readOnly]);
+
   const clearLiveScore = useCallback((key) => {
     if (!code) return;
     set(ref(db, `tournaments/${code}/live/${key}`), null).catch(() => {});
   }, [code]);
 
-  // ── Timer helpers (survive tab switches) ────────────────────────────────
-  const startMatchTimer = (key) => {
+  // ── Timer helpers (survive tab switches + immediately sync) ──────────────
+  const startMatchTimer = useCallback((key) => {
+    const newTimerState = { startedAt: Date.now(), elapsed: 0, running: true };
     setMatchTimers(prev => ({
       ...prev,
-      [key]: { startedAt: Date.now() - ((prev[key]?.elapsed || 0) * 1000), elapsed: prev[key]?.elapsed || 0, running: true },
+      [key]: newTimerState,
     }));
-  };
-  const stopMatchTimer = (key) => {
+    // Immediately sync to Firebase (no debounce for timer start)
+    syncTimerState(key, newTimerState, 0, 0, "");
+  }, [syncTimerState]);
+
+  const stopMatchTimer = useCallback((key) => {
     setMatchTimers(prev => {
       const t = prev[key];
       if (!t) return prev;
       const elapsed = t.startedAt ? Math.floor((Date.now() - t.startedAt) / 1000) : t.elapsed;
-      return { ...prev, [key]: { ...t, elapsed, running: false } };
+      const stopped = { ...t, elapsed, running: false };
+      // Immediately sync to Firebase when timer stops
+      syncTimerState(key, stopped, 0, 0, "");
+      return { ...prev, [key]: stopped };
     });
-  };
-  const resetMatchTimer = (key) => {
-    setMatchTimers(prev => ({ ...prev, [key]: { startedAt: null, elapsed: 0, running: false } }));
-  };
+  }, [syncTimerState]);
+
+  const resetMatchTimer = useCallback((key) => {
+    const reset = { startedAt: null, elapsed: 0, running: false };
+    setMatchTimers(prev => ({ ...prev, [key]: reset }));
+    // Immediately sync to Firebase when timer resets
+    syncTimerState(key, reset, 0, 0, "");
+  }, [syncTimerState]);
   const getMatchTimer = (key) => matchTimers[key] || { startedAt: null, elapsed: 0, running: false };
 
   const handleStart = async (p, numRounds, newProfiles = {}, tColor = "#10d48e", meta = {}) => {
-    const r = generateSchedule(p, numRounds);
+    // Normalize player names for consistent storage across tournaments
+    const normalizedPlayers = p.map(name => normalizePlayerName(name));
+    // Remap profiles to use normalized names
+    const normalizedProfiles = {};
+    Object.entries(newProfiles).forEach(([displayName, profile]) => {
+      const norm = normalizePlayerName(displayName);
+      normalizedProfiles[norm] = profile;
+    });
+
+    const r = generateSchedule(normalizedPlayers, numRounds);
     const c = genCode();
     const pin = generateScorerPin();
     window.scrollTo(0, 0);
-    setPlayers(p); setRounds(r); setCode(c); setPlayoffs(null);
+    setPlayers(normalizedPlayers); setRounds(r); setCode(c); setPlayoffs(null);
     setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
     setMatchTimers({});
     canEditRef.current = true;
     setScorerPin(pin);
-    setProfiles(newProfiles);
+    setProfiles(normalizedProfiles);
     setThemeColor(tColor);
     setTournamentName(meta.name || "");
     setIsPublic(meta.isPublic !== false);
@@ -328,20 +362,20 @@ export function useTournament() {
     isWriting.current = true;
     try {
       await fbSet(`tournaments/${c}`, {
-        players: p, rounds: r, playoffs: null, champion: null,
-        scorerPin: String(pin), profiles: newProfiles, themeColor: tColor,
+        players: normalizedPlayers, rounds: r, playoffs: null, champion: null,
+        scorerPin: String(pin), profiles: normalizedProfiles, themeColor: tColor,
         name: meta.name || "", isPublic: meta.isPublic !== false,
         scheduledAt: meta.scheduledAt || null,
         creatorUid: getAuth().currentUser?.uid || null,
         ts: Date.now()
       });
-      _upsertHist(r, null, null, newProfiles, tColor, c);
+      _upsertHist(r, null, null, normalizedProfiles, tColor, c);
       // Save to Firestore user account for cross-device sync
       const uid = getAuth().currentUser?.uid;
       if (uid) {
         await saveToUserAccount(uid, c, {
           code: c, name: meta.name || "", status: "live",
-          playerCount: p.length, players: p,
+          playerCount: normalizedPlayers.length, players: normalizedPlayers,
           isPublic: meta.isPublic !== false,
           scheduledAt: meta.scheduledAt || null,
           createdAt: serverTimestamp(), champion: null,

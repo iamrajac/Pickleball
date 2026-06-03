@@ -103,15 +103,37 @@ export function generateAutoNote(history, teamA, teamB) {
 }
 
 export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {},
-  timerState, onTimerStart, onTimerStop, onTimerReset, onLiveScore }) {
+  timerState, onTimerStart, onTimerStop, onTimerReset, onLiveScore, liveScore }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
+  const [localTouched, setLocalTouched] = useState(false); // true once THIS device taps +/-
   const [matchNotes, setMatchNotes] = useState(match.notes || "");
   const [notesEdited, setNotesEdited] = useState(false);
   const [scoreHistory, setScoreHistory] = useState([]);
-  const [storyMoments, setStoryMoments] = useState([]); // all key moments in order
+  const [storyMoments, setStoryMoments] = useState([]);
   const [isActive, setIsActive] = useState(false);
-  // Use lifted timer state if provided, otherwise fall back to local timer
+  const [liveTick, setLiveTick] = useState(0); // forces re-render for live timer
+  const [scoreSynced, setScoreSynced] = useState(false); // visual feedback for sync
+
+  // ── Sync live score from Firebase when local hasn't been touched ──────────
+  useEffect(() => {
+    if (match.played || localTouched || !liveScore) return;
+    // Update display to show what scorer device has
+    if (liveScore.a > 0 || liveScore.b > 0) {
+      setSA(String(liveScore.a));
+      setSB(String(liveScore.b));
+    }
+    if (liveScore.note) setMatchNotes(liveScore.note);
+  }, [liveScore?.a, liveScore?.b, liveScore?.note, localTouched, match.played]);
+
+  // ── Live timer tick for OTHER devices (reads from liveScore.startedAt) ────
+  useEffect(() => {
+    if (!liveScore?.startedAt || localTouched) return;
+    const id = setInterval(() => setLiveTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [liveScore?.startedAt, localTouched]);
+
+  // ── Local (lifted) timer ──────────────────────────────────────────────────
   const localTimer = useTimer();
   const usingLiftedTimer = !!timerState;
   const timer = usingLiftedTimer ? {
@@ -130,13 +152,17 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     fmt:     localTimer.fmt,
   } : localTimer;
 
-  // Tick every second when lifted timer is running
+  // Tick for lifted timer
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!usingLiftedTimer || !timerState?.running) return;
     const id = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(id);
   }, [usingLiftedTimer, timerState?.running]);
+
+  // ── Live timer from other device ──────────────────────────────────────────
+  const liveTimerElapsed = liveScore?.startedAt && !localTouched
+    ? Math.floor((Date.now() - liveScore.startedAt) / 1000) : null;
 
   // Fair serve & side assignment algorithm (deterministic hash)
   const hash = String((match.teamA || []).join("") + match.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -163,6 +189,10 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     const numB = sB === "" ? 0 : Number(sB);
     if (numA === 0 && numB === 0) return; // nothing to share yet
     onLiveScore?.(numA, numB, matchNotes, timerState?.startedAt || null);
+    // Visual feedback: show sync confirmation briefly
+    setScoreSynced(true);
+    const timer = setTimeout(() => setScoreSynced(false), 1200);
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sA, sB, matchNotes]);
 
@@ -288,15 +318,18 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         ) : readOnly ? (
           <div style={{ textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-muted)', letterSpacing: 2 }}>VS</div>
         ) : (
-          <div className="match-score-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 120 }}>
+          <div className="match-score-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 120, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updateScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} />
               <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, margin: "0 2px" }}>VS</span>
               <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updateScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} />
             </div>
             <button className="pb" onClick={handleSave} disabled={!canSave}
-              style={{ width: "100%", background: canSave ? 'var(--color-lime)' : 'rgba(200,241,53,0.2)', border: "none", borderRadius: 'var(--radius-sm)', padding: "8px 4px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed" }}>
+              style={{ width: "100%", background: canSave ? 'var(--color-lime)' : 'rgba(200,241,53,0.2)', border: "none", borderRadius: 'var(--radius-sm)', padding: "8px 4px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed", position: "relative", overflow: "hidden" }}>
               SAVE
+              {scoreSynced && (
+                <span style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--color-dark)", fontWeight: 700, animation: "slideIn 0.3s ease-out" }}>✓</span>
+              )}
             </button>
           </div>
         )}
@@ -345,23 +378,45 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         </div>
       )}
 
-      {/* Timer row */}
+      {/* Timer row — local or live synced */}
       {!match.played && !readOnly && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 10, paddingTop: 10, borderTop: `1px solid var(--color-border)` }}>
-          {timer.running && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-cyan)', letterSpacing: 2 }}>{timer.fmt(timer.elapsed)}</span>}
-          {!timer.running && timer.elapsed > 0 && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, color: 'var(--color-muted)' }}>{timer.fmt(timer.elapsed)}</span>}
-          <button className="pb" onClick={() => { setIsActive(true); timer.running ? timer.stop() : timer.start(); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.running ? 'rgba(53, 200, 241, 0.1)' : 'var(--color-surface)', border: `1px solid ${timer.running ? 'var(--color-cyan)' : 'var(--color-border)'}`, color: timer.running ? 'var(--color-cyan)' : 'var(--color-muted)', borderRadius: 'var(--radius-sm)', padding: "6px 12px", fontSize: 12, fontWeight: 500 }}>
-            {timer.running ? <Pause size={14} /> : <Play size={14} />}
-            {timer.running ? "PAUSE" : "TIMER"}
-          </button>
-          {timer.elapsed > 0 && !timer.running && (
-            <button className="pb" onClick={timer.reset} style={{ display: 'flex', alignItems: 'center', background: "transparent", border: "none", color: 'var(--color-muted)', padding: "6px" }}>
-              <X size={16} />
-            </button>
+          {/* Show live timer from another device if we're not the scorer */}
+          {liveTimerElapsed !== null && !localTouched && (
+            <>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-cyan)', letterSpacing: 2 }}>{localTimer.fmt(liveTimerElapsed)}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "rgba(16, 212, 142, 0.1)", border: "1px solid var(--color-lime)", borderRadius: "var(--radius-sm)", fontSize: 9, color: "var(--color-lime)", fontWeight: 600, letterSpacing: 1 }}>
+                <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--color-lime)", animation: "pulse 1.5s infinite" }} />
+                LIVE
+              </div>
+            </>
+          )}
+          {/* Show local timer when scorer is controlling it */}
+          {(localTouched || liveTimerElapsed === null) && (
+            <>
+              {timer.running && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-cyan)', letterSpacing: 2 }}>{timer.fmt(timer.elapsed)}</span>}
+              {!timer.running && timer.elapsed > 0 && <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, color: 'var(--color-muted)' }}>{timer.fmt(timer.elapsed)}</span>}
+              <button className="pb" onClick={() => { setIsActive(true); timer.running ? timer.stop() : timer.start(); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.running ? 'rgba(53, 200, 241, 0.1)' : 'var(--color-surface)', border: `1px solid ${timer.running ? 'var(--color-cyan)' : 'var(--color-border)'}`, color: timer.running ? 'var(--color-cyan)' : 'var(--color-muted)', borderRadius: 'var(--radius-sm)', padding: "6px 12px", fontSize: 12, fontWeight: 500 }}>
+                {timer.running ? <Pause size={14} /> : <Play size={14} />}
+                {timer.running ? "PAUSE" : "TIMER"}
+              </button>
+              {timer.elapsed > 0 && !timer.running && (
+                <button className="pb" onClick={timer.reset} style={{ display: 'flex', alignItems: 'center', background: "transparent", border: "none", color: 'var(--color-muted)', padding: "6px" }}>
+                  <X size={16} />
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
 
       {/* H2H — only shown when match is active */}
       {h2hData.length > 0 && (
