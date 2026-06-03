@@ -5,7 +5,7 @@ import { doc, deleteDoc, collection, getDocs, onSnapshot } from "firebase/firest
 import { db, firestore } from "../firebase";
 import { loadH, saveH, isCreator } from "../utils/history";
 import { computeStandings } from "../utils/schedule";
-import { fetchUserTournaments, safePlayoffs } from "../hooks/useTournament";
+import { fetchUserTournaments, safePlayoffs, fromFirestoreDoc } from "../hooks/useTournament";
 import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
@@ -47,12 +47,9 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
       collection(firestore, "users", uid, "tournaments"),
       (snap) => {
         if (snap.empty) return; // no cloud data yet — keep local
-        const docs = snap.docs.map(d => {
-          const data = d.data();
-          const createdMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : null;
-          const dateVal = data.date || (createdMs ? new Date(createdMs).toISOString() : new Date().toISOString());
-          return { ...data, date: dateVal, firestoreId: d.id };
-        }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        const docs = snap.docs
+          .map(d => fromFirestoreDoc(d.data()))
+          .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         setHist(docs);
         saveH(docs);
       },

@@ -36,6 +36,12 @@ export async function saveFullTournament(uid, entry) {
     // sanitizeForFirebase is defined below in this module — converts undefined→null
     // and strips undefined keys. Firestore REJECTS writes with any undefined value,
     // causing silent failures. This must be called before every Firestore write.
+    // Firestore does NOT support nested arrays (Array<Array<T>>).
+    // rounds = [[match,match],[match,match]] → must convert to [{matches:[...]},{matches:[...]}]
+    const firestoreRounds = (entry.rounds || []).map(round =>
+      ({ matches: Array.isArray(round) ? round : [] })
+    );
+
     const raw = {
       code: entry.code,
       name: entry.name || "",
@@ -43,7 +49,7 @@ export async function saveFullTournament(uid, entry) {
       status: entry.status || (entry.champion ? "completed" : "in-progress"),
       players: entry.players || [],
       playerCount: entry.players?.length || 0,
-      rounds: entry.rounds || [],
+      rounds: firestoreRounds,
       playoffs: entry.playoffs || null,
       champion: entry.champion || null,
       finalStandings: entry.finalStandings || [],
@@ -68,27 +74,30 @@ export async function saveFullTournament(uid, entry) {
   }
 }
 
-// Fetch all tournaments for a signed-in user from Firestore (returns FULL data)
-// Returns null on network failure (so callers can fall back to localStorage cache)
-// Returns [] only if the user genuinely has no tournaments
+// Convert a Firestore tournament doc back to app format
+// Firestore stores rounds as [{matches:[...]}, ...] — convert back to [[...], [...]]
+export function fromFirestoreDoc(data) {
+  const createdMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : null;
+  const dateVal = data.date || (createdMs ? new Date(createdMs).toISOString() : new Date().toISOString());
+  const rounds = (data.rounds || []).map(r => {
+    if (Array.isArray(r)) return r;              // already unwrapped (edge case)
+    if (Array.isArray(r?.matches)) return r.matches; // normal Firestore format
+    return [];
+  });
+  return { ...data, rounds, date: dateVal };
+}
+
+// Fetch all tournaments for a signed-in user from Firestore
+// Returns null on network failure, [] if genuinely empty
 export async function fetchUserTournaments(uid) {
   try {
-    // NO orderBy — Firestore silently excludes docs missing that field,
-    // making it look like the user has no data. Sort client-side instead.
     const snap = await getDocs(collection(firestore, "users", uid, "tournaments"));
-    const docs = snap.docs.map(d => {
-      const data = d.data();
-      // Normalize createdAt Timestamp → ISO string
-      const createdMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : null;
-      const dateVal = data.date || (createdMs ? new Date(createdMs).toISOString() : new Date().toISOString());
-      return { ...data, date: dateVal, _createdMs: createdMs || 0, firestoreId: d.id };
-    });
-    // Sort: most recently updated first, then by creation time
-    docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || b._createdMs - a._createdMs);
+    const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
+    docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     return docs;
   } catch (e) {
     console.warn("fetchUserTournaments failed:", e);
-    return null; // null = network failure → caller falls back to localStorage
+    return null;
   }
 }
 

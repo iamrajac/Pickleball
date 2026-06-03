@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
-import { fetchUserTournaments } from "../hooks/useTournament";
+import { fetchUserTournaments, fromFirestoreDoc } from "../hooks/useTournament";
 
 /* ── Tournament card ──────────────────────────────── */
 function TournamentCard({ t, onClick }) {
@@ -109,12 +109,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
       (snap) => {
         console.log("🔥 Firestore snapshot:", snap.size, "docs, empty:", snap.empty);
         if (snap.empty) return; // no data yet — keep showing localStorage
-        const docs = snap.docs.map(d => {
-          const data = d.data();
-          const createdMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : null;
-          const dateVal = data.date || (createdMs ? new Date(createdMs).toISOString() : new Date().toISOString());
-          return { ...data, date: dateVal, firestoreId: d.id };
-        });
+        const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
         docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
         setMyTournaments(docs.map(normalize));
         saveH(docs); // keep local cache in sync
