@@ -14,16 +14,14 @@ import { normalizePlayerName } from "../utils/players";
 
 // ── Firestore helpers (Google users only) ──────────────────────────────────
 
+// Track which tournament codes have been created in Firestore this session
+// Avoids a getDoc() round-trip on every score save
+const _createdInFirestore = new Set();
+
 // Save FULL tournament data to Firestore — this is the single source of truth for Google users
 export async function saveFullTournament(uid, entry) {
   if (!uid || !entry?.code) return;
   try {
-    const docRef = doc(firestore, "users", uid, "tournaments", entry.code);
-
-    // Check if document already exists to avoid overwriting createdAt
-    const { getDoc } = await import("firebase/firestore");
-    const existing = await getDoc(docRef);
-
     const data = {
       code: entry.code,
       name: entry.name || "",
@@ -41,12 +39,14 @@ export async function saveFullTournament(uid, entry) {
       updatedAt: Date.now(),
     };
 
-    // Only write createdAt on first creation — never overwrite it
-    if (!existing.exists()) {
+    const key = `${uid}:${entry.code}`;
+    // Only set createdAt on first write — use in-memory set to avoid getDoc round-trip
+    if (!_createdInFirestore.has(key)) {
       data.createdAt = serverTimestamp();
+      _createdInFirestore.add(key);
     }
 
-    await setDoc(docRef, data, { merge: true });
+    await setDoc(doc(firestore, "users", uid, "tournaments", entry.code), data, { merge: true });
   } catch (e) { console.warn("Firestore write failed", e); }
 }
 
@@ -298,9 +298,7 @@ export function useTournament() {
     }());
     _upsertHist(rounds, playoffs, champion);
     setSavedToHist(true);
-    // Update Firestore status to completed
-    const uid = getAuth().currentUser?.uid;
-    if (uid && code) saveToUserAccount(uid, code, { status: "done", champion });
+    // _upsertHist already saves full data to Firestore for Google users
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, savedToHist, readOnly]);
 
@@ -470,17 +468,7 @@ export function useTournament() {
         ts: Date.now()
       });
       _upsertHist(r, null, null, normalizedProfiles, tColor, c);
-      // Save to Firestore user account for cross-device sync
-      const uid = getAuth().currentUser?.uid;
-      if (uid) {
-        await saveToUserAccount(uid, c, {
-          code: c, name: meta.name || "", status: "live",
-          playerCount: normalizedPlayers.length, players: normalizedPlayers,
-          isPublic: meta.isPublic !== false,
-          scheduledAt: meta.scheduledAt || null,
-          createdAt: serverTimestamp(), updatedAt: Date.now(), champion: null,
-        });
-      }
+      // _upsertHist already saves to Firestore for Google users
       addToast("Tournament created! Share the code.", "success");
       joinCompleteRef.current = true;
     } finally { isWriting.current = false; }
