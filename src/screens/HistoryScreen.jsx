@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getAuth } from "firebase/auth";
 import { ref as fbRef, get } from "firebase/database";
-import { doc, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { doc, deleteDoc, collection, getDocs, onSnapshot } from "firebase/firestore";
 import { db, firestore } from "../firebase";
 import { loadH, saveH, isCreator } from "../utils/history";
 import { computeStandings } from "../utils/schedule";
@@ -38,19 +38,27 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     return all;
   });
-  const [loadingHist, setLoadingHist] = useState(false);
-
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
-    if (!uid) return; // Guests: localStorage already loaded above
-    // Google users: try Firestore — if it has data, update the display
-    fetchUserTournaments(uid).then(list => {
-      if (list && list.length > 0) {
-        setHist(list);
-        saveH(list); // keep local cache in sync
-      }
-      // If offline (null) or empty: local data already showing — do nothing
-    });
+    if (!uid) return; // Guests: localStorage already loaded in useState
+
+    // Real-time listener — updates immediately when any device writes to Firestore
+    const unsub = onSnapshot(
+      collection(firestore, "users", uid, "tournaments"),
+      (snap) => {
+        if (snap.empty) return; // no cloud data yet — keep local
+        const docs = snap.docs.map(d => {
+          const data = d.data();
+          const createdMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : null;
+          const dateVal = data.date || (createdMs ? new Date(createdMs).toISOString() : new Date().toISOString());
+          return { ...data, date: dateVal, firestoreId: d.id };
+        }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        setHist(docs);
+        saveH(docs);
+      },
+      (err) => { console.warn("Firestore history listener error:", err); }
+    );
+    return () => unsub();
   }, []);
 
   const [deleteCode, setDeleteCode] = useState(null);

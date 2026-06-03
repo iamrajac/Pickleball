@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments } from "../hooks/useTournament";
@@ -97,19 +97,29 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     return hist.map(normalize);
   });
 
-  // Load tournaments — show local immediately, update from Firestore for Google users
+  // Load tournaments — show local immediately, then keep in sync via Firestore listener
   useEffect(() => {
-    if (user?.uid) {
-      // Try Firestore — if it has data, update the display
-      fetchUserTournaments(user.uid).then(list => {
-        if (list && list.length > 0) {
-          setMyTournaments(list.map(normalize));
-          saveH(list); // keep local cache in sync
-        }
-        // If list is null (offline) or empty, local data already showing — do nothing
-      });
-    }
-    // Guests already have local data from useState initializer
+    if (!user?.uid) return; // Guests: localStorage already loaded in useState
+
+    // Use onSnapshot for real-time updates — Device 2 sees changes the moment
+    // Device 1 writes anything to Firestore (same Google account)
+    const unsub = onSnapshot(
+      collection(firestore, "users", user.uid, "tournaments"),
+      (snap) => {
+        if (snap.empty) return; // no data yet — keep showing localStorage
+        const docs = snap.docs.map(d => {
+          const data = d.data();
+          const createdMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : null;
+          const dateVal = data.date || (createdMs ? new Date(createdMs).toISOString() : new Date().toISOString());
+          return { ...data, date: dateVal, firestoreId: d.id };
+        });
+        docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        setMyTournaments(docs.map(normalize));
+        saveH(docs); // keep local cache in sync
+      },
+      (err) => { console.warn("Firestore listener error:", err); }
+    );
+    return () => unsub(); // clean up listener when component unmounts
   }, [user?.uid]);
 
   // Load public tournaments from Firestore
