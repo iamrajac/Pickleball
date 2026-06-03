@@ -18,6 +18,12 @@ import { normalizePlayerName } from "../utils/players";
 export async function saveFullTournament(uid, entry) {
   if (!uid || !entry?.code) return;
   try {
+    const docRef = doc(firestore, "users", uid, "tournaments", entry.code);
+
+    // Check if document already exists to avoid overwriting createdAt
+    const { getDoc } = await import("firebase/firestore");
+    const existing = await getDoc(docRef);
+
     const data = {
       code: entry.code,
       name: entry.name || "",
@@ -34,9 +40,13 @@ export async function saveFullTournament(uid, entry) {
       isPublic: entry.isPublic !== false,
       updatedAt: Date.now(),
     };
-    // Only set createdAt if it doesn't exist yet (merge:true won't overwrite)
-    await setDoc(doc(firestore, "users", uid, "tournaments", entry.code),
-      { ...data, createdAt: serverTimestamp() }, { merge: true });
+
+    // Only write createdAt on first creation — never overwrite it
+    if (!existing.exists()) {
+      data.createdAt = serverTimestamp();
+    }
+
+    await setDoc(docRef, data, { merge: true });
   } catch (e) { console.warn("Firestore write failed", e); }
 }
 
