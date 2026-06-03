@@ -81,40 +81,35 @@ export const suggestRounds = (n) => OPTIMAL_ROUNDS[n] || Math.max(5, Math.round(
 export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament, theme, onToggleTheme }) {
   const [publicLive, setPublicLive] = useState([]);
   const [publicUpcoming, setPublicUpcoming] = useState([]);
-  const [myTournaments, setMyTournaments] = useState([]);
   const [loadingPublic, setLoadingPublic] = useState(true);
 
-  // Load tournaments — Firestore for Google users, localStorage for guests
-  useEffect(() => {
-    const normalize = (t) => ({
-      ...t,
-      status: t.status || (t.champion ? "done" : "live"),
-      playerCount: t.playerCount || t.players?.length || 0,
-      roundInfo: t.rounds ? `Round ${Math.ceil(t.rounds.flat().filter(m => m.played).length / Math.max(t.rounds[0]?.length || 1, 1))}/${t.rounds.length}` : "",
-      // Ensure createdAt is a plain value, not a Firestore Timestamp object
-      createdAt: t.createdAt?.toDate ? t.createdAt.toDate() : t.createdAt,
-    });
+  const normalize = (t) => ({
+    ...t,
+    status: t.status || (t.champion ? "done" : "live"),
+    playerCount: t.playerCount || t.players?.length || 0,
+    roundInfo: t.rounds ? `Round ${Math.ceil(t.rounds.flat().filter(m => m.played).length / Math.max(t.rounds[0]?.length || 1, 1))}/${t.rounds.length}` : "",
+  });
 
+  // Always start from localStorage immediately so data shows without waiting for network
+  const [myTournaments, setMyTournaments] = useState(() => {
+    const hist = loadH().filter(t => t.code)
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    return hist.map(normalize);
+  });
+
+  // Load tournaments — show local immediately, update from Firestore for Google users
+  useEffect(() => {
     if (user?.uid) {
-      // Google user: Firestore is the only source of truth
+      // Try Firestore — if it has data, update the display
       fetchUserTournaments(user.uid).then(list => {
-        if (list === null) {
-          // Offline: fall back to localStorage cache
-          const cached = loadH().filter(t => t.code);
-          setMyTournaments(cached.map(normalize));
-        } else {
+        if (list && list.length > 0) {
           setMyTournaments(list.map(normalize));
-          // Only update cache if we got data — never wipe cache with empty list
-          if (list.length > 0) saveH(list);
+          saveH(list); // keep local cache in sync
         }
+        // If list is null (offline) or empty, local data already showing — do nothing
       });
-    } else {
-      // Guest — localStorage only
-      const hist = loadH().filter(t => t.code);
-      const seen = new Map();
-      hist.forEach(t => seen.set(t.code, t));
-      setMyTournaments(Array.from(seen.values()).reverse().map(normalize));
     }
+    // Guests already have local data from useState initializer
   }, [user?.uid]);
 
   // Load public tournaments from Firestore

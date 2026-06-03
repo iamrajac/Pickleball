@@ -207,20 +207,16 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
 }
 
 export function CareerScreen({ onBack, theme = 'dark' }) {
-  const [history, setHistory] = useState(() => loadH()); // start with cache
-  const [loading, setLoading] = useState(true);
+  // Start with localStorage immediately so stats show without waiting for network
+  const [history, setHistory] = useState(() => loadH());
 
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
-    if (uid) {
-      // Google user: read from Firestore (source of truth)
-      fetchUserTournaments(uid).then(list => {
-        if (list !== null) setHistory(list);
-        setLoading(false);
-      });
-    } else {
-      setLoading(false); // Guest: already loaded from localStorage
-    }
+    if (!uid) return; // Guests: localStorage already loaded
+    // Google users: try Firestore — update if it has data
+    fetchUserTournaments(uid).then(list => {
+      if (list && list.length > 0) setHistory(list);
+    });
   }, []);
 
   const stats = useMemo(() => computeCareerStats(history), [history]);

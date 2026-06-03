@@ -12,13 +12,24 @@ import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
 import { normalizePlayerName } from "../utils/players";
 
+// ── Helpers (must come before saveFullTournament) ─────────────────────────
+
+// For Firestore: convert undefined→null everywhere (Firestore rejects undefined)
+function sanitizeForFirestore(obj) {
+  if (obj === undefined || obj === null) return null;
+  if (typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  const result = {};
+  for (const key in obj) result[key] = sanitizeForFirestore(obj[key]);
+  return result;
+}
+
 // ── Firestore helpers (Google users only) ──────────────────────────────────
 
 // Track which tournament codes have been created in Firestore this session
-// Avoids a getDoc() round-trip on every score save
 const _createdInFirestore = new Set();
 
-// Save FULL tournament data to Firestore — this is the single source of truth for Google users
+// Save FULL tournament data to Firestore
 export async function saveFullTournament(uid, entry) {
   if (!uid || !entry?.code) return;
   try {
@@ -81,19 +92,6 @@ export async function fetchUserTournaments(uid) {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-// For Firestore: convert undefined→null everywhere (Firestore rejects undefined)
-const sanitizeForFirestore = (obj) => {
-  if (obj === undefined) return null;
-  if (obj === null) return null;
-  if (typeof obj !== "object") return obj;
-  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
-  const result = {};
-  for (const key in obj) {
-    result[key] = sanitizeForFirestore(obj[key]);
-  }
-  return result;
-};
 
 // For Realtime DB: strip undefined keys entirely
 const sanitizeForFirebase = (obj) => {

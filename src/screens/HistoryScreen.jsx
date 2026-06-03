@@ -32,33 +32,25 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   const text = theme === 'light' ? '#0f172a' : 'var(--color-text)';
   const border = theme === 'light' ? '#e2e8f0' : 'var(--color-border)';
 
-  const [hist, setHist] = useState([]);
-  const [loadingHist, setLoadingHist] = useState(true);
+  // Always load from localStorage first so data shows immediately
+  const [hist, setHist] = useState(() => {
+    const all = loadH().filter(t => t.code)
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    return all;
+  });
+  const [loadingHist, setLoadingHist] = useState(false);
 
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
-    if (uid) {
-      // Google user: Firestore is the ONLY source of truth
-      fetchUserTournaments(uid).then(list => {
-        if (list === null) {
-          // Offline: fall back to localStorage cache
-          const cached = loadH().filter(t => t.code)
-            .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-          setHist(cached);
-        } else {
-          setHist(list);
-          // Only update cache if we got data back — never wipe cache with empty list
-          if (list.length > 0) saveH(list);
-        }
-        setLoadingHist(false);
-      });
-    } else {
-      // Guest: localStorage only
-      const all = loadH().filter(t => t.code)
-        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-      setHist(all);
-      setLoadingHist(false);
-    }
+    if (!uid) return; // Guests: localStorage already loaded above
+    // Google users: try Firestore — if it has data, update the display
+    fetchUserTournaments(uid).then(list => {
+      if (list && list.length > 0) {
+        setHist(list);
+        saveH(list); // keep local cache in sync
+      }
+      // If offline (null) or empty: local data already showing — do nothing
+    });
   }, []);
 
   const [deleteCode, setDeleteCode] = useState(null);
