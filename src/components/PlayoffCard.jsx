@@ -5,6 +5,7 @@ import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { playAudio } from "../utils/audio";
+import { generateAutoNote } from "./MatchCard";
 
 // Global score buffer — persists across remounts caused by Firebase listener
 const scoreBuffer = {};
@@ -45,7 +46,37 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   const [sB, setSB] = useState(() => scoreBuffer[matchKey]?.sB ?? match?.scoreB ?? "");
   const [matchNotes, setMatchNotes] = useState(() => scoreBuffer[matchKey]?.notes ?? match?.notes ?? "");
   const [isActive, setIsActive] = useState(false);
+  const [scoreHistory, setScoreHistory] = useState([]);
+  const [storyMoments, setStoryMoments] = useState([]);
+  const notesEditedRef = useRef(false);
   const timer = useTimer();
+
+  const updatePlayoffScore = (newA, newB) => {
+    const numA = newA === "" ? 0 : Number(newA);
+    const numB = newB === "" ? 0 : Number(newB);
+    if (isNaN(numA) || isNaN(numB)) return;
+    setScoreHistory(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.a === numA && last.b === numB) return prev;
+      const next = [...prev, { a: numA, b: numB }];
+      if (!notesEditedRef.current) {
+        const moment = generateAutoNote(next, match.teamA, match.teamB);
+        if (moment) {
+          setMatchNotes(moment);
+          setStoryMoments(ps => {
+            const lm = ps[ps.length - 1];
+            if (lm === moment) return ps;
+            const isRun = m => m && (m.includes("point run") || m.includes("on fire") || m.includes("in a row") || m.includes("Unstoppable") || m.includes("scoring"));
+            const isComeback = m => m && m.includes("comeback");
+            const isTied = m => m && (m.includes("Tied") || m.includes("Level") || m.includes("Deuce"));
+            const sameType = (a, b) => (isRun(a) && isRun(b)) || (isComeback(a) && isComeback(b)) || (isTied(a) && isTied(b));
+            return sameType(moment, lm) ? [...ps.slice(0, -1), moment] : [...ps, moment];
+          });
+        }
+      }
+      return next;
+    });
+  };
   const ac = accent || "var(--accent)";
 
   const hash = String((match.teamA || []).join("") + (match.label || "")).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -88,7 +119,16 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     delete scoreBuffer[matchKey];
     setIsActive(false);
     playAudio("pop");
-    onSave(Number(sA), Number(sB), dur, matchNotes);
+    // Build narrative
+    let finalNote = matchNotes;
+    if (!notesEditedRef.current && storyMoments.length > 0) {
+      const numA = Number(sA), numB = Number(sB);
+      const winner = numA > numB ? match.teamA?.join(" & ") : match.teamB?.join(" & ");
+      const score = `${Math.max(numA, numB)}-${Math.min(numA, numB)}`;
+      const deduped = storyMoments.filter((m, i) => i === 0 || m !== storyMoments[i - 1]);
+      finalNote = deduped.join(" · ") + ` · ${winner} won ${score}`;
+    }
+    onSave(Number(sA), Number(sB), dur, finalNote);
   };
 
   const h2hData = [];
@@ -113,7 +153,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   }, [isActive]);
 
   return (
-    <div ref={cardRef} className="card fu" onClick={() => { if (!match?.played && !readOnly) setIsActive(true); }}
+    <div ref={cardRef} className="card" onClick={() => { if (!match?.played && !readOnly) setIsActive(true); }}
       style={{ borderRadius: "var(--radius-md)", padding: "1.2rem", position: "relative", overflow: "hidden", cursor: !match?.played && !readOnly ? "pointer" : "default" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: ac }} />
       <div style={{ fontSize: 10, letterSpacing: 2, color: ac, marginBottom: 2, marginTop: 4, fontWeight: 700 }}>{match.label}</div>
@@ -145,12 +185,12 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 8 }}>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamA?.join(" & ")}</div>
-              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updatePlayoffScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} />
             </div>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 16, color: "var(--text-muted)", letterSpacing: 2 }}>VS</div>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamB?.join(" & ")}</div>
-              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updatePlayoffScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} />
             </div>
           </div>
 
@@ -170,7 +210,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
                 🎾 <strong style={{ color: "var(--text)" }}>{servingTeam}</strong> serves first · <strong style={{ color: "var(--text)" }}>{serveSide}</strong> side
               </div>
-              <input type="text" placeholder="Match notes (optional)" value={matchNotes} onChange={e => setMatchNotes(e.target.value)}
+              <input type="text" placeholder="Match notes (auto-generated or type your own...)" value={matchNotes} onChange={e => { setMatchNotes(e.target.value); notesEditedRef.current = true; }}
                 style={{ width: "100%", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text)", padding: "8px", fontSize: 13, boxSizing: "border-box", outline: "none" }} />
             </div>
           )}

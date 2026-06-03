@@ -71,6 +71,7 @@ function TournamentView({ t, theme, toggleTheme }) {
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
     saveResult, savePlayoff, executeEnd, handleScorerPinEntered,
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
+    liveScores, pushLiveScore,
   } = t;
 
   const isOffline = useOffline();
@@ -183,7 +184,7 @@ function TournamentView({ t, theme, toggleTheme }) {
             ))}
           </div>
         </div>
-        <MatchTicker rounds={rounds} playoffs={playoffs} profiles={profiles} />
+        <MatchTicker rounds={rounds} playoffs={playoffs} profiles={profiles} liveScores={liveScores} />
       </div>
 
       {/* Modals */}
@@ -241,7 +242,8 @@ function TournamentView({ t, theme, toggleTheme }) {
                             timerState={t.getMatchTimer(tk)}
                             onTimerStart={() => t.startMatchTimer(tk)}
                             onTimerStop={() => t.stopMatchTimer(tk)}
-                            onTimerReset={() => t.resetMatchTimer(tk)} />
+                            onTimerReset={() => t.resetMatchTimer(tk)}
+                            onLiveScore={(a, b, note, startedAt) => pushLiveScore(tk, a, b, note, startedAt)} />
                         </div>
                       );
                     })}

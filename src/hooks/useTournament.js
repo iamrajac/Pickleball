@@ -106,6 +106,7 @@ export function useTournament() {
   const [h2hMatrix, setH2hMatrix] = useState({});
   // Timer state keyed by "roundIndex-matchIndex" — survives tab switches + app close
   const [matchTimers, setMatchTimers] = useState({});
+  const [liveScores, setLiveScores] = useState({}); // real-time in-progress scores
   // Tournament metadata
   const [tournamentName, setTournamentName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
@@ -175,6 +176,15 @@ export function useTournament() {
       setOnlineCount(snap.exists() ? Object.keys(snap.val()).length : 1);
     });
     return () => { unb(); unbPres(); set(presRef, null); };
+  }, [code]);
+
+  // ── Separate listener for live in-progress scores (doesn't trigger flicker) ──
+  useEffect(() => {
+    if (!code) return;
+    const unsubLive = onValue(ref(db, `tournaments/${code}/live`), snap => {
+      setLiveScores(snap.exists() ? snap.val() : {});
+    });
+    return () => unsubLive();
   }, [code]);
 
   // ── Reconnect: flush any pending offline write ────────────────────────────
@@ -256,6 +266,27 @@ export function useTournament() {
   }, [code, players, profiles, themeColor]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
+
+  // ── Live score push (debounced, separate path, no flicker) ───────────────
+  const liveTimers = useRef({});
+  const pushLiveScore = useCallback((key, sA, sB, note, timerStartedAt) => {
+    if (!code || readOnly) return;
+    clearTimeout(liveTimers.current[key]);
+    liveTimers.current[key] = setTimeout(() => {
+      set(ref(db, `tournaments/${code}/live/${key}`), {
+        a: sA === "" ? 0 : Number(sA),
+        b: sB === "" ? 0 : Number(sB),
+        note: note || "",
+        startedAt: timerStartedAt || null,
+        ts: Date.now(),
+      }).catch(() => {});
+    }, 250);
+  }, [code, readOnly]);
+
+  const clearLiveScore = useCallback((key) => {
+    if (!code) return;
+    set(ref(db, `tournaments/${code}/live/${key}`), null).catch(() => {});
+  }, [code]);
 
   // ── Timer helpers (survive tab switches) ────────────────────────────────
   const startMatchTimer = (key) => {
@@ -378,6 +409,7 @@ export function useTournament() {
       setAnimatingScore(`${ri}-${mi}`);
       setTimeout(() => setAnimatingScore(null), 500);
       playScoreSound();
+      clearLiveScore(`${ri}-${mi}`); // remove live score now it's officially saved
       pushToFirebase(nx, playoffs, champion);
       _upsertHist(nx, playoffs, champion);
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ["#c8f135", "#35c8f1"] });
@@ -510,6 +542,8 @@ export function useTournament() {
     tournamentName, isPublic,
     // Timer helpers
     startMatchTimer, stopMatchTimer, resetMatchTimer, getMatchTimer,
+    // Live score helpers
+    liveScores, pushLiveScore, clearLiveScore,
     // Actions
     handleStart, handleJoin, saveResult, savePlayoff, executeEnd,
     handleScorerPinEntered, copyStandingsText, startPlayoffs, declareAsFinal,

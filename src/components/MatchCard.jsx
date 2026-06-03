@@ -37,7 +37,7 @@ function ScoreCounter({ value, onChange, hasError }) {
 }
 
 // ── Auto note generator ────────────────────────────────────────────────────
-function generateAutoNote(history, teamA, teamB) {
+export function generateAutoNote(history, teamA, teamB) {
   if (history.length === 0) return "";
   const curr = history[history.length - 1];
   const a = curr.a, b = curr.b;
@@ -103,7 +103,7 @@ function generateAutoNote(history, teamA, teamB) {
 }
 
 export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {},
-  timerState, onTimerStart, onTimerStop, onTimerReset }) {
+  timerState, onTimerStart, onTimerStop, onTimerReset, onLiveScore }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
   const [matchNotes, setMatchNotes] = useState(match.notes || "");
@@ -120,7 +120,12 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
       : timerState.elapsed,
     running: timerState.running,
     start:   onTimerStart,
-    stop:    () => { onTimerStop(); return timerState.elapsed; },
+    stop:    () => {
+      const final = timerState.startedAt && timerState.running
+        ? Math.floor((Date.now() - timerState.startedAt) / 1000)
+        : timerState.elapsed;
+      onTimerStop(); return final;
+    },
     reset:   onTimerReset,
     fmt:     localTimer.fmt,
   } : localTimer;
@@ -166,14 +171,21 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
       if (!notesEditedRef.current) {
         const moment = generateAutoNote(newHistory, match.teamA, match.teamB);
         if (moment) {
-          // Show current moment in the notes field during play
           setMatchNotes(moment);
-          // Accumulate into story (skip if same as last moment)
           setStoryMoments(prevStory => {
-            const lastMoment = prevStory[prevStory.length - 1];
-            return lastMoment === moment ? prevStory : [...prevStory, moment];
+            const last = prevStory[prevStory.length - 1];
+            if (last === moment) return prevStory;
+            // Run/streak/comeback/tied moments supersede the previous one of the same type
+            const isRun      = m => m && (m.includes("point run") || m.includes("on fire") || m.includes("in a row") || m.includes("Unstoppable") || m.includes("scoring"));
+            const isComeback = m => m && m.includes("comeback");
+            const isTied     = m => m && (m.includes("Tied") || m.includes("Level") || m.includes("Deuce"));
+            const sameType   = (a, b) => (isRun(a) && isRun(b)) || (isComeback(a) && isComeback(b)) || (isTied(a) && isTied(b));
+            if (sameType(moment, last)) return [...prevStory.slice(0, -1), moment];
+            return [...prevStory, moment];
           });
         }
+        // Push live score to Firebase so other devices see it in real-time
+        onLiveScore?.(numA, numB, moment, timerState?.startedAt || null);
       }
       return newHistory;
     });
