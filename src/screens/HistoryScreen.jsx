@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { getAuth } from "firebase/auth";
 import { ref as fbRef, get } from "firebase/database";
-import { db } from "../firebase";
+import { doc, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { db, firestore } from "../firebase";
 import { loadH, saveH, isCreator } from "../utils/history";
 import { computeStandings } from "../utils/schedule";
 import { fetchUserTournaments, safePlayoffs } from "../hooks/useTournament";
@@ -9,6 +10,21 @@ import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
 import { Trophy, ArrowLeft, Calendar, Users, Trash2, ChevronRight } from "lucide-react";
+
+// Delete a single tournament from Firestore for a user
+async function deleteFromFirestore(uid, code) {
+  try {
+    await deleteDoc(doc(firestore, "users", uid, "tournaments", code));
+  } catch (e) { console.warn("Firestore delete failed", e); }
+}
+
+// Delete all tournaments from Firestore for a user
+async function deleteAllFromFirestore(uid) {
+  try {
+    const snap = await getDocs(collection(firestore, "users", uid, "tournaments"));
+    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+  } catch (e) { console.warn("Firestore clear failed", e); }
+}
 
 export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   const lime = theme === 'light' ? '#1e3a5f' : 'var(--color-lime)';
@@ -29,7 +45,17 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
     if (!uid) return;
+    const syncedKey = `pkl_fs_synced_${uid}`;
+    const hasSynced = !!localStorage.getItem(syncedKey);
+
     fetchUserTournaments(uid).then(firestoreList => {
+      if (firestoreList.length === 0 && hasSynced) {
+        // User deleted everything — clear local storage too and show empty
+        saveH([]);
+        setHist([]);
+        return;
+      }
+
       setHist(prev => {
         const seen = new Map();
         // Local data wins (has full rounds/playoffs data), Firestore fills in missing entries + names
@@ -37,10 +63,8 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
         firestoreList.forEach(t => {
           const dateStr = t.date || (t.createdAt?.toDate ? t.createdAt.toDate().toISOString() : t.createdAt) || new Date().toISOString();
           if (!seen.has(t.code)) {
-            // New tournament not in local — add it (metadata only, no rounds)
             seen.set(t.code, { ...t, date: dateStr });
           } else {
-            // Merge: patch name/champion/status from Firestore into local entry
             const local = seen.get(t.code);
             seen.set(t.code, {
               ...local,
@@ -51,8 +75,17 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
             });
           }
         });
-        // Sort newest first
-        return Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        // Remove any local entries that are NOT in Firestore (were deleted on another device)
+        if (hasSynced && firestoreList.length > 0) {
+          const fsKeys = new Set(firestoreList.map(t => t.code));
+          for (const [code] of seen) {
+            if (!fsKeys.has(code)) seen.delete(code);
+          }
+        }
+        const result = Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        // Persist merged result to localStorage
+        saveH(result);
+        return result;
       });
     });
   }, []);
@@ -70,12 +103,18 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
     saveH(updated);
     setHist(updated);
     setDeleteCode(null);
+    // Also delete from Firestore so other devices sync the deletion
+    const uid = getAuth().currentUser?.uid;
+    if (uid) deleteFromFirestore(uid, code);
   };
 
   const clearAll = () => {
     saveH([]);
     setHist([]);
     setConfirmClear(false);
+    // Also clear from Firestore so other devices sync the deletion
+    const uid = getAuth().currentUser?.uid;
+    if (uid) deleteAllFromFirestore(uid);
   };
 
   return (
