@@ -149,6 +149,14 @@ export function useTournament() {
     document.documentElement.style.setProperty("--color-lime", themeColor);
   }, [themeColor]);
 
+  // ── Sync profile changes to Firebase immediately ──────────────────────────
+  useEffect(() => {
+    if (!code || Object.keys(profiles).length === 0 || isWriting.current) return;
+    try {
+      set(ref(db, `tournaments/${code}/profiles`), profiles).catch(() => {});
+    } catch {}
+  }, [profiles, code]);
+
   // ── Firebase listener ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!code) return;

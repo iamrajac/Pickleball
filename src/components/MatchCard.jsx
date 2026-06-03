@@ -196,14 +196,15 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sA, sB, matchNotes]);
 
-  // ── Push live timer state when timer starts/stops ─────────────────────────
+  // ── Push live timer state whenever timer changes ───────────────────────────
   useEffect(() => {
-    if (match.played || !timerState?.running) return;
+    if (match.played) return;
     const numA = sA === "" ? 0 : Number(sA);
     const numB = sB === "" ? 0 : Number(sB);
-    onLiveScore?.(numA, numB, matchNotes, timerState.startedAt);
+    // Always push when timer state changes (start, stop, or tick)
+    onLiveScore?.(numA, numB, matchNotes, timerState?.startedAt || null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState?.running, timerState?.startedAt]);
+  }, [timerState?.running, timerState?.startedAt, timerState?.elapsed]);
 
   // ── Track score progression ────────────────────────────────────────────────
   const updateScore = (newA, newB) => {
