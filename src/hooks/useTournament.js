@@ -22,7 +22,10 @@ const _createdInFirestore = new Set();
 export async function saveFullTournament(uid, entry) {
   if (!uid || !entry?.code) return;
   try {
-    const data = {
+    // sanitizeForFirebase is defined below in this module — converts undefined→null
+    // and strips undefined keys. Firestore REJECTS writes with any undefined value,
+    // causing silent failures. This must be called before every Firestore write.
+    const raw = {
       code: entry.code,
       name: entry.name || "",
       date: entry.date || new Date().toISOString(),
@@ -39,15 +42,18 @@ export async function saveFullTournament(uid, entry) {
       updatedAt: Date.now(),
     };
 
+    const data = sanitizeForFirestore(raw);
+
     const key = `${uid}:${entry.code}`;
-    // Only set createdAt on first write — use in-memory set to avoid getDoc round-trip
     if (!_createdInFirestore.has(key)) {
-      data.createdAt = serverTimestamp();
+      data.createdAt = serverTimestamp(); // Added AFTER sanitize — it's a Firestore sentinel
       _createdInFirestore.add(key);
     }
 
     await setDoc(doc(firestore, "users", uid, "tournaments", entry.code), data, { merge: true });
-  } catch (e) { console.warn("Firestore write failed", e); }
+  } catch (e) {
+    console.error("saveFullTournament failed:", e);
+  }
 }
 
 // Fetch all tournaments for a signed-in user from Firestore (returns FULL data)
@@ -76,6 +82,20 @@ export async function fetchUserTournaments(uid) {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// For Firestore: convert undefined→null everywhere (Firestore rejects undefined)
+const sanitizeForFirestore = (obj) => {
+  if (obj === undefined) return null;
+  if (obj === null) return null;
+  if (typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  const result = {};
+  for (const key in obj) {
+    result[key] = sanitizeForFirestore(obj[key]);
+  }
+  return result;
+};
+
+// For Realtime DB: strip undefined keys entirely
 const sanitizeForFirebase = (obj) => {
   if (obj === undefined) return null;
   if (obj === null || typeof obj !== "object") return obj;
