@@ -117,7 +117,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
                     </div>
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: muted }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={14} /> {t.players.length} players</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={14} /> {(t.players?.length || 0)} players</span>
                     {t.code && <span style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1 }}>#{t.code} {isCreator(t.code) ? "(Host)" : ""}</span>}
                   </div>
                   {t.champion && (
@@ -220,7 +220,7 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: lime, letterSpacing: 2, lineHeight: 1 }}>TOURNAMENT RECAP</div>
               <div style={{ fontSize: 11, color: muted, display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                 <Calendar size={12} /> {new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" })}
-                <span>·</span> <Users size={12} /> {t.players.length} players
+                <span>·</span> <Users size={12} /> {(t.players?.length || 0)} players
                 {t.code && <><span>·</span> <span style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1 }}>#{t.code}</span></>}
               </div>
             </div>

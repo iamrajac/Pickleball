@@ -202,13 +202,13 @@ export function useTournament() {
       if (!pendingSync.current || !code || !canEditRef.current) return;
       const { rounds: r, playoffs: p, champion: c, profiles: pr } = pendingSync.current;
       fbSet(`tournaments/${code}`, {
-        players, rounds: r, playoffs: p, champion: c, profiles: pr, themeColor, ts: Date.now()
+        players, rounds: r, playoffs: p, champion: c, profiles: pr, themeColor, name: tournamentName, ts: Date.now()
       });
       pendingSync.current = null;
     };
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);
-  }, [code, players, themeColor]);
+  }, [code, players, themeColor, tournamentName]);
 
   // ── Champion celebration ──────────────────────────────────────────────────
   useEffect(() => {
@@ -237,7 +237,7 @@ export function useTournament() {
     try {
       await fbSet(`tournaments/${code}`, {
         players, rounds: newRounds, playoffs: newPlayoffs, champion: newChamp,
-        profiles: prof, themeColor, ts: Date.now()
+        profiles: prof, themeColor, name: tournamentName, ts: Date.now()
       });
       pendingSync.current = null;
     } catch {
@@ -246,7 +246,7 @@ export function useTournament() {
     } finally {
       setTimeout(() => { isWriting.current = false; }, 800);
     }
-  }, [code, readOnly, players, profiles, themeColor]);
+  }, [code, readOnly, players, profiles, themeColor, tournamentName]);
 
   // ── Internal: upsert localStorage history ────────────────────────────────
   const _upsertHist = useCallback((newRounds, newPlayoffs, newChamp, currentProfiles, tColor, overrideCode) => {
