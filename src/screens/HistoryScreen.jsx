@@ -47,7 +47,8 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
           setHist(cached);
         } else {
           setHist(list);
-          saveH(list); // update local cache
+          // Only update cache if we got data back — never wipe cache with empty list
+          if (list.length > 0) saveH(list);
         }
         setLoadingHist(false);
       });

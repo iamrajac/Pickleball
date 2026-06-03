@@ -51,22 +51,26 @@ export async function saveFullTournament(uid, entry) {
 }
 
 // Fetch all tournaments for a signed-in user from Firestore (returns FULL data)
+// Returns null on network failure (so callers can fall back to localStorage cache)
+// Returns [] only if the user genuinely has no tournaments
 export async function fetchUserTournaments(uid) {
   try {
-    const q = query(collection(firestore, "users", uid, "tournaments"), orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
+    // NO orderBy — Firestore silently excludes docs missing that field,
+    // making it look like the user has no data. Sort client-side instead.
+    const snap = await getDocs(collection(firestore, "users", uid, "tournaments"));
     const docs = snap.docs.map(d => {
       const data = d.data();
-      // Convert Firestore Timestamp to ISO string for date field
-      const dateVal = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.date;
-      return { ...data, date: dateVal || new Date().toISOString(), firestoreId: d.id };
+      // Normalize createdAt Timestamp → ISO string
+      const createdMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : null;
+      const dateVal = data.date || (createdMs ? new Date(createdMs).toISOString() : new Date().toISOString());
+      return { ...data, date: dateVal, _createdMs: createdMs || 0, firestoreId: d.id };
     });
-    // Sort: most recently updated first
-    docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    // Sort: most recently updated first, then by creation time
+    docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || b._createdMs - a._createdMs);
     return docs;
   } catch (e) {
     console.warn("fetchUserTournaments failed:", e);
-    return null; // null = fetch failed (offline), not empty (deleted)
+    return null; // null = network failure → caller falls back to localStorage
   }
 }
 
@@ -158,6 +162,9 @@ export function useTournament() {
   const isWriting = useRef(false);
   const canEditRef = useRef(false);
   const joinCompleteRef = useRef(false);
+  // Track the number of played matches we've saved locally — Firebase listener
+  // must never go backwards (prevents overwriting rounds with stale data)
+  const localPlayedCount = useRef(0);
   const pendingSync = useRef(null); // { rounds, playoffs, champion, profiles } when offline write is queued
 
   const { addToast } = useToast();
@@ -212,7 +219,15 @@ export function useTournament() {
       if (v) {
         const newRounds = v.rounds ? v.rounds.map((r) => (r ? Object.values(r) : [])) : null;
         if (v.players) setPlayers(v.players);
-        if (newRounds) setRounds(newRounds);
+        if (newRounds) {
+          // Never overwrite local rounds with fewer played matches than we've saved
+          // This prevents Firebase echo from hiding the "playoffs" button
+          const incomingPlayed = newRounds.flat().filter(m => m.played).length;
+          if (incomingPlayed >= localPlayedCount.current) {
+            setRounds(newRounds);
+            localPlayedCount.current = incomingPlayed;
+          }
+        }
         if (v.playoffs !== undefined) setPlayoffs(safePlayoffs(v.playoffs));
         if (v.champion !== undefined) setChampion(v.champion || null);
         if (v.profiles) setProfiles(v.profiles);
@@ -449,6 +464,7 @@ export function useTournament() {
     setPlayers(normalizedPlayers); setRounds(r); setCode(c); setPlayoffs(null);
     setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
     setMatchTimers({});
+    localPlayedCount.current = 0;
     canEditRef.current = true;
     setScorerPin(pin);
     setProfiles(normalizedProfiles);
@@ -541,13 +557,16 @@ export function useTournament() {
     try {
       const nx = JSON.parse(JSON.stringify(rounds));
       nx[ri][mi] = { ...nx[ri][mi], scoreA: sA, scoreB: sB, played: true, duration: dur || null, notes };
+      // Update local played count BEFORE setRounds so the Firebase listener
+      // never overwrites our fresh data with stale echo
+      localPlayedCount.current = nx.flat().filter(m => m.played).length;
       setRounds(nx);
       setAnimatingScore(`${ri}-${mi}`);
       setTimeout(() => setAnimatingScore(null), 500);
       playScoreSound();
       clearLiveScore(`${ri}-${mi}`);
       pushToFirebase(nx, playoffs, champion);
-      _upsertHist(nx, playoffs, champion); // handles both localStorage + Firestore
+      _upsertHist(nx, playoffs, champion);
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ["#c8f135", "#35c8f1"] });
       addToast("✓ Score saved", "success", 1500);
     } catch { addToast("Failed to save score", "error"); }
@@ -641,6 +660,7 @@ export function useTournament() {
     setPlayers([]); setRounds([]); setPlayoffs(null);
     setCode(null); setChampion(null); setScorerPin(null);
     setMatchTimers({}); setTournamentName(""); setIsPublic(true);
+    localPlayedCount.current = 0;
   };
 
   const handleScorerPinEntered = async (enteredPin) => {

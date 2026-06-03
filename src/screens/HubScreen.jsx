@@ -104,7 +104,8 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
           setMyTournaments(cached.map(normalize));
         } else {
           setMyTournaments(list.map(normalize));
-          saveH(list); // update local cache
+          // Only update cache if we got data — never wipe cache with empty list
+          if (list.length > 0) saveH(list);
         }
       });
     } else {
