@@ -577,7 +577,19 @@ function AppInner() {
             onCreateTournament={() => navigate("/create")}
             onOpenTournament={async (tournament) => {
               if (!tournament.code) return;
-              const isLive = tournament.status === "live" || tournament.status === "in-progress";
+
+              // Block upcoming tournaments until their scheduled time
+              if (tournament.status === "upcoming" && tournament.scheduledAt) {
+                const scheduledMs = typeof tournament.scheduledAt === 'number' ? tournament.scheduledAt : new Date(tournament.scheduledAt).getTime();
+                if (scheduledMs > Date.now()) {
+                  const d = new Date(scheduledMs);
+                  const fmt = d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+                  alert(`This tournament starts at ${fmt}. Come back then!`);
+                  return;
+                }
+              }
+
+              const isLive = tournament.status === "live" || tournament.status === "in-progress" || tournament.status === "upcoming";
 
               // Always try Realtime DB first — has full data for live AND recently completed
               try {

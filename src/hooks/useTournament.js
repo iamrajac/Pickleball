@@ -169,18 +169,42 @@ export function useTournament() {
     if (!code) return;
     const dbRef = ref(db, `tournaments/${code}`);
     const unb = onValue(dbRef, (snap) => {
-      if (isWriting.current) return;
+      // Only skip incoming updates on the WRITING device (prevents self-echo flicker)
+      // Viewers / other devices should ALWAYS receive updates
+      if (isWriting.current && canEditRef.current) return;
       setSyncing(true);
       const v = snap.val();
       if (v) {
+        const newRounds = v.rounds ? v.rounds.map((r) => (r ? Object.values(r) : [])) : null;
         if (v.players) setPlayers(v.players);
-        if (v.rounds) setRounds(v.rounds.map((r) => (r ? Object.values(r) : [])));
+        if (newRounds) setRounds(newRounds);
         if (v.playoffs !== undefined) setPlayoffs(safePlayoffs(v.playoffs));
         if (v.champion !== undefined) setChampion(v.champion || null);
         if (v.profiles) setProfiles(v.profiles);
         if (v.themeColor) setThemeColor(v.themeColor);
         if (v.name !== undefined) setTournamentName(v.name || "");
         if (joinCompleteRef.current) setReadOnly(!canEditRef.current);
+
+        // Save full data to localStorage for career stats (works for all devices, not just creator)
+        if (newRounds && v.players && v.champion) {
+          const all = loadH().filter(t => t.code);
+          const seen = new Map();
+          all.forEach(t => seen.set(t.code, t));
+          const existing = seen.get(code);
+          seen.set(code, {
+            ...(existing || {}),
+            code, players: v.players,
+            rounds: newRounds,
+            playoffs: safePlayoffs(v.playoffs),
+            champion: v.champion,
+            name: v.name || existing?.name || "",
+            date: existing?.date || new Date().toISOString(),
+            finalStandings: computeStandings(v.players, newRounds),
+            profiles: v.profiles || {},
+            status: "completed",
+          });
+          saveH(Array.from(seen.values()));
+        }
       }
       setSyncing(false);
     });

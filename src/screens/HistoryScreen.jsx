@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { getAuth } from "firebase/auth";
+import { ref as fbRef, get } from "firebase/database";
+import { db } from "../firebase";
 import { loadH, saveH, isCreator } from "../utils/history";
-import { fetchUserTournaments } from "../hooks/useTournament";
+import { computeStandings } from "../utils/schedule";
+import { fetchUserTournaments, safePlayoffs } from "../hooks/useTournament";
 import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
@@ -17,7 +20,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
     const all = loadH().filter(t => t.code);
     const seen = new Map();
     all.forEach(t => seen.set(t.code, t));
-    const deduped = Array.from(seen.values());
+    const deduped = Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     if (deduped.length !== all.length) saveH(deduped);
     return deduped;
   });
@@ -104,7 +107,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
             <div style={{ fontSize: 14, color: muted, marginTop: 8 }}>Complete a tournament to see it here.</div>
           </div>
         ) : (
-          [...hist].reverse().map((t, i) => (
+          hist.map((t, i) => (
             <div key={t.code || i} style={{ position: "relative", marginBottom: 12 }}>
 
               {/* Card */}
@@ -211,52 +214,74 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
   const muted = theme === 'light' ? '#64748b' : 'var(--color-muted)';
   const text = theme === 'light' ? '#0f172a' : 'var(--color-text)';
   const border = theme === 'light' ? '#e2e8f0' : 'var(--color-border)';
-  const [fullData, setFullData] = useState(tournament);
+
+  // Always start null so we show loading — prevents flash of 0 players
+  const [fullData, setFullData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("rounds");
 
-  // If tournament lacks rounds data (came from Firestore metadata), fetch full data from Realtime DB
+  // Always fetch full data from Realtime DB — it has rounds, players, profiles
   useEffect(() => {
-    if (!tournament?.code || (tournament.rounds?.length > 0 && tournament.players?.length > 0)) return;
-    import("firebase/database").then(({ ref, get }) => {
-      import("../firebase").then(({ db }) => {
-        get(ref(db, `tournaments/${tournament.code}`)).then(snap => {
-          if (!snap.exists() || !snap.val()) return;
-          const fbData = snap.val();
-          const rounds = fbData.rounds ? fbData.rounds.map(r => r ? Object.values(r) : []) : [];
-          const merged = {
-            ...tournament,
-            ...fbData,
-            rounds,
-            players: fbData.players || tournament.players || [],
-            name: tournament.name || fbData.name || "",
-            date: tournament.date || new Date().toISOString(),
-          };
-          setFullData(merged);
-          // Save to localStorage so career stats work on this device too
-          import("../utils/history").then(({ loadH, saveH, computeStandings: _, computeH2HMatrix: __ }) => {
-            import("../utils/schedule").then(({ computeStandings }) => {
-              const all = loadH();
-              const seen = new Map();
-              all.forEach(t => seen.set(t.code, t));
-              if (!seen.has(merged.code) || !(seen.get(merged.code).rounds?.length)) {
-                seen.set(merged.code, {
-                  ...merged,
-                  finalStandings: computeStandings(merged.players || [], rounds),
-                  status: merged.champion ? "completed" : "in-progress",
-                });
-                saveH(Array.from(seen.values()));
-              }
-            });
-          });
-        }).catch(() => {});
-      });
+    if (!tournament?.code) { setFullData(tournament); setLoading(false); return; }
+    setLoading(true);
+
+    get(fbRef(db, `tournaments/${tournament.code}`)).then(snap => {
+      let merged;
+      if (snap.exists() && snap.val()) {
+        const fbData = snap.val();
+        const rounds = fbData.rounds ? fbData.rounds.map(r => r ? Object.values(r) : []) : (tournament.rounds || []);
+        const players = fbData.players || tournament.players || [];
+        merged = {
+          ...tournament,
+          ...fbData,
+          rounds,
+          players,
+          profiles: fbData.profiles || tournament.profiles || {},
+          playoffs: fbData.playoffs ? safePlayoffs(fbData.playoffs) : (tournament.playoffs || null),
+          champion: fbData.champion || tournament.champion || null,
+          name: fbData.name || tournament.name || "",
+          date: tournament.date || new Date().toISOString(),
+        };
+      } else {
+        merged = { ...tournament, rounds: tournament.rounds || [], players: tournament.players || [] };
+      }
+
+      merged.finalStandings = computeStandings(merged.players, merged.rounds);
+      setFullData(merged);
+      setLoading(false);
+
+      // Save full data to localStorage so career stats update on this device
+      if (!merged.rounds?.length) return;
+      const all = loadH();
+      const seen = new Map();
+      all.forEach(t => seen.set(t.code, t));
+      const existing = seen.get(merged.code);
+      if (!existing?.rounds?.length || existing.rounds.length < merged.rounds.length) {
+        seen.set(merged.code, { ...merged, status: merged.champion ? "completed" : "in-progress" });
+        saveH(Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)));
+      }
+    }).catch(() => {
+      setFullData({ ...tournament, rounds: tournament.rounds || [], players: tournament.players || [] });
+      setLoading(false);
     });
   }, [tournament?.code]);
+
+  if (loading || !fullData) {
+    return (
+      <div style={{ minHeight: "100vh", background: 'var(--color-dark)', display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: lime, letterSpacing: 3, marginBottom: 8 }}>LOADING...</div>
+          <div style={{ fontSize: 12, color: muted }}>Fetching tournament data</div>
+        </div>
+      </div>
+    );
+  }
 
   const t = fullData;
   const standings = t.finalStandings || [];
   const rounds = t.rounds || [];
-  const playoffs = t.playoffs || null;
+  const playoffs = t.playoffs ? (typeof t.playoffs === 'object' && !Array.isArray(t.playoffs) ? t.playoffs : null) : null;
+  const profiles = t.profiles || {};
 
   return (
     <div style={{ minHeight: "100vh", background: 'var(--color-dark)', color: text, fontFamily: "'DM Sans', sans-serif" }}>
@@ -294,7 +319,7 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
                   <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
                   <div style={{ fontSize: 11, color: round.every(m => m.played) ? 'var(--color-lime)' : 'var(--color-muted)', letterSpacing: 1, fontWeight: 600 }}>{round.filter(m => m.played).length}/{round.length}</div>
                 </div>
-                {round.map((m, mi) => <MatchCard key={mi} match={m} delay={mi * .04} readOnly={true} onSave={() => { }} />)}
+                {round.map((m, mi) => <MatchCard key={mi} match={m} delay={mi * .04} readOnly={true} onSave={() => {}} profiles={profiles} />)}
               </div>
             ))}
           </div>
@@ -313,7 +338,7 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: border, letterSpacing: 2 }}>NO PLAYOFFS</div>
                 <div style={{ fontSize: 13, color: muted, marginTop: 8 }}>This tournament ended before playoffs.</div>
               </div>
-            ) : playoffs.q1 ? (
+            ) : (
               <div style={{ maxWidth: 800, margin: "0 auto" }}>
                 {(t.champion || playoffs.champion) && (
                   <div className="fu glass-card" style={{ border: `1px solid var(--color-lime)`, borderRadius: 'var(--radius-lg)', padding: "2rem", textAlign: "center", marginBottom: 24, background: 'rgba(200,241,53,0.05)', boxShadow: '0 8px 32px rgba(200,241,53,0.1)' }}>
@@ -322,16 +347,36 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: lime, letterSpacing: 3 }}>{t.champion || playoffs.champion}</div>
                   </div>
                 )}
-                {playoffs.isMini ? (
-                  <PlayoffCard match={playoffs.q1} onSave={() => { }} accent="var(--color-gold)" readOnly={true} />
-                ) : (
+                {/* final_only mode */}
+                {playoffs.mode === "final_only" && playoffs.final && (
+                  <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} />
+                )}
+                {/* elim_to_sf mode */}
+                {playoffs.mode === "elim_to_sf" && (
+                  <>
+                    {playoffs.sf1 && <div style={{ marginBottom: 16 }}><PlayoffCard match={playoffs.sf1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} /></div>}
+                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} />}
+                  </>
+                )}
+                {/* ipl8 / default mode */}
+                {(playoffs.mode === "ipl8" || (!playoffs.mode && playoffs.q1)) && (
                   <>
                     <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-                      <PlayoffCard match={playoffs.q1} onSave={() => { }} accent="var(--color-lime)" readOnly={true} />
-                      {playoffs.elim && <PlayoffCard match={playoffs.elim} onSave={() => { }} accent="var(--color-cyan)" readOnly={true} />}
+                      {playoffs.q1 && <PlayoffCard match={playoffs.q1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} />}
+                      {playoffs.elim && <PlayoffCard match={playoffs.elim} onSave={() => {}} accent="var(--color-cyan)" readOnly={true} />}
                     </div>
-                    {playoffs.q2 && <div style={{ marginBottom: 16 }}><PlayoffCard match={playoffs.q2} onSave={() => { }} accent="var(--color-gold)" readOnly={true} /></div>}
-                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => { }} accent="var(--color-lime)" readOnly={true} />}
+                    {playoffs.q2 && <div style={{ marginBottom: 16 }}><PlayoffCard match={playoffs.q2} onSave={() => {}} accent="var(--color-gold)" readOnly={true} /></div>}
+                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-lime)" readOnly={true} />}
+                  </>
+                )}
+                {/* ipl6 mode */}
+                {playoffs.mode === "ipl6" && (
+                  <>
+                    <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                      {playoffs.q1 && <PlayoffCard match={playoffs.q1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} />}
+                      {playoffs.elim && <PlayoffCard match={playoffs.elim} onSave={() => {}} accent="var(--color-cyan)" readOnly={true} />}
+                    </div>
+                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} />}
                   </>
                 )}
                 <div style={{ marginTop: 32 }}>
@@ -342,7 +387,7 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
                   <StandingsTable standings={standings} rounds={rounds} />
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
         )}
       </div>
