@@ -108,12 +108,8 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
           )}
         </div>
 
-        {/* Loading / Empty state */}
-        {loadingHist ? (
-          <div className="fu glass-card" style={{ padding: "4rem 2rem", textAlign: "center", borderRadius: 'var(--radius-lg)' }}>
-            <div style={{ fontSize: 14, color: muted }}>Loading tournaments...</div>
-          </div>
-        ) : hist.length === 0 ? (
+        {/* Empty state */}
+        {hist.length === 0 ? (
           <div className="fu glass-card" style={{ padding: "4rem 2rem", textAlign: "center", borderRadius: 'var(--radius-lg)' }}>
             <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>🏆</div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: border, letterSpacing: 2 }}>NO HISTORY YET</div>

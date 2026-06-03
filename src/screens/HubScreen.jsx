@@ -103,9 +103,11 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
 
     // Use onSnapshot for real-time updates — Device 2 sees changes the moment
     // Device 1 writes anything to Firestore (same Google account)
+    console.log("🔌 Firestore listener starting for uid:", user.uid?.slice(0,8));
     const unsub = onSnapshot(
       collection(firestore, "users", user.uid, "tournaments"),
       (snap) => {
+        console.log("🔥 Firestore snapshot:", snap.size, "docs, empty:", snap.empty);
         if (snap.empty) return; // no data yet — keep showing localStorage
         const docs = snap.docs.map(d => {
           const data = d.data();
