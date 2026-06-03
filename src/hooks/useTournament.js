@@ -465,6 +465,15 @@ export function useTournament() {
       clearLiveScore(`${ri}-${mi}`); // remove live score now it's officially saved
       pushToFirebase(nx, playoffs, champion);
       _upsertHist(nx, playoffs, champion);
+      // Update Firestore for cross-device sync
+      const uid = getAuth().currentUser?.uid;
+      if (uid && code) {
+        saveToUserAccount(uid, code, {
+          code, name: tournamentName, status: champion ? "done" : "live",
+          playerCount: players.length, players,
+          isPublic, champion: champion || null, updatedAt: Date.now()
+        });
+      }
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ["#c8f135", "#35c8f1"] });
       addToast("✓ Score saved", "success", 1500);
     } catch { addToast("Failed to save score", "error"); }
@@ -475,6 +484,15 @@ export function useTournament() {
     const poffs = initPlayoffs(st);
     setPlayoffs(poffs); setTab("playoffs");
     pushToFirebase(rounds, poffs, champion);
+    // Update Firestore for cross-device sync
+    const uid = getAuth().currentUser?.uid;
+    if (uid && code) {
+      saveToUserAccount(uid, code, {
+        code, name: tournamentName, status: "live",
+        playerCount: players.length, players,
+        isPublic, champion: null, updatedAt: Date.now()
+      });
+    }
     addToast("Playoffs started!", "info");
   };
 
@@ -488,6 +506,15 @@ export function useTournament() {
     };
     setPlayoffs(poffs); setTab("playoffs");
     pushToFirebase(rounds, poffs, champion);
+    // Update Firestore for cross-device sync
+    const uid = getAuth().currentUser?.uid;
+    if (uid && code) {
+      saveToUserAccount(uid, code, {
+        code, name: tournamentName, status: "live",
+        playerCount: players.length, players,
+        isPublic, champion: null, updatedAt: Date.now()
+      });
+    }
     addToast("Quick Final created!", "info");
   };
 
@@ -543,6 +570,15 @@ export function useTournament() {
       playScoreSound();
       pushToFirebase(rounds, nx, newChamp);
       _upsertHist(rounds, nx, newChamp);
+      // Update Firestore for cross-device sync
+      const uid = getAuth().currentUser?.uid;
+      if (uid && code) {
+        saveToUserAccount(uid, code, {
+          code, name: tournamentName, status: newChamp ? "done" : "live",
+          playerCount: players.length, players,
+          isPublic, champion: newChamp || null, updatedAt: Date.now()
+        });
+      }
       if (!newChamp) confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ["#f1c835", "#35c8f1"] });
       addToast(`${m.label} result saved!`, "success", 2000);
     } catch (e) { console.error("savePlayoff error", e); addToast("Failed to save playoff score", "error"); }
