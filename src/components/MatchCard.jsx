@@ -128,10 +128,11 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
   // ── Live timer tick for OTHER devices (reads from liveScore.startedAt) ────
   useEffect(() => {
-    if (!liveScore?.startedAt || localTouched) return;
-    const id = setInterval(() => setLiveTick(t => t + 1), 1000);
+    if (!liveScore?.startedAt) return;
+    // Force re-render every 100ms for smooth timer update
+    const id = setInterval(() => setLiveTick(t => t + 1), 100);
     return () => clearInterval(id);
-  }, [liveScore?.startedAt, localTouched]);
+  }, [liveScore?.startedAt]);
 
   // ── Local (lifted) timer ──────────────────────────────────────────────────
   const localTimer = useTimer();
@@ -182,19 +183,19 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const notesEditedRef = useRef(false);
   useEffect(() => { notesEditedRef.current = notesEdited; }, [notesEdited]);
 
-  // ── Push live score to Firebase whenever sA/sB changes (outside state updater) ──
+  // ── Push live score to Firebase IMMEDIATELY on every change ───────────────
   useEffect(() => {
     if (match.played) return;
     const numA = sA === "" ? 0 : Number(sA);
     const numB = sB === "" ? 0 : Number(sB);
-    if (numA === 0 && numB === 0) return; // nothing to share yet
+    // Push every change instantly (no debounce for real-time feedback)
     onLiveScore?.(numA, numB, matchNotes, timerState?.startedAt || null);
     // Visual feedback: show sync confirmation briefly
     setScoreSynced(true);
-    const timer = setTimeout(() => setScoreSynced(false), 1200);
+    const timer = setTimeout(() => setScoreSynced(false), 800);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sA, sB, matchNotes]);
+  }, [sA, sB, matchNotes, timerState?.startedAt]);
 
   // ── Push live timer state whenever timer changes ───────────────────────────
   useEffect(() => {

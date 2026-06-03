@@ -277,11 +277,12 @@ export function useTournament() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  // ── Live score push (debounced, separate path, no flicker) ───────────────
+  // ── Live score push (minimal debounce for real-time feel) ────────────────
   const liveTimers = useRef({});
   const pushLiveScore = useCallback((key, sA, sB, note, timerStartedAt) => {
     if (!code || readOnly) return;
     clearTimeout(liveTimers.current[key]);
+    // 50ms debounce - fast enough for real-time, slow enough to batch rapid clicks
     liveTimers.current[key] = setTimeout(() => {
       set(ref(db, `tournaments/${code}/live/${key}`), {
         a: sA === "" ? 0 : Number(sA),
@@ -290,7 +291,7 @@ export function useTournament() {
         startedAt: timerStartedAt || null,
         ts: Date.now(),
       }).catch(() => {});
-    }, 250);
+    }, 50);
   }, [code, readOnly]);
 
   // ── Fast timer update (no debounce - real-time sync) ─────────────────────
@@ -313,13 +314,22 @@ export function useTournament() {
 
   // ── Timer helpers (survive tab switches + immediately sync) ──────────────
   const startMatchTimer = useCallback((key) => {
-    const newTimerState = { startedAt: Date.now(), elapsed: 0, running: true };
-    setMatchTimers(prev => ({
-      ...prev,
-      [key]: newTimerState,
-    }));
-    // Immediately sync to Firebase (no debounce for timer start)
-    syncTimerState(key, newTimerState, 0, 0, "");
+    setMatchTimers(prev => {
+      const existingTimer = prev[key];
+      // Preserve elapsed time from previous pause, or start fresh
+      const previousElapsed = existingTimer?.elapsed || 0;
+      const newTimerState = {
+        startedAt: Date.now() - (previousElapsed * 1000),
+        elapsed: previousElapsed,
+        running: true,
+      };
+      // Immediately sync to Firebase (no debounce for timer start)
+      syncTimerState(key, newTimerState, 0, 0, "");
+      return {
+        ...prev,
+        [key]: newTimerState,
+      };
+    });
   }, [syncTimerState]);
 
   const stopMatchTimer = useCallback((key) => {
