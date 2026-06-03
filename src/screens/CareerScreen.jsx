@@ -212,10 +212,10 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
   const G = getG(theme);
 
   if (selectedPlayer) {
-    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players} h2h={stats.h2h} onClose={() => setSelectedPlayer(null)} theme={theme} />;
+    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players || []} h2h={stats.h2h || {}} onClose={() => setSelectedPlayer(null)} theme={theme} />;
   }
 
-  const { players, partnerships, records, totalTournaments, totalMatches } = stats;
+  const { players = [], partnerships = [], records = {}, totalTournaments = 0, totalMatches = 0 } = stats;
   const mvp = players[0];
   const topScorer = [...players].sort((a, b) => b.scored - a.scored)[0];
   const mostTitles = [...players].sort((a, b) => b.titles - a.titles)[0];

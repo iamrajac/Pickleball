@@ -33,8 +33,9 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
         // Local data wins (has full rounds/playoffs), Firestore fills in the gaps
         prev.forEach(t => seen.set(t.code, t));
         firestoreList.forEach(t => {
-          if (!seen.has(t.code)) seen.set(t.code, t);
-          else {
+          if (!seen.has(t.code)) {
+            seen.set(t.code, { ...t, date: t.date || t.createdAt || new Date().toISOString() });
+          } else {
             // Merge name from Firestore if local entry is missing it
             const local = seen.get(t.code);
             if (!local.name && t.name) seen.set(t.code, { ...local, name: t.name });
@@ -104,14 +105,14 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
                     <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: text, letterSpacing: 1 }}>
-                      {t.name || new Date(t.date).toLocaleDateString()}
+                      {t.name || (t.date ? new Date(t.date).toLocaleDateString() : "Tournament")}
                     </span>
                     {t.status === "in-progress" || t.status === "live"
                       ? <span className="badge badge-live" style={{ fontSize: 9 }}>LIVE</span>
                       : <span className="badge badge-done" style={{ fontSize: 9 }}>DONE</span>
                     }
                   </div>
-                  {t.name && (
+                  {t.name && t.date && (
                     <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>
                       {new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" })}
                     </div>
@@ -219,7 +220,7 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: lime, letterSpacing: 2, lineHeight: 1 }}>TOURNAMENT RECAP</div>
               <div style={{ fontSize: 11, color: muted, display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <Calendar size={12} /> {new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" })}
+                <Calendar size={12} /> {t.date ? new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" }) : "Unknown"}
                 <span>·</span> <Users size={12} /> {(t.players?.length || 0)} players
                 {t.code && <><span>·</span> <span style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1 }}>#{t.code}</span></>}
               </div>

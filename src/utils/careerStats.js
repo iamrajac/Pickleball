@@ -44,7 +44,7 @@ export function computeCareerStats(history) {
     const tPlayers = new Set();
 
     // Count tournament participation
-    if (t.players) t.players.forEach(p => {
+    if (t.players && Array.isArray(t.players)) t.players.forEach(p => {
       getPlayer(p).tournaments++;
       tPlayers.add(p);
     });
@@ -56,8 +56,9 @@ export function computeCareerStats(history) {
     }
 
     // Process all matches
-    if (t.rounds) {
+    if (t.rounds && Array.isArray(t.rounds)) {
       t.rounds.forEach(round => {
+        if (!round || !Array.isArray(round)) return;
         round.forEach(m => {
           if (!m.played) return;
           const sA = Number(m.scoreA), sB = Number(m.scoreB);
@@ -125,9 +126,12 @@ export function computeCareerStats(history) {
 
   // Find records
   const allMatches = completedTournaments.flatMap(t =>
-    (t.rounds || []).flatMap(r => r.filter(m => m.played).map(m => ({
-      ...m, tournamentDate: t.date, tournamentCode: t.code
-    })))
+    (t.rounds || []).flatMap(r => {
+      if (!Array.isArray(r)) return [];
+      return r.filter(m => m && m.played).map(m => ({
+        ...m, tournamentDate: t.date, tournamentCode: t.code
+      }));
+    })
   );
 
   const highestScoringMatch = allMatches.reduce((best, m) => {
