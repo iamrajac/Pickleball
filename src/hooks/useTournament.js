@@ -220,13 +220,15 @@ export function useTournament() {
         if (v.name !== undefined) setTournamentName(v.name || "");
         if (joinCompleteRef.current) setReadOnly(!canEditRef.current);
 
-        // Save full data to localStorage for career stats (works for all devices, not just creator)
+        // When champion is declared — save final result to ALL accounts watching
+        // This ensures viewers (different Google account) get the completed tournament
+        // in their own history and career stats
         if (newRounds && v.players && v.champion) {
           const all = loadH().filter(t => t.code);
           const seen = new Map();
           all.forEach(t => seen.set(t.code, t));
           const existing = seen.get(code);
-          seen.set(code, {
+          const finalEntry = {
             ...(existing || {}),
             code, players: v.players,
             rounds: newRounds,
@@ -236,9 +238,16 @@ export function useTournament() {
             date: existing?.date || new Date().toISOString(),
             finalStandings: computeStandings(v.players, newRounds),
             profiles: v.profiles || {},
+            themeColor: v.themeColor || "#10d48e",
+            isPublic: v.isPublic !== false,
             status: "completed",
-          });
-          saveH(Array.from(seen.values()));
+          };
+          seen.set(code, finalEntry);
+          saveH(Array.from(seen.values())); // update localStorage cache
+
+          // Also save to this device's Firestore account (works for viewers too)
+          const uid = getAuth().currentUser?.uid;
+          if (uid) saveFullTournament(uid, finalEntry);
         }
       }
       setSyncing(false);
