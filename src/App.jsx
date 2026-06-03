@@ -7,6 +7,7 @@ import { computeStandings } from "./utils/schedule";
 import { loadH } from "./utils/history";
 import { useTournament } from "./hooks/useTournament";
 import { useAuth } from "./hooks/useAuth";
+import { requestPermission, notifyChampion, notifyAllMatchesDone } from "./utils/notifications";
 
 import { HubScreen } from "./screens/HubScreen";
 import { SetupScreen } from "./screens/SetupScreen";
@@ -481,6 +482,40 @@ function AppInner() {
   const navigate = useNavigate();
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [localCount, setLocalCount] = useState(0);
+
+  // Request notification permission once after login
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const NOTIF_KEY = 'pkl_notif_asked';
+    if (localStorage.getItem(NOTIF_KEY)) return;
+    // Ask after a short delay so it doesn't feel intrusive
+    const timer = setTimeout(async () => {
+      localStorage.setItem(NOTIF_KEY, '1');
+      await requestPermission();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated]);
+
+  // Fire game event notifications
+  const prevChampion = useRef(null);
+  const prevAllDone = useRef(false);
+  useEffect(() => {
+    const allM = t.rounds?.flat() || [];
+    const allDone = allM.length > 0 && allM.every(m => m.played);
+    // Notify when all group matches complete
+    if (allDone && !prevAllDone.current && !t.champion && !t.playoffs) {
+      notifyAllMatchesDone(t.tournamentName || `#${t.code}`);
+    }
+    prevAllDone.current = allDone;
+  }, [t.rounds, t.champion, t.playoffs]);
+
+  useEffect(() => {
+    if (t.champion && t.champion !== prevChampion.current) {
+      notifyChampion(t.tournamentName || `#${t.code}`, t.champion);
+      prevChampion.current = t.champion;
+    }
+    if (!t.champion) prevChampion.current = null;
+  }, [t.champion]);
 
   // After Google sign-in, check for existing local data to offer sync (runs once per uid)
   const syncCheckedRef = useRef(false);

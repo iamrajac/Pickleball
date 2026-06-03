@@ -11,6 +11,7 @@ import { generateScorerPin, saveScorerPin, getScorerPin } from "../components/Sc
 import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
 import { normalizePlayerName } from "../utils/players";
+import { mergeIntoGlobal, profilesForPlayers, syncGlobalProfilesToFirestore, loadGlobalProfilesFromFirestore } from "../utils/globalProfiles";
 
 // ── Helpers (must come before saveFullTournament) ─────────────────────────
 
@@ -226,12 +227,15 @@ export function useTournament() {
     document.documentElement.style.setProperty("--color-lime", themeColor);
   }, [themeColor]);
 
-  // ── Sync profile changes to Firebase immediately ──────────────────────────
+  // ── Sync profile changes to Firebase + global store ──────────────────────
   useEffect(() => {
     if (!code || Object.keys(profiles).length === 0 || isWriting.current) return;
-    try {
-      set(ref(db, `tournaments/${code}/profiles`), profiles).catch(() => {});
-    } catch {}
+    // Sync to Realtime DB for live tournament
+    try { set(ref(db, `tournaments/${code}/profiles`), profiles).catch(() => {}); } catch {}
+    // Merge into global profile store (localStorage + Firestore)
+    mergeIntoGlobal(profiles);
+    const uid = getAuth().currentUser?.uid;
+    if (uid) syncGlobalProfilesToFirestore(uid, firestore);
   }, [profiles, code]);
 
   // ── Firebase listener ─────────────────────────────────────────────────────
@@ -489,6 +493,11 @@ export function useTournament() {
     const c = genCode();
     const pin = generateScorerPin();
     const uid = getAuth().currentUser?.uid || null;
+    // Pre-populate profiles from global store for any known players
+    const globalFilled = profilesForPlayers(normalizedPlayers);
+    const mergedProfiles = { ...globalFilled, ...normalizedProfiles }; // explicit overrides global
+    // Also load global profiles from Firestore for cross-device avatar sync
+    if (uid) loadGlobalProfilesFromFirestore(uid, firestore);
     window.scrollTo(0, 0);
     setPlayers(normalizedPlayers); setRounds(r); setCode(c); setPlayoffs(null);
     setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
@@ -496,7 +505,7 @@ export function useTournament() {
     localPlayedCount.current = 0;
     canEditRef.current = true;
     setScorerPin(pin);
-    setProfiles(normalizedProfiles);
+    setProfiles(mergedProfiles);
     setThemeColor(tColor);
     setTournamentName(meta.name || "");
     setIsPublic(meta.isPublic !== false);
@@ -506,7 +515,7 @@ export function useTournament() {
     try {
       await fbSet(`tournaments/${c}`, {
         players: normalizedPlayers, rounds: r, playoffs: null, champion: null,
-        scorerPin: String(pin), profiles: normalizedProfiles, themeColor: tColor,
+        scorerPin: String(pin), profiles: mergedProfiles, themeColor: tColor,
         name: meta.name || "", isPublic: meta.isPublic !== false,
         scheduledAt: meta.scheduledAt || null,
         creatorUid: uid,
@@ -550,7 +559,11 @@ export function useTournament() {
     setRounds(data.rounds ? data.rounds.map((r) => (r ? Object.values(r) : [])) : []);
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
-    setProfiles(data.profiles || {});
+    // Merge tournament profiles with global — so joining device gets all known avatars
+    const joinProfiles = data.profiles || {};
+    mergeIntoGlobal(joinProfiles);
+    const globalFilled = profilesForPlayers(data.players || []);
+    setProfiles({ ...globalFilled, ...joinProfiles });
     setThemeColor(data.themeColor || "#10d48e");
     setTournamentName(data.name || "");
     setCode(c);

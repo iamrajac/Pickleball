@@ -5,25 +5,26 @@ import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { playAudio } from "../utils/audio";
+import { notifyComeback } from "../utils/notifications";
 
-function ScoreCounter({ value, onChange, hasError }) {
+function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   const num = value === "" ? null : Number(value);
   const dec = () => { if (num !== null && num > 0) onChange(String(num - 1)); };
-  const inc = () => { onChange(String(num === null ? 0 : num + 1)); };
+  const inc = () => { if (!incDisabled) onChange(String(num === null ? 0 : num + 1)); };
 
-  const btnStyle = (active) => ({
+  const btnStyle = (active, disabled) => ({
     width: 32, height: 32, borderRadius: 6,
-    background: active ? 'rgba(200,241,53,0.15)' : 'var(--color-surface)',
-    border: `1px solid ${active ? 'rgba(200,241,53,0.4)' : 'var(--color-border)'}`,
-    color: active ? 'var(--color-lime)' : 'var(--color-muted)',
-    fontSize: 18, fontWeight: 700, cursor: 'pointer',
+    background: disabled ? 'var(--color-surface)' : active ? 'rgba(200,241,53,0.15)' : 'var(--color-surface)',
+    border: `1px solid ${disabled ? 'rgba(128,128,128,0.2)' : active ? 'rgba(200,241,53,0.4)' : 'var(--color-border)'}`,
+    color: disabled ? 'rgba(128,128,128,0.3)' : active ? 'var(--color-lime)' : 'var(--color-muted)',
+    fontSize: 18, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
   });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-      <button className="pb" onPointerDown={e => { e.preventDefault(); inc(); }} style={btnStyle(true)}>+</button>
+      <button className="pb" onPointerDown={e => { e.preventDefault(); inc(); }} style={btnStyle(!incDisabled, incDisabled)} disabled={incDisabled}>+</button>
       <div style={{
         fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, lineHeight: 1,
         color: hasError ? 'var(--color-danger)' : num !== null ? 'var(--color-lime)' : 'var(--color-muted)',
@@ -31,7 +32,7 @@ function ScoreCounter({ value, onChange, hasError }) {
       }}>
         {num !== null ? num : "—"}
       </div>
-      <button className="pb" onPointerDown={e => { e.preventDefault(); dec(); }} style={btnStyle(num !== null && num > 0)} disabled={num === null || num <= 0}>−</button>
+      <button className="pb" onPointerDown={e => { e.preventDefault(); dec(); }} style={btnStyle(num !== null && num > 0, false)} disabled={num === null || num <= 0}>−</button>
     </div>
   );
 }
@@ -181,6 +182,13 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const hint = scoreHint(sA, sB);
   const canSave = sA !== "" && sB !== "" && !hint;
 
+  // Disable + once a side has already won (reached 11+ with 2-point lead)
+  // This prevents over-incrementing on a finished game
+  const numA = sA === "" ? 0 : Number(sA);
+  const numB = sB === "" ? 0 : Number(sB);
+  const aWon = numA >= 11 && (numA - numB) >= 2;
+  const bWon = numB >= 11 && (numB - numA) >= 2;
+
   // notesEdited ref — avoids stale closure in setScoreHistory callback
   const notesEditedRef = useRef(false);
   useEffect(() => { notesEditedRef.current = notesEdited; }, [notesEdited]);
@@ -223,6 +231,11 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         const moment = generateAutoNote(newHistory, match.teamA, match.teamB);
         if (moment) {
           setMatchNotes(moment);
+          // Fire comeback push notification
+          if (moment.includes("comeback")) {
+            const trailing = numA < numB ? match.teamA?.join(" & ") : match.teamB?.join(" & ");
+            notifyComeback(trailing || "A team", `${Math.min(numA,numB)}-${Math.max(numA,numB)}`, `${numA}-${numB}`);
+          }
           setStoryMoments(prevStory => {
             const last = prevStory[prevStory.length - 1];
             if (last === moment) return prevStory;
@@ -325,9 +338,9 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         ) : (
           <div className="match-score-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 120, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updateScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updateScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={aWon} />
               <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, margin: "0 2px" }}>VS</span>
-              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updateScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updateScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={bWon} />
             </div>
             <button className="pb" onClick={handleSave} disabled={!canSave}
               style={{ width: "100%", background: canSave ? 'var(--color-lime)' : 'rgba(200,241,53,0.2)', border: "none", borderRadius: 'var(--radius-sm)', padding: "8px 4px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed", position: "relative", overflow: "hidden" }}>

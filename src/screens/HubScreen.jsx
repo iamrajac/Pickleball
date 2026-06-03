@@ -3,14 +3,31 @@ import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "f
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
+import { requestPermission, scheduleUpcomingNotifications, notify } from "../utils/notifications";
+
+/* ── Time formatter ───────────────────────────────── */
+function fmtDateTime(ts) {
+  if (!ts) return null;
+  const d = typeof ts === 'number' ? new Date(ts) : new Date(ts);
+  if (isNaN(d)) return null;
+  return d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function fmtDate(ts) {
+  if (!ts) return null;
+  const d = typeof ts === 'number' ? new Date(ts) : new Date(ts);
+  if (isNaN(d)) return null;
+  return d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
 
 /* ── Tournament card ──────────────────────────────── */
 function TournamentCard({ t, onClick }) {
-  const statusClass = t.status === "live" ? "live" : t.status === "upcoming" ? "upcoming" : "done";
+  const isUpcoming = t.status === "upcoming";
+  const isLive = t.status === "live" || t.status === "in-progress";
+  const statusClass = isLive ? "live" : isUpcoming ? "upcoming" : "done";
 
   const Badge = () => {
-    if (t.status === "live")     return <span className="badge badge-live"><span style={{ fontSize: 8 }}>●</span> LIVE</span>;
-    if (t.status === "upcoming") return <span className="badge badge-upcoming">🕐 UPCOMING</span>;
+    if (isLive)     return <span className="badge badge-live"><span style={{ fontSize: 8 }}>●</span> LIVE</span>;
+    if (isUpcoming) return <span className="badge badge-upcoming">🕐 UPCOMING</span>;
     return <span className="badge badge-done">✓ DONE</span>;
   };
 
@@ -23,17 +40,23 @@ function TournamentCard({ t, onClick }) {
         <Badge />
       </div>
 
-      <div style={{ display: "flex", gap: 14, alignItems: "center", fontSize: 12, color: "var(--text-secondary)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12, color: "var(--text-secondary)" }}>
         <span>👥 {t.playerCount || t.players?.length || 0} players</span>
-        {t.status === "live" && t.roundInfo && (
-          <span>⚡ {t.roundInfo}</span>
+        {isLive && t.roundInfo && <span>⚡ {t.roundInfo}</span>}
+        {isUpcoming && t.scheduledAt && (
+          <span style={{ color: "var(--upcoming, #f59e0b)", fontWeight: 600 }}>
+            🗓 {fmtDateTime(t.scheduledAt)}
+          </span>
         )}
-        {t.status === "upcoming" && t.scheduledAt && (
-          <span>📅 {new Date(t.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+        {!isUpcoming && !isLive && (t.date || t.updatedAt) && (
+          <span style={{ opacity: 0.7 }}>
+            📅 {fmtDate(t.date || t.updatedAt)}
+          </span>
         )}
-        {t.status === "done" && t.champion && (
-          <span>🏆 {t.champion}</span>
+        {isLive && (t.date || t.updatedAt) && (
+          <span style={{ opacity: 0.7 }}>📅 {fmtDate(t.date || t.updatedAt)}</span>
         )}
+        {t.champion && <span>🏆 {t.champion}</span>}
         {!t.isPublic && <span className="badge badge-private" style={{ fontSize: 9 }}>🔒 PRIVATE</span>}
       </div>
 
@@ -158,8 +181,25 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     fetchPublic();
   }, []);
 
-  const myLive      = myTournaments.filter(t => t.status === "live" || t.status === "in-progress");
+  const now = Date.now();
+  const toMs = v => v ? (typeof v === 'number' ? v : new Date(v).getTime()) : 0;
+
+  // Upcoming = scheduledAt is in the future (regardless of status field)
+  const myUpcoming = myTournaments.filter(t => toMs(t.scheduledAt) > now);
+  // Live = active status AND scheduledAt is in the past (or not set)
+  const myLive = myTournaments.filter(t =>
+    (t.status === "live" || t.status === "in-progress") && toMs(t.scheduledAt) <= now
+  );
+  // Completed = done/completed
   const myCompleted = myTournaments.filter(t => t.status === "done" || t.status === "completed");
+
+  // Schedule notifications for all upcoming tournaments
+  useEffect(() => {
+    if (Notification?.permission === 'granted') {
+      myUpcoming.forEach(t => scheduleUpcomingNotifications(t));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myUpcoming.length]);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -207,6 +247,16 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
       <div style={{ padding: "0 1rem" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
+          {/* My upcoming tournaments */}
+          {myUpcoming.length > 0 && (
+            <>
+              <SectionHeader label="🕐 UPCOMING" count={myUpcoming.length} color="var(--upcoming, #f59e0b)" />
+              {myUpcoming.sort((a, b) => toMs(a.scheduledAt) - toMs(b.scheduledAt)).map((t, i) => (
+                <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
+              ))}
+            </>
+          )}
+
           {/* My live tournaments */}
           {myLive.length > 0 && (
             <>
@@ -227,10 +277,10 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
             </>
           )}
 
-          {/* Upcoming */}
+          {/* Public upcoming */}
           {publicUpcoming.length > 0 && (
             <>
-              <SectionHeader label="🕐 UPCOMING" count={publicUpcoming.length} color="var(--upcoming)" />
+              <SectionHeader label="🕐 PUBLIC UPCOMING" count={publicUpcoming.length} color="var(--upcoming, #f59e0b)" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {publicUpcoming.map(t => (
                   <TournamentCard key={t.id} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
