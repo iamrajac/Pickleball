@@ -72,8 +72,26 @@ function TournamentView({ t, theme, toggleTheme }) {
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
     saveResult, savePlayoff, executeEnd, handleScorerPinEntered,
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
-    liveScores, pushLiveScore,
+    liveScores, pushLiveScore, scheduledAt,
   } = t;
+
+  // Countdown for scheduled tournaments
+  const [countdown, setCountdown] = useState("");
+  useEffect(() => {
+    if (!scheduledAt) return;
+    const ms = typeof scheduledAt === 'number' ? scheduledAt : new Date(scheduledAt).getTime();
+    const tick = () => {
+      const diff = ms - Date.now();
+      if (diff <= 0) { setCountdown(""); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [scheduledAt]);
 
   const isOffline = useOffline();
   const [showShare, setShowShare] = useState(false);
@@ -207,6 +225,18 @@ function TournamentView({ t, theme, toggleTheme }) {
               <button className="pb" onClick={executeEnd} style={{ flex: 1, padding: "12px", background: "var(--color-danger)", border: "none", borderRadius: "var(--radius-sm)", color: "white", fontWeight: 600, cursor: "pointer" }}>END IT</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Scheduled lock banner */}
+      {countdown && (
+        <div style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.4)", borderRadius: 0, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <span style={{ fontSize: 16 }}>🕐</span>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, color: "#f59e0b", letterSpacing: 2 }}>TOURNAMENT STARTS IN</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#f59e0b", letterSpacing: 3, lineHeight: 1 }}>{countdown}</div>
+          </div>
+          <span style={{ fontSize: 16 }}>🔒</span>
         </div>
       )}
 

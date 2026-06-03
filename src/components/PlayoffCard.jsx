@@ -11,22 +11,22 @@ import { generateAutoNote } from "./MatchCard";
 const scoreBuffer = {};
 
 // +/- counter (same as MatchCard)
-function ScoreCounter({ value, onChange, hasError, accent }) {
+function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   const num = value === "" ? null : Number(value);
   const dec = () => { if (num !== null && num > 0) onChange(String(num - 1)); };
-  const inc = () => onChange(String(num === null ? 0 : num + 1));
-  const btn = (active) => ({
+  const inc = () => { if (!incDisabled) onChange(String(num === null ? 0 : num + 1)); };
+  const btn = (active, disabled) => ({
     width: 36, height: 36, borderRadius: 8,
-    background: active ? `rgba(${accent ? "16,212,142" : "16,212,142"},0.15)` : "var(--surface)",
-    border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-    color: active ? "var(--accent)" : "var(--text-muted)",
-    fontSize: 20, fontWeight: 700, cursor: "pointer",
+    background: disabled ? "var(--surface)" : active ? "rgba(16,212,142,0.15)" : "var(--surface)",
+    border: `1px solid ${disabled ? "rgba(128,128,128,0.2)" : active ? "var(--accent)" : "var(--border)"}`,
+    color: disabled ? "rgba(128,128,128,0.3)" : active ? "var(--accent)" : "var(--text-muted)",
+    fontSize: 20, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer",
     display: "flex", alignItems: "center", justifyContent: "center",
     WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
   });
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <button className="pb" onPointerDown={e => { e.preventDefault(); inc(); }} style={btn(true)}>+</button>
+      <button className="pb" onPointerDown={e => { e.preventDefault(); inc(); }} style={btn(!incDisabled, incDisabled)} disabled={incDisabled}>+</button>
       <div style={{
         fontFamily: "var(--font-display)", fontSize: 32, lineHeight: 1, minWidth: 36, textAlign: "center",
         color: hasError ? "var(--danger)" : num !== null ? "var(--accent)" : "var(--text-muted)",
@@ -34,7 +34,7 @@ function ScoreCounter({ value, onChange, hasError, accent }) {
       }}>
         {num !== null ? num : "—"}
       </div>
-      <button className="pb" onPointerDown={e => { e.preventDefault(); dec(); }} style={btn(num !== null && num > 0)} disabled={num === null || num <= 0}>−</button>
+      <button className="pb" onPointerDown={e => { e.preventDefault(); dec(); }} style={btn(num !== null && num > 0, false)} disabled={num === null || num <= 0}>−</button>
     </div>
   );
 }
@@ -117,6 +117,12 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   const hint = scoreHint(sA, sB);
   const canSave = sA !== "" && sB !== "" && !hint;
 
+  // Disable + once a side has won (11+ with 2-point lead)
+  const numA = sA === "" ? 0 : Number(sA);
+  const numB = sB === "" ? 0 : Number(sB);
+  const aWon = numA >= 11 && (numA - numB) >= 2;
+  const bWon = numB >= 11 && (numB - numA) >= 2;
+
   const handleSave = () => {
     if (!canSave) return;
     const dur = timer.running ? timer.stop() : timer.elapsed || null;
@@ -190,12 +196,12 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 8 }}>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamA?.join(" & ")}</div>
-              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updatePlayoffScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updatePlayoffScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={aWon} />
             </div>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 16, color: "var(--text-muted)", letterSpacing: 2 }}>VS</div>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamB?.join(" & ")}</div>
-              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updatePlayoffScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} />
+              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updatePlayoffScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={bWon} />
             </div>
           </div>
 

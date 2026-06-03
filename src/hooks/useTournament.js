@@ -186,6 +186,7 @@ export function useTournament() {
   // Tournament metadata
   const [tournamentName, setTournamentName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [scheduledAt, setScheduledAt] = useState(null); // ms timestamp or null
 
   // Refs that must not trigger re-renders
   const isWriting = useRef(false);
@@ -227,6 +228,21 @@ export function useTournament() {
     document.documentElement.style.setProperty("--color-lime", themeColor);
   }, [themeColor]);
 
+  // ── Scheduled time lock: auto-unlock exactly when time arrives ────────────
+  useEffect(() => {
+    if (!scheduledAt || !code) return;
+    const ms = typeof scheduledAt === 'number' ? scheduledAt : new Date(scheduledAt).getTime();
+    const delay = ms - Date.now();
+    if (delay <= 0) return; // already past — no need to lock
+    // Lock until scheduled time
+    setReadOnly(true);
+    const timer = setTimeout(() => {
+      // Unlock at scheduled time (but only if user is still eligible to edit)
+      if (canEditRef.current) setReadOnly(false);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [scheduledAt, code]);
+
   // ── Sync profile changes to Firebase + global store ──────────────────────
   useEffect(() => {
     if (!code || Object.keys(profiles).length === 0 || isWriting.current) return;
@@ -265,7 +281,13 @@ export function useTournament() {
         if (v.profiles) setProfiles(v.profiles);
         if (v.themeColor) setThemeColor(v.themeColor);
         if (v.name !== undefined) setTournamentName(v.name || "");
-        if (joinCompleteRef.current) setReadOnly(!canEditRef.current);
+        if (v.scheduledAt !== undefined) setScheduledAt(v.scheduledAt || null);
+        if (joinCompleteRef.current) {
+          // Respect scheduled lock even on updates
+          const sAt = v.scheduledAt ? (typeof v.scheduledAt === 'number' ? v.scheduledAt : new Date(v.scheduledAt).getTime()) : null;
+          const locked = sAt && sAt > Date.now();
+          setReadOnly(!canEditRef.current || !!locked);
+        }
 
         // When champion is declared — save final result to ALL accounts watching
         // This ensures viewers (different Google account) get the completed tournament
@@ -499,16 +521,21 @@ export function useTournament() {
     // Also load global profiles from Firestore for cross-device avatar sync
     if (uid) loadGlobalProfilesFromFirestore(uid, firestore);
     window.scrollTo(0, 0);
+    const sAt = meta.scheduledAt ? (typeof meta.scheduledAt === 'number' ? meta.scheduledAt : new Date(meta.scheduledAt).getTime()) : null;
+    const isScheduledFuture = sAt && sAt > Date.now();
     setPlayers(normalizedPlayers); setRounds(r); setCode(c); setPlayoffs(null);
-    setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
+    setChampion(null); setTab("rounds"); setSavedToHist(false);
     setMatchTimers({});
     localPlayedCount.current = 0;
     canEditRef.current = true;
+    // Lock scoring until scheduled time (creator can see but not score early)
+    setReadOnly(!!isScheduledFuture);
     setScorerPin(pin);
     setProfiles(mergedProfiles);
     setThemeColor(tColor);
     setTournamentName(meta.name || "");
     setIsPublic(meta.isPublic !== false);
+    setScheduledAt(sAt);
     registerAsCreator(c);
     saveScorerPin(c, pin);
     isWriting.current = true;
@@ -568,7 +595,11 @@ export function useTournament() {
     setTournamentName(data.name || "");
     setCode(c);
     setTab("rounds");
-    setReadOnly(!canEdit);
+    // Lock if scheduled time is in the future (overrides canEdit)
+    const joinSAt = data.scheduledAt ? (typeof data.scheduledAt === 'number' ? data.scheduledAt : new Date(data.scheduledAt).getTime()) : null;
+    const joinLocked = joinSAt && joinSAt > Date.now();
+    setScheduledAt(joinSAt || null);
+    setReadOnly(!canEdit || !!joinLocked);
 
     if (isUidCreator) {
       if (data.scorerPin) { saveScorerPin(c, String(data.scorerPin)); setScorerPin(String(data.scorerPin)); }
@@ -763,7 +794,7 @@ export function useTournament() {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin,
     profiles, themeColor, h2hMatrix, savedToHist,
-    tournamentName, isPublic,
+    tournamentName, isPublic, scheduledAt,
     // Timer helpers
     startMatchTimer, stopMatchTimer, resetMatchTimer, getMatchTimer,
     // Live score helpers
