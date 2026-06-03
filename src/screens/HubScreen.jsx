@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
-import { fetchUserTournaments, fromFirestoreDoc } from "../hooks/useTournament";
+import { fetchUserTournaments, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
 
 /* ── Tournament card ──────────────────────────────── */
 function TournamentCard({ t, onClick }) {
