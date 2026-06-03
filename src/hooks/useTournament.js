@@ -357,11 +357,12 @@ export function useTournament() {
   // ── Internal: save tournament history ────────────────────────────────────
   // Google users → Firestore (source of truth) + localStorage (cache)
   // Guests → localStorage only
-  const _upsertHist = useCallback((newRounds, newPlayoffs, newChamp, currentProfiles, tColor, overrideCode) => {
+  const _upsertHist = useCallback((newRounds, newPlayoffs, newChamp, currentProfiles, tColor, overrideCode, overridePlayers) => {
     const c = overrideCode ?? code;
     if (!c) return;
     const prof = currentProfiles ?? profiles;
     const col = tColor ?? themeColor;
+    const pl = overridePlayers ?? players; // use explicit players if provided (avoids stale state)
     const all = loadH().filter((t) => t.code);
     const seen = new Map();
     all.forEach((t) => seen.set(t.code, t));
@@ -370,20 +371,19 @@ export function useTournament() {
     const entry = {
       date: idx >= 0 ? h[idx].date : new Date().toISOString(),
       name: tournamentName || h[idx]?.name || "",
-      players, code: c,
+      players: pl, code: c,
       isPublic,
       champion: newChamp || null,
       status: newChamp ? "completed" : "in-progress",
-      finalStandings: computeStandings(players, newRounds),
+      finalStandings: computeStandings(pl, newRounds),
       playoffs: newPlayoffs || null,
       rounds: newRounds,
       profiles: prof,
       themeColor: col,
     };
     if (idx >= 0) h[idx] = entry; else h.push(entry);
-    saveH(h); // always cache locally (works offline, speeds up reads)
+    saveH(h); // always cache locally
 
-    // Google users: Firestore is the source of truth — save full data there too
     const uid = getAuth().currentUser?.uid;
     if (uid) saveFullTournament(uid, entry);
   }, [code, players, profiles, themeColor, tournamentName, isPublic]);
@@ -478,6 +478,7 @@ export function useTournament() {
     const r = generateSchedule(normalizedPlayers, numRounds);
     const c = genCode();
     const pin = generateScorerPin();
+    const uid = getAuth().currentUser?.uid || null;
     window.scrollTo(0, 0);
     setPlayers(normalizedPlayers); setRounds(r); setCode(c); setPlayoffs(null);
     setChampion(null); setTab("rounds"); setReadOnly(false); setSavedToHist(false);
@@ -498,11 +499,26 @@ export function useTournament() {
         scorerPin: String(pin), profiles: normalizedProfiles, themeColor: tColor,
         name: meta.name || "", isPublic: meta.isPublic !== false,
         scheduledAt: meta.scheduledAt || null,
-        creatorUid: getAuth().currentUser?.uid || null,
+        creatorUid: uid,
         ts: Date.now()
       });
-      _upsertHist(r, null, null, normalizedProfiles, tColor, c);
-      // _upsertHist already saves to Firestore for Google users
+
+      // Build entry directly with normalizedPlayers — do NOT use stale `players` state
+      const newEntry = {
+        code: c, name: meta.name || "", date: new Date().toISOString(),
+        status: "in-progress", players: normalizedPlayers, playerCount: normalizedPlayers.length,
+        rounds: r, playoffs: null, champion: null,
+        finalStandings: computeStandings(normalizedPlayers, r),
+        profiles: normalizedProfiles, themeColor: tColor,
+        isPublic: meta.isPublic !== false,
+      };
+      const all = loadH().filter(t => t.code);
+      const seen = new Map();
+      all.forEach(t => seen.set(t.code, t));
+      seen.set(c, newEntry);
+      saveH(Array.from(seen.values()));
+      if (uid) saveFullTournament(uid, newEntry);
+
       addToast("Tournament created! Share the code.", "success");
       joinCompleteRef.current = true;
     } finally { isWriting.current = false; }
@@ -547,16 +563,25 @@ export function useTournament() {
     joinCompleteRef.current = true;
     window.scrollTo(0, 0);
 
-    // Always save to localStorage + Firestore (for all Google users, not just new joins)
-    // This ensures viewer's career stats & history update on their account too
-    const rounds = data.rounds ? data.rounds.map((r) => (r ? Object.values(r) : [])) : [];
+    // Save to localStorage + Firestore for ALL Google users who join (viewer or creator)
+    // data.rounds from Firebase is an object {0:{...},1:{...}} — convert to array
+    const joinedRounds = Array.isArray(data.rounds)
+      ? data.rounds.map(r => (r && !Array.isArray(r) ? Object.values(r) : r || []))
+      : data.rounds
+        ? Object.values(data.rounds).map(r => r ? Object.values(r) : [])
+        : [];
+    const joinedPlayers = data.players || [];
     const entry = {
-      code: c, name: data.name || "", date: new Date().toISOString(),
+      code: c,
+      name: data.name || "",
+      date: new Date().toISOString(),
       status: data.champion ? "completed" : "in-progress",
-      players: data.players || [], playerCount: (data.players || []).length,
-      rounds, playoffs: safePlayoffs(data.playoffs),
+      players: joinedPlayers,
+      playerCount: joinedPlayers.length,
+      rounds: joinedRounds,
+      playoffs: safePlayoffs(data.playoffs),
       champion: data.champion || null,
-      finalStandings: computeStandings(data.players || [], rounds),
+      finalStandings: computeStandings(joinedPlayers, joinedRounds),
       profiles: data.profiles || {},
       themeColor: data.themeColor || "#10d48e",
       isPublic: data.isPublic !== false,
@@ -565,10 +590,10 @@ export function useTournament() {
     const seen = new Map();
     all.forEach(t => seen.set(t.code, t));
     const existing = seen.get(c);
-    seen.set(c, { ...entry, date: existing?.date || entry.date }); // preserve original date
+    const toSave = { ...entry, date: existing?.date || entry.date };
+    seen.set(c, toSave);
     saveH(Array.from(seen.values()));
-
-    if (uid) saveFullTournament(uid, seen.get(c));
+    if (uid) saveFullTournament(uid, toSave);
   };
 
   const saveResult = (ri, mi, sA, sB, dur, notes = "") => {
