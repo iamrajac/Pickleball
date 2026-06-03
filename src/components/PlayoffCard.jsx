@@ -66,10 +66,15 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
           setStoryMoments(ps => {
             const lm = ps[ps.length - 1];
             if (lm === moment) return ps;
-            const isRun = m => m && (m.includes("point run") || m.includes("on fire") || m.includes("in a row") || m.includes("Unstoppable") || m.includes("scoring"));
-            const isComeback = m => m && m.includes("comeback");
-            const isTied = m => m && (m.includes("Tied") || m.includes("Level") || m.includes("Deuce"));
-            const sameType = (a, b) => (isRun(a) && isRun(b)) || (isComeback(a) && isComeback(b)) || (isTied(a) && isTied(b));
+            const isRun        = m => m && (m.includes("point run") || m.includes("on fire") || m.includes("in a row") || m.includes("Unstoppable") || m.includes("scoring"));
+            const isComeback   = m => m && m.includes("comeback");
+            const isTied       = m => m && (m.includes("Tied") || m.includes("Level") || m.includes("Deuce"));
+            const isDominating = m => m && (m.includes("yet to score") || m.includes("leading") || m.includes("Dominant") || m.includes("shutout") || m.includes("perfect"));
+            const isMatchPt    = m => m && m.includes("match point");
+            const sameType = (a, b) =>
+              (isRun(a) && isRun(b)) || (isComeback(a) && isComeback(b)) ||
+              (isTied(a) && isTied(b)) || (isDominating(a) && isDominating(b)) ||
+              (isMatchPt(a) && isMatchPt(b));
             return sameType(moment, lm) ? [...ps.slice(0, -1), moment] : [...ps, moment];
           });
         }

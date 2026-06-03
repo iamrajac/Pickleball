@@ -252,6 +252,7 @@ export function useTournament() {
     const idx = h.findIndex((t) => t.code === c);
     const entry = {
       date: idx >= 0 ? h[idx].date : new Date().toISOString(),
+      name: tournamentName || h[idx]?.name || "",
       players, code: c,
       champion: newChamp || null,
       status: newChamp ? "completed" : "in-progress",
@@ -263,7 +264,7 @@ export function useTournament() {
     };
     if (idx >= 0) h[idx] = entry; else h.push(entry);
     saveH(h);
-  }, [code, players, profiles, themeColor]);
+  }, [code, players, profiles, themeColor, tournamentName]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 

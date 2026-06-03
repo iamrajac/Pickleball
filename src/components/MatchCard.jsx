@@ -156,18 +156,35 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const notesEditedRef = useRef(false);
   useEffect(() => { notesEditedRef.current = notesEdited; }, [notesEdited]);
 
-  // Track score progression — functional setState avoids stale closure on rapid taps
+  // ── Push live score to Firebase whenever sA/sB changes (outside state updater) ──
+  useEffect(() => {
+    if (match.played) return;
+    const numA = sA === "" ? 0 : Number(sA);
+    const numB = sB === "" ? 0 : Number(sB);
+    if (numA === 0 && numB === 0) return; // nothing to share yet
+    onLiveScore?.(numA, numB, matchNotes, timerState?.startedAt || null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sA, sB, matchNotes]);
+
+  // ── Push live timer state when timer starts/stops ─────────────────────────
+  useEffect(() => {
+    if (match.played || !timerState?.running) return;
+    const numA = sA === "" ? 0 : Number(sA);
+    const numB = sB === "" ? 0 : Number(sB);
+    onLiveScore?.(numA, numB, matchNotes, timerState.startedAt);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerState?.running, timerState?.startedAt]);
+
+  // ── Track score progression ────────────────────────────────────────────────
   const updateScore = (newA, newB) => {
-    // Treat empty string as 0 so first tap always registers
     const numA = newA === "" ? 0 : Number(newA);
     const numB = newB === "" ? 0 : Number(newB);
     if (isNaN(numA) || isNaN(numB)) return;
-    const next = { a: numA, b: numB };
 
     setScoreHistory(prev => {
       const last = prev[prev.length - 1];
       if (last && last.a === numA && last.b === numB) return prev;
-      const newHistory = [...prev, next];
+      const newHistory = [...prev, { a: numA, b: numB }];
       if (!notesEditedRef.current) {
         const moment = generateAutoNote(newHistory, match.teamA, match.teamB);
         if (moment) {
@@ -175,17 +192,18 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
           setStoryMoments(prevStory => {
             const last = prevStory[prevStory.length - 1];
             if (last === moment) return prevStory;
-            // Run/streak/comeback/tied moments supersede the previous one of the same type
-            const isRun      = m => m && (m.includes("point run") || m.includes("on fire") || m.includes("in a row") || m.includes("Unstoppable") || m.includes("scoring"));
-            const isComeback = m => m && m.includes("comeback");
-            const isTied     = m => m && (m.includes("Tied") || m.includes("Level") || m.includes("Deuce"));
-            const sameType   = (a, b) => (isRun(a) && isRun(b)) || (isComeback(a) && isComeback(b)) || (isTied(a) && isTied(b));
-            if (sameType(moment, last)) return [...prevStory.slice(0, -1), moment];
-            return [...prevStory, moment];
+            const isRun        = m => m && (m.includes("point run") || m.includes("on fire") || m.includes("in a row") || m.includes("Unstoppable") || m.includes("scoring"));
+            const isComeback   = m => m && m.includes("comeback");
+            const isTied       = m => m && (m.includes("Tied") || m.includes("Level") || m.includes("Deuce"));
+            const isDominating = m => m && (m.includes("yet to score") || m.includes("leading") || m.includes("Dominant") || m.includes("shutout") || m.includes("perfect"));
+            const isMatchPt    = m => m && m.includes("match point");
+            const sameType = (a, b) =>
+              (isRun(a) && isRun(b)) || (isComeback(a) && isComeback(b)) ||
+              (isTied(a) && isTied(b)) || (isDominating(a) && isDominating(b)) ||
+              (isMatchPt(a) && isMatchPt(b));
+            return sameType(moment, last) ? [...prevStory.slice(0, -1), moment] : [...prevStory, moment];
           });
         }
-        // Push live score to Firebase so other devices see it in real-time
-        onLiveScore?.(numA, numB, moment, timerState?.startedAt || null);
       }
       return newHistory;
     });
