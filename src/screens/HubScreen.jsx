@@ -94,17 +94,43 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     });
 
     if (user?.uid) {
-      // Google user — fetch from Firestore for cross-device sync
-      fetchUserTournaments(user.uid).then(list => {
-        if (list.length > 0) {
-          setMyTournaments(list.map(normalize));
-        } else {
-          // Firestore empty — fall back to localStorage
-          const hist = loadH().filter(t => t.code);
-          const seen = new Map();
-          hist.forEach(t => seen.set(t.code, t));
-          setMyTournaments(Array.from(seen.values()).reverse().map(normalize));
-        }
+      // Google user — merge Firestore (cross-device) with localStorage (local-only)
+      fetchUserTournaments(user.uid).then(async (firestoreList) => {
+        // Load local history
+        const localHist = loadH().filter(t => t.code);
+
+        // Merge: Firestore data wins (more up-to-date), local fills gaps
+        const seen = new Map();
+        const fsKeys = new Set(firestoreList.map(t => t.code));
+
+        localHist.forEach(t => seen.set(t.code, t));
+        firestoreList.forEach(t => seen.set(t.code, t)); // Firestore overwrites local
+
+        // Sync any local-only tournaments to Firestore
+        localHist.forEach(async (t) => {
+          if (!fsKeys.has(t.code)) {
+            const { setDoc, doc, serverTimestamp } = await import("firebase/firestore");
+            try {
+              await setDoc(doc(firestore, "users", user.uid, "tournaments", t.code), {
+                code: t.code,
+                name: t.name || "",
+                status: t.status || (t.champion ? "done" : "live"),
+                playerCount: t.players?.length || 0,
+                players: t.players || [],
+                isPublic: t.isPublic !== false,
+                champion: t.champion || null,
+                createdAt: t.date ? new Date(t.date) : serverTimestamp(),
+                updatedAt: Date.now(),
+              }, { merge: true }).catch(() => {});
+            } catch (e) {}
+          }
+        });
+
+        // Sort by updatedAt desc, then createdAt desc
+        const merged = Array.from(seen.values())
+          .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0));
+
+        setMyTournaments(merged.map(normalize));
       });
     } else {
       // Guest — localStorage only
