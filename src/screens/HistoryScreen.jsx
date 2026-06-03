@@ -211,11 +211,52 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
   const muted = theme === 'light' ? '#64748b' : 'var(--color-muted)';
   const text = theme === 'light' ? '#0f172a' : 'var(--color-text)';
   const border = theme === 'light' ? '#e2e8f0' : 'var(--color-border)';
-  const t = tournament;
+  const [fullData, setFullData] = useState(tournament);
+  const [tab, setTab] = useState("rounds");
+
+  // If tournament lacks rounds data (came from Firestore metadata), fetch full data from Realtime DB
+  useEffect(() => {
+    if (!tournament?.code || (tournament.rounds?.length > 0 && tournament.players?.length > 0)) return;
+    import("firebase/database").then(({ ref, get }) => {
+      import("../firebase").then(({ db }) => {
+        get(ref(db, `tournaments/${tournament.code}`)).then(snap => {
+          if (!snap.exists() || !snap.val()) return;
+          const fbData = snap.val();
+          const rounds = fbData.rounds ? fbData.rounds.map(r => r ? Object.values(r) : []) : [];
+          const merged = {
+            ...tournament,
+            ...fbData,
+            rounds,
+            players: fbData.players || tournament.players || [],
+            name: tournament.name || fbData.name || "",
+            date: tournament.date || new Date().toISOString(),
+          };
+          setFullData(merged);
+          // Save to localStorage so career stats work on this device too
+          import("../utils/history").then(({ loadH, saveH, computeStandings: _, computeH2HMatrix: __ }) => {
+            import("../utils/schedule").then(({ computeStandings }) => {
+              const all = loadH();
+              const seen = new Map();
+              all.forEach(t => seen.set(t.code, t));
+              if (!seen.has(merged.code) || !(seen.get(merged.code).rounds?.length)) {
+                seen.set(merged.code, {
+                  ...merged,
+                  finalStandings: computeStandings(merged.players || [], rounds),
+                  status: merged.champion ? "completed" : "in-progress",
+                });
+                saveH(Array.from(seen.values()));
+              }
+            });
+          });
+        }).catch(() => {});
+      });
+    });
+  }, [tournament?.code]);
+
+  const t = fullData;
   const standings = t.finalStandings || [];
   const rounds = t.rounds || [];
   const playoffs = t.playoffs || null;
-  const [tab, setTab] = useState("rounds");
 
   return (
     <div style={{ minHeight: "100vh", background: 'var(--color-dark)', color: text, fontFamily: "'DM Sans', sans-serif" }}>

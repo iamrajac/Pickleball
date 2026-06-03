@@ -112,6 +112,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const [scoreHistory, setScoreHistory] = useState([]);
   const [storyMoments, setStoryMoments] = useState([]);
   const [isActive, setIsActive] = useState(false);
+  const [localSaved, setLocalSaved] = useState(false); // instantly hides SAVE on this device
   const [liveTick, setLiveTick] = useState(0); // forces re-render for live timer
   const [scoreSynced, setScoreSynced] = useState(false); // visual feedback for sync
 
@@ -172,8 +173,9 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const servingTeam = serveTeamA ? match?.teamA?.join(" & ") : match?.teamB?.join(" & ");
   const serveSide = serveTeamA ? (sideLeftA ? "Left" : "Right") : (!sideLeftA ? "Left" : "Right");
 
-  const wA = match.played && match.scoreA > match.scoreB;
-  const wB = match.played && match.scoreB > match.scoreA;
+  const isPlayed = match.played || localSaved;
+  const wA = isPlayed && (localSaved ? Number(sA) > Number(sB) : match.scoreA > match.scoreB);
+  const wB = isPlayed && (localSaved ? Number(sB) > Number(sA) : match.scoreB > match.scoreA);
   const fmtDur = s => s ? `${Math.floor(s / 60)}m ${s % 60}s` : null;
 
   const hint = scoreHint(sA, sB);
@@ -276,6 +278,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     const dur = timer.running ? timer.stop() : timer.elapsed || null;
     timer.reset();
     setIsActive(false);
+    setLocalSaved(true); // instantly switch card to "done" state while Firebase updates
     playAudio("pop");
 
     // Build full match narrative from accumulated story moments
@@ -293,8 +296,8 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   };
 
   return (
-    <div ref={cardRef} className="mc fu glass-card" onClick={() => { if (!match.played && !readOnly) setIsActive(true); }} style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
-      {match.played && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-lime)' }} />}
+    <div ref={cardRef} className="mc fu glass-card" onClick={() => { if (!isPlayed && !readOnly) setIsActive(true); }} style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
+      {isPlayed && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-lime)' }} />}
       {timer.running && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-cyan)', animation: "pulse 1s infinite" }} />}
 
       <div className="mc-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
@@ -310,10 +313,10 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
           {wA && <div style={{ fontSize: 9, letterSpacing: 2, color: 'var(--color-lime)', marginTop: 4 }}>WIN ✓</div>}
         </div>
 
-        {match.played ? (
+        {isPlayed ? (
           <div style={{ textAlign: "center", minWidth: 72 }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--color-lime)', letterSpacing: 3, lineHeight: 1 }}>
-              {match.scoreA}–{match.scoreB}
+              {localSaved ? `${sA}–${sB}` : `${match.scoreA}–${match.scoreB}`}
             </div>
             {match.duration && <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 4 }}>⏱ {fmtDur(match.duration)}</div>}
           </div>
@@ -350,14 +353,14 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
       </div>
 
       {/* Score validation hint */}
-      {!match.played && !readOnly && hint && sA !== "" && sB !== "" && (
+      {!isPlayed && !readOnly && hint && sA !== "" && sB !== "" && (
         <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "rgba(255,85,85,0.1)", border: "1px solid rgba(255,85,85,0.3)", fontSize: 11, color: 'var(--color-danger)', display: "flex", alignItems: "center", gap: 6 }}>
           ⚠ {hint}
         </div>
       )}
 
       {/* Serve and Match Notes Area */}
-      {!match.played && !readOnly && isActive && (
+      {!isPlayed && !readOnly && isActive && (
         <div style={{ marginTop: 12, padding: "10px", background: 'rgba(0,0,0,0.2)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)' }}>
           <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
             🎾 <strong style={{ color: 'var(--color-text)' }}>{servingTeam || "TBD"}</strong> serves first from the <strong style={{ color: 'var(--color-text)' }}>{serveSide}</strong> side.
@@ -381,7 +384,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
       )}
 
       {/* Timer row — local or live synced */}
-      {!match.played && !readOnly && (
+      {!isPlayed && !readOnly && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 10, paddingTop: 10, borderTop: `1px solid var(--color-border)` }}>
           {/* Show live timer from another device if we're not the scorer */}
           {liveTimerElapsed !== null && !localTouched && (
