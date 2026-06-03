@@ -5,7 +5,7 @@ import { doc, deleteDoc, collection, getDocs, onSnapshot } from "firebase/firest
 import { db, firestore } from "../firebase";
 import { loadH, saveH, isCreator } from "../utils/history";
 import { computeStandings } from "../utils/schedule";
-import { fetchUserTournaments, safePlayoffs, fromFirestoreDoc } from "../hooks/useTournament";
+import { fetchUserTournaments, safePlayoffs, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
 import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
@@ -41,6 +41,14 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
     if (!uid) return; // Guests: localStorage already loaded in useState
+
+    // ONE-TIME MIGRATION: push localStorage data to Firestore (same as HubScreen)
+    const MIGRATION_KEY = `pkl_migrated_${uid}`;
+    if (!localStorage.getItem(MIGRATION_KEY)) {
+      const local = loadH().filter(t => t.code);
+      if (local.length > 0) local.forEach(t => saveFullTournament(uid, t));
+      localStorage.setItem(MIGRATION_KEY, '1');
+    }
 
     // Real-time listener — updates immediately when any device writes to Firestore
     const unsub = onSnapshot(

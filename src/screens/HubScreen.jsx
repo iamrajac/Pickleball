@@ -99,24 +99,33 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
 
   // Load tournaments — show local immediately, then keep in sync via Firestore listener
   useEffect(() => {
-    if (!user?.uid) return; // Guests: localStorage already loaded in useState
+    if (!user?.uid) return;
 
-    // Use onSnapshot for real-time updates — Device 2 sees changes the moment
-    // Device 1 writes anything to Firestore (same Google account)
-    console.log("🔌 Firestore listener starting for uid:", user.uid?.slice(0,8));
+    // ONE-TIME MIGRATION: push all localStorage tournaments to Firestore
+    // This runs once per device per account to sync historical data.
+    // After the first run, Firestore stays up-to-date via saveFullTournament() on every write.
+    const MIGRATION_KEY = `pkl_migrated_${user.uid}`;
+    if (!localStorage.getItem(MIGRATION_KEY)) {
+      const local = loadH().filter(t => t.code);
+      if (local.length > 0) {
+        local.forEach(t => saveFullTournament(user.uid, t));
+      }
+      localStorage.setItem(MIGRATION_KEY, '1');
+    }
+
+    // Real-time listener — fires immediately with current data, then on every change
     const unsub = onSnapshot(
       collection(firestore, "users", user.uid, "tournaments"),
       (snap) => {
-        console.log("🔥 Firestore snapshot:", snap.size, "docs, empty:", snap.empty);
-        if (snap.empty) return; // no data yet — keep showing localStorage
+        if (snap.empty) return; // Firestore empty — keep showing localStorage
         const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
         docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
         setMyTournaments(docs.map(normalize));
-        saveH(docs); // keep local cache in sync
+        saveH(docs); // keep local cache in sync with Firestore
       },
       (err) => { console.warn("Firestore listener error:", err); }
     );
-    return () => unsub(); // clean up listener when component unmounts
+    return () => unsub();
   }, [user?.uid]);
 
   // Load public tournaments from Firestore
