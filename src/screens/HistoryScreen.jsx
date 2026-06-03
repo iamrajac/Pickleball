@@ -32,63 +32,34 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   const text = theme === 'light' ? '#0f172a' : 'var(--color-text)';
   const border = theme === 'light' ? '#e2e8f0' : 'var(--color-border)';
 
-  const [hist, setHist] = useState(() => {
-    const all = loadH().filter(t => t.code);
-    const seen = new Map();
-    all.forEach(t => seen.set(t.code, t));
-    const deduped = Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-    if (deduped.length !== all.length) saveH(deduped);
-    return deduped;
-  });
+  const [hist, setHist] = useState([]);
+  const [loadingHist, setLoadingHist] = useState(true);
 
-  // Merge Firestore history for Google users
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
-    const syncedKey = `pkl_fs_synced_${uid}`;
-    const hasSynced = !!localStorage.getItem(syncedKey);
-
-    fetchUserTournaments(uid).then(firestoreList => {
-      if (firestoreList.length === 0 && hasSynced) {
-        // User deleted everything — clear local storage too and show empty
-        saveH([]);
-        setHist([]);
-        return;
-      }
-
-      setHist(prev => {
-        const seen = new Map();
-        // Local data wins (has full rounds/playoffs data), Firestore fills in missing entries + names
-        prev.forEach(t => seen.set(t.code, t));
-        firestoreList.forEach(t => {
-          const dateStr = t.date || (t.createdAt?.toDate ? t.createdAt.toDate().toISOString() : t.createdAt) || new Date().toISOString();
-          if (!seen.has(t.code)) {
-            seen.set(t.code, { ...t, date: dateStr });
-          } else {
-            const local = seen.get(t.code);
-            seen.set(t.code, {
-              ...local,
-              name: local.name || t.name || "",
-              champion: local.champion || t.champion || null,
-              status: local.status || t.status || "done",
-              date: local.date || dateStr,
-            });
-          }
-        });
-        // Remove any local entries that are NOT in Firestore (were deleted on another device)
-        if (hasSynced && firestoreList.length > 0) {
-          const fsKeys = new Set(firestoreList.map(t => t.code));
-          for (const [code] of seen) {
-            if (!fsKeys.has(code)) seen.delete(code);
-          }
+    if (uid) {
+      // Google user: Firestore is the ONLY source of truth
+      fetchUserTournaments(uid).then(list => {
+        if (list === null) {
+          // Offline: fall back to localStorage cache
+          const cached = loadH().filter(t => t.code)
+            .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+          setHist(cached);
+        } else {
+          setHist(list);
+          saveH(list); // update local cache
         }
-        const result = Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        // Persist merged result to localStorage
-        saveH(result);
-        return result;
+        setLoadingHist(false);
       });
-    });
+    } else {
+      // Guest: localStorage only
+      const all = loadH().filter(t => t.code)
+        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      setHist(all);
+      setLoadingHist(false);
+    }
   }, []);
+
   const [deleteCode, setDeleteCode] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -103,7 +74,6 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
     saveH(updated);
     setHist(updated);
     setDeleteCode(null);
-    // Also delete from Firestore so other devices sync the deletion
     const uid = getAuth().currentUser?.uid;
     if (uid) deleteFromFirestore(uid, code);
   };
@@ -112,7 +82,6 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
     saveH([]);
     setHist([]);
     setConfirmClear(false);
-    // Also clear from Firestore so other devices sync the deletion
     const uid = getAuth().currentUser?.uid;
     if (uid) deleteAllFromFirestore(uid);
   };

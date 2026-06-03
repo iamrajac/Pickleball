@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { firestore } from "../firebase";
-import { loadH } from "../utils/history";
+import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments } from "../hooks/useTournament";
 
 /* ── Tournament card ──────────────────────────────── */
@@ -96,68 +96,15 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     });
 
     if (user?.uid) {
-      // Google user — Firestore is the single source of truth
-      // Track if this user has ever synced to Firestore
-      const syncedKey = `pkl_fs_synced_${user.uid}`;
-      const hasSynced = !!localStorage.getItem(syncedKey);
-
-      fetchUserTournaments(user.uid).then(async (firestoreList) => {
-        const localHist = loadH().filter(t => t.code);
-
-        const toMs = (v) => {
-          if (!v) return 0;
-          if (typeof v === 'number') return v;
-          if (v.toDate) return v.toDate().getTime();
-          if (v instanceof Date) return v.getTime();
-          return new Date(v).getTime() || 0;
-        };
-
-        if (firestoreList.length > 0) {
-          // Firestore has data — it's the source of truth
-          // Mark that this user has synced to Firestore
-          localStorage.setItem(syncedKey, '1');
-
-          const seen = new Map();
-          const fsKeys = new Set(firestoreList.map(t => t.code));
-
-          // Start with local data (has rounds), Firestore overwrites metadata
-          localHist.forEach(t => seen.set(t.code, t));
-          firestoreList.forEach(t => seen.set(t.code, t));
-
-          // Sync any local-only tournaments to Firestore (first time or new device)
-          localHist.forEach(async (t) => {
-            if (!fsKeys.has(t.code)) {
-              const { setDoc, doc, serverTimestamp } = await import("firebase/firestore");
-              try {
-                await setDoc(doc(firestore, "users", user.uid, "tournaments", t.code), {
-                  code: t.code, name: t.name || "",
-                  status: t.status || (t.champion ? "done" : "live"),
-                  playerCount: t.players?.length || 0, players: t.players || [],
-                  isPublic: t.isPublic !== false, champion: t.champion || null,
-                  createdAt: t.date ? new Date(t.date) : serverTimestamp(),
-                  updatedAt: Date.now(),
-                }, { merge: true }).catch(() => {});
-              } catch (e) {}
-            }
-          });
-
-          const merged = Array.from(seen.values())
-            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || toMs(b.createdAt) - toMs(a.createdAt));
-          setMyTournaments(merged.map(normalize));
-
-        } else if (hasSynced) {
-          // User has synced before but Firestore is empty = they deleted everything
-          // Respect the deletion: clear local storage too and show empty
-          saveH([]);
-          setMyTournaments([]);
-
+      // Google user: Firestore is the only source of truth
+      fetchUserTournaments(user.uid).then(list => {
+        if (list === null) {
+          // Offline: fall back to localStorage cache
+          const cached = loadH().filter(t => t.code);
+          setMyTournaments(cached.map(normalize));
         } else {
-          // First time for this user — no Firestore data yet, show local only
-          const seen = new Map();
-          localHist.forEach(t => seen.set(t.code, t));
-          const merged = Array.from(seen.values())
-            .sort((a, b) => toMs(b.createdAt || b.date) - toMs(a.createdAt || a.date));
-          setMyTournaments(merged.map(normalize));
+          setMyTournaments(list.map(normalize));
+          saveH(list); // update local cache
         }
       });
     } else {

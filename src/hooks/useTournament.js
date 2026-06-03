@@ -12,26 +12,51 @@ import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
 import { normalizePlayerName } from "../utils/players";
 
-// Write tournament metadata to Firestore under the signed-in user
-async function saveToUserAccount(uid, code, data) {
+// ── Firestore helpers (Google users only) ──────────────────────────────────
+
+// Save FULL tournament data to Firestore — this is the single source of truth for Google users
+export async function saveFullTournament(uid, entry) {
+  if (!uid || !entry?.code) return;
   try {
-    await setDoc(doc(firestore, "users", uid, "tournaments", code), data, { merge: true });
+    const data = {
+      code: entry.code,
+      name: entry.name || "",
+      date: entry.date || new Date().toISOString(),
+      status: entry.status || (entry.champion ? "completed" : "in-progress"),
+      players: entry.players || [],
+      playerCount: entry.players?.length || 0,
+      rounds: entry.rounds || [],
+      playoffs: entry.playoffs || null,
+      champion: entry.champion || null,
+      finalStandings: entry.finalStandings || [],
+      profiles: entry.profiles || {},
+      themeColor: entry.themeColor || "#10d48e",
+      isPublic: entry.isPublic !== false,
+      updatedAt: Date.now(),
+    };
+    // Only set createdAt if it doesn't exist yet (merge:true won't overwrite)
+    await setDoc(doc(firestore, "users", uid, "tournaments", entry.code),
+      { ...data, createdAt: serverTimestamp() }, { merge: true });
   } catch (e) { console.warn("Firestore write failed", e); }
 }
 
-// Fetch all tournaments for a signed-in user from Firestore
+// Fetch all tournaments for a signed-in user from Firestore (returns FULL data)
 export async function fetchUserTournaments(uid) {
   try {
-    // Only sort by createdAt — updatedAt may not exist on old docs causing silent query failures
     const q = query(collection(firestore, "users", uid, "tournaments"), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
-    const docs = snap.docs.map(d => ({ ...d.data(), firestoreId: d.id }));
-    // Client-side sort: most recently updated first
+    const docs = snap.docs.map(d => {
+      const data = d.data();
+      // Convert Firestore Timestamp to ISO string for date field
+      const dateVal = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.date;
+      return { ...data, date: dateVal || new Date().toISOString(), firestoreId: d.id };
+    });
+    // Sort: most recently updated first
     docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     return docs;
   } catch (e) {
     console.warn("fetchUserTournaments failed:", e);
-    return [];
+    return null; // null = fetch failed (offline), not empty (deleted)
   }
 }
 
@@ -279,7 +304,9 @@ export function useTournament() {
     }
   }, [code, readOnly, players, profiles, themeColor, tournamentName]);
 
-  // ── Internal: upsert localStorage history ────────────────────────────────
+  // ── Internal: save tournament history ────────────────────────────────────
+  // Google users → Firestore (source of truth) + localStorage (cache)
+  // Guests → localStorage only
   const _upsertHist = useCallback((newRounds, newPlayoffs, newChamp, currentProfiles, tColor, overrideCode) => {
     const c = overrideCode ?? code;
     if (!c) return;
@@ -294,6 +321,7 @@ export function useTournament() {
       date: idx >= 0 ? h[idx].date : new Date().toISOString(),
       name: tournamentName || h[idx]?.name || "",
       players, code: c,
+      isPublic,
       champion: newChamp || null,
       status: newChamp ? "completed" : "in-progress",
       finalStandings: computeStandings(players, newRounds),
@@ -303,8 +331,12 @@ export function useTournament() {
       themeColor: col,
     };
     if (idx >= 0) h[idx] = entry; else h.push(entry);
-    saveH(h);
-  }, [code, players, profiles, themeColor, tournamentName]);
+    saveH(h); // always cache locally (works offline, speeds up reads)
+
+    // Google users: Firestore is the source of truth — save full data there too
+    const uid = getAuth().currentUser?.uid;
+    if (uid) saveFullTournament(uid, entry);
+  }, [code, players, profiles, themeColor, tournamentName, isPublic]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -473,16 +505,29 @@ export function useTournament() {
     }
     joinCompleteRef.current = true;
     window.scrollTo(0, 0);
-    // Only write to Firestore if this is a NEW join (not an old local tournament being reopened)
-    const alreadyLocal = loadH().some(t => t.code === c);
-    if (uid && !alreadyLocal) {
-      saveToUserAccount(uid, c, {
-        code: c, name: data.name || "", status: data.champion ? "done" : "live",
-        playerCount: (data.players || []).length, isPublic: data.isPublic !== false,
-        createdAt: serverTimestamp(), champion: data.champion || null,
-        joinedAs: canEdit ? "scorer" : "viewer",
-      });
-    }
+
+    // Always save to localStorage + Firestore (for all Google users, not just new joins)
+    // This ensures viewer's career stats & history update on their account too
+    const rounds = data.rounds ? data.rounds.map((r) => (r ? Object.values(r) : [])) : [];
+    const entry = {
+      code: c, name: data.name || "", date: new Date().toISOString(),
+      status: data.champion ? "completed" : "in-progress",
+      players: data.players || [], playerCount: (data.players || []).length,
+      rounds, playoffs: safePlayoffs(data.playoffs),
+      champion: data.champion || null,
+      finalStandings: computeStandings(data.players || [], rounds),
+      profiles: data.profiles || {},
+      themeColor: data.themeColor || "#10d48e",
+      isPublic: data.isPublic !== false,
+    };
+    const all = loadH().filter(t => t.code);
+    const seen = new Map();
+    all.forEach(t => seen.set(t.code, t));
+    const existing = seen.get(c);
+    seen.set(c, { ...entry, date: existing?.date || entry.date }); // preserve original date
+    saveH(Array.from(seen.values()));
+
+    if (uid) saveFullTournament(uid, seen.get(c));
   };
 
   const saveResult = (ri, mi, sA, sB, dur, notes = "") => {
@@ -493,18 +538,9 @@ export function useTournament() {
       setAnimatingScore(`${ri}-${mi}`);
       setTimeout(() => setAnimatingScore(null), 500);
       playScoreSound();
-      clearLiveScore(`${ri}-${mi}`); // remove live score now it's officially saved
+      clearLiveScore(`${ri}-${mi}`);
       pushToFirebase(nx, playoffs, champion);
-      _upsertHist(nx, playoffs, champion);
-      // Update Firestore for cross-device sync
-      const uid = getAuth().currentUser?.uid;
-      if (uid && code) {
-        saveToUserAccount(uid, code, {
-          code, name: tournamentName, status: champion ? "done" : "live",
-          playerCount: players.length, players,
-          isPublic, champion: champion || null, updatedAt: Date.now()
-        });
-      }
+      _upsertHist(nx, playoffs, champion); // handles both localStorage + Firestore
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ["#c8f135", "#35c8f1"] });
       addToast("✓ Score saved", "success", 1500);
     } catch { addToast("Failed to save score", "error"); }
@@ -515,15 +551,7 @@ export function useTournament() {
     const poffs = initPlayoffs(st);
     setPlayoffs(poffs); setTab("playoffs");
     pushToFirebase(rounds, poffs, champion);
-    // Update Firestore for cross-device sync
-    const uid = getAuth().currentUser?.uid;
-    if (uid && code) {
-      saveToUserAccount(uid, code, {
-        code, name: tournamentName, status: "live",
-        playerCount: players.length, players,
-        isPublic, champion: null, updatedAt: Date.now()
-      });
-    }
+    _upsertHist(rounds, poffs, champion); // handles both localStorage + Firestore
     addToast("Playoffs started!", "info");
   };
 
@@ -537,15 +565,7 @@ export function useTournament() {
     };
     setPlayoffs(poffs); setTab("playoffs");
     pushToFirebase(rounds, poffs, champion);
-    // Update Firestore for cross-device sync
-    const uid = getAuth().currentUser?.uid;
-    if (uid && code) {
-      saveToUserAccount(uid, code, {
-        code, name: tournamentName, status: "live",
-        playerCount: players.length, players,
-        isPublic, champion: null, updatedAt: Date.now()
-      });
-    }
+    _upsertHist(rounds, poffs, champion); // handles both localStorage + Firestore
     addToast("Quick Final created!", "info");
   };
 
@@ -600,16 +620,7 @@ export function useTournament() {
       setPlayoffs(nx);
       playScoreSound();
       pushToFirebase(rounds, nx, newChamp);
-      _upsertHist(rounds, nx, newChamp);
-      // Update Firestore for cross-device sync
-      const uid = getAuth().currentUser?.uid;
-      if (uid && code) {
-        saveToUserAccount(uid, code, {
-          code, name: tournamentName, status: newChamp ? "done" : "live",
-          playerCount: players.length, players,
-          isPublic, champion: newChamp || null, updatedAt: Date.now()
-        });
-      }
+      _upsertHist(rounds, nx, newChamp); // handles both localStorage + Firestore
       if (!newChamp) confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ["#f1c835", "#35c8f1"] });
       addToast(`${m.label} result saved!`, "success", 2000);
     } catch (e) { console.error("savePlayoff error", e); addToast("Failed to save playoff score", "error"); }

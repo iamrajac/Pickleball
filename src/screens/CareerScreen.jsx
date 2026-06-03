@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { getAuth } from "firebase/auth";
 import { loadH } from "../utils/history";
+import { fetchUserTournaments } from "../hooks/useTournament";
 import { computeCareerStats, getH2HBetween } from "../utils/careerStats";
 import { ACOLORS } from "../utils/theme";
 import { ArrowLeft, Trophy, Zap, Users, Target, TrendingUp, Award } from "lucide-react";
@@ -205,8 +207,23 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
 }
 
 export function CareerScreen({ onBack, theme = 'dark' }) {
-  const history = loadH();
-  const stats = useMemo(() => computeCareerStats(history), []);
+  const [history, setHistory] = useState(() => loadH()); // start with cache
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const uid = getAuth().currentUser?.uid;
+    if (uid) {
+      // Google user: read from Firestore (source of truth)
+      fetchUserTournaments(uid).then(list => {
+        if (list !== null) setHistory(list);
+        setLoading(false);
+      });
+    } else {
+      setLoading(false); // Guest: already loaded from localStorage
+    }
+  }, []);
+
+  const stats = useMemo(() => computeCareerStats(history), [history]);
   const [tab, setTab] = useState("players");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const G = getG(theme);
