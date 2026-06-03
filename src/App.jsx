@@ -578,15 +578,32 @@ function AppInner() {
             onOpenTournament={async (tournament) => {
               if (!tournament.code) return;
               const isLive = tournament.status === "live" || tournament.status === "in-progress";
+
+              // Always try Realtime DB first — has full data for live AND recently completed
+              try {
+                const snap = await get(ref(db, `tournaments/${tournament.code}`));
+                if (snap.exists() && snap.val()) {
+                  const fbData = snap.val();
+                  if (isLive) {
+                    t.handleJoin(tournament.code, fbData);
+                    return;
+                  } else {
+                    // Completed — merge FB data with local (local has rounds structure)
+                    const local = loadH().find(h => h.code === tournament.code);
+                    const full = local?.rounds?.length
+                      ? { ...local, name: local.name || fbData.name || tournament.name || "", champion: local.champion || fbData.champion }
+                      : { ...fbData, name: fbData.name || tournament.name || "", date: tournament.date || new Date().toISOString() };
+                    navigate("/history/detail", { state: { tournament: full } });
+                    return;
+                  }
+                }
+              } catch (e) { /* offline or not found — fall through */ }
+
+              // Fallback: use local data
+              const local = loadH().find(h => h.code === tournament.code);
               if (isLive) {
-                // Always fetch fresh data from Realtime DB
-                try {
-                  const snap = await get(ref(db, `tournaments/${tournament.code}`));
-                  if (snap.exists() && snap.val()) t.handleJoin(tournament.code, snap.val());
-                } catch { t.handleJoin(tournament.code, tournament); }
+                t.handleJoin(tournament.code, local || tournament);
               } else {
-                // Completed — find full data in localStorage, fall back to Firestore metadata
-                const local = loadH().find(h => h.code === tournament.code);
                 navigate("/history/detail", { state: { tournament: local || tournament } });
               }
             }}

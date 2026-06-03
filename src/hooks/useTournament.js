@@ -22,10 +22,17 @@ async function saveToUserAccount(uid, code, data) {
 // Fetch all tournaments for a signed-in user from Firestore
 export async function fetchUserTournaments(uid) {
   try {
-    const q = query(collection(firestore, "users", uid, "tournaments"), orderBy("updatedAt", "desc"), orderBy("createdAt", "desc"));
+    // Only sort by createdAt — updatedAt may not exist on old docs causing silent query failures
+    const q = query(collection(firestore, "users", uid, "tournaments"), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), firestoreId: d.id }));
-  } catch { return []; }
+    const docs = snap.docs.map(d => ({ ...d.data(), firestoreId: d.id }));
+    // Client-side sort: most recently updated first
+    docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    return docs;
+  } catch (e) {
+    console.warn("fetchUserTournaments failed:", e);
+    return [];
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

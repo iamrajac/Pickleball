@@ -27,21 +27,29 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
     const uid = getAuth().currentUser?.uid;
     if (!uid) return;
     fetchUserTournaments(uid).then(firestoreList => {
-      if (!firestoreList.length) return;
       setHist(prev => {
         const seen = new Map();
-        // Local data wins (has full rounds/playoffs), Firestore fills in the gaps
+        // Local data wins (has full rounds/playoffs data), Firestore fills in missing entries + names
         prev.forEach(t => seen.set(t.code, t));
         firestoreList.forEach(t => {
+          const dateStr = t.date || (t.createdAt?.toDate ? t.createdAt.toDate().toISOString() : t.createdAt) || new Date().toISOString();
           if (!seen.has(t.code)) {
-            seen.set(t.code, { ...t, date: t.date || t.createdAt || new Date().toISOString() });
+            // New tournament not in local — add it (metadata only, no rounds)
+            seen.set(t.code, { ...t, date: dateStr });
           } else {
-            // Merge name from Firestore if local entry is missing it
+            // Merge: patch name/champion/status from Firestore into local entry
             const local = seen.get(t.code);
-            if (!local.name && t.name) seen.set(t.code, { ...local, name: t.name });
+            seen.set(t.code, {
+              ...local,
+              name: local.name || t.name || "",
+              champion: local.champion || t.champion || null,
+              status: local.status || t.status || "done",
+              date: local.date || dateStr,
+            });
           }
         });
-        return Array.from(seen.values());
+        // Sort newest first
+        return Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       });
     });
   }, []);

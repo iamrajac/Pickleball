@@ -91,6 +91,8 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
       status: t.status || (t.champion ? "done" : "live"),
       playerCount: t.playerCount || t.players?.length || 0,
       roundInfo: t.rounds ? `Round ${Math.ceil(t.rounds.flat().filter(m => m.played).length / Math.max(t.rounds[0]?.length || 1, 1))}/${t.rounds.length}` : "",
+      // Ensure createdAt is a plain value, not a Firestore Timestamp object
+      createdAt: t.createdAt?.toDate ? t.createdAt.toDate() : t.createdAt,
     });
 
     if (user?.uid) {
@@ -127,8 +129,15 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
         });
 
         // Sort by updatedAt desc, then createdAt desc
+        const toMs = (v) => {
+          if (!v) return 0;
+          if (typeof v === 'number') return v;
+          if (v.toDate) return v.toDate().getTime();
+          if (v instanceof Date) return v.getTime();
+          return new Date(v).getTime() || 0;
+        };
         const merged = Array.from(seen.values())
-          .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0));
+          .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || toMs(b.createdAt) - toMs(a.createdAt));
 
         setMyTournaments(merged.map(normalize));
       });
