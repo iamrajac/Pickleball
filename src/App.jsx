@@ -684,16 +684,7 @@ function AppInner() {
             onOpenTournament={async (tournament) => {
               if (!tournament.code) return;
 
-              // Block upcoming tournaments until their scheduled time
-              if (tournament.status === "upcoming" && tournament.scheduledAt) {
-                const scheduledMs = typeof tournament.scheduledAt === 'number' ? tournament.scheduledAt : new Date(tournament.scheduledAt).getTime();
-                if (scheduledMs > Date.now()) {
-                  const d = new Date(scheduledMs);
-                  const fmt = d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-                  alert(`This tournament starts at ${fmt}. Come back then!`);
-                  return;
-                }
-              }
+              // Upcoming tournaments are fully accessible — scoring is locked inside until time arrives
 
               const isLive = tournament.status === "live" || tournament.status === "in-progress" || tournament.status === "upcoming";
 

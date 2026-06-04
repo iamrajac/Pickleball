@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ref, onValue, set, onDisconnect, get } from "firebase/database";
-import { doc, setDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db, firestore } from "../firebase";
 import confetti from "canvas-confetti";
@@ -805,14 +805,11 @@ export function useTournament() {
     // 3. Remove from Realtime DB
     try { await fbSet(`tournaments/${c}`, null); } catch {}
 
-    // 4. Remove from Firestore user collection
+    // 4. Remove from Firestore — user collection AND public collection
     if (uid) {
-      try {
-        const { deleteDoc, doc: fsDoc } = await import("firebase/firestore");
-        await deleteDoc(fsDoc(firestore, "users", uid, "tournaments", c));
-        await deleteDoc(fsDoc(firestore, "tournaments", c));
-      } catch {}
+      try { await deleteDoc(doc(firestore, "users", uid, "tournaments", c)); } catch {}
     }
+    try { await deleteDoc(doc(firestore, "tournaments", c)); } catch {}
   };
 
   const handleScorerPinEntered = async (enteredPin) => {

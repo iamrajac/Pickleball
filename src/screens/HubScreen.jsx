@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { TournamentCardSkeleton } from "../components/Skeleton";
 import { PlayerAvatar } from "../components/PlayerAvatar";
-import { collection, query, where, limit, getDocs, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, limit, getDocs, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
@@ -23,7 +23,7 @@ function fmtDate(ts) {
 }
 
 /* ── Tournament card ──────────────────────────────── */
-function TournamentCard({ t, onClick }) {
+function TournamentCard({ t, onClick, onDelete }) {
   const isUpcoming = t.status === "upcoming";
   const isLive = t.status === "live" || t.status === "in-progress";
   const statusClass = isLive ? "live" : isUpcoming ? "upcoming" : "done";
@@ -66,11 +66,25 @@ function TournamentCard({ t, onClick }) {
         }
       </div>
 
-      {t.code && (
-        <div style={{ marginTop: 8, fontFamily: "var(--font-display)", fontSize: 13, color: "var(--text-muted)", letterSpacing: 1 }}>
-          #{t.code}
-        </div>
-      )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+        {t.code && (
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 13, color: "var(--text-muted)", letterSpacing: 1 }}>
+            #{t.code}
+          </div>
+        )}
+        {onDelete && (
+          <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{
+            background: "none", border: "none", color: "var(--text-muted)",
+            cursor: "pointer", padding: "4px 6px", borderRadius: 6, fontSize: 14,
+            opacity: 0.6, transition: "opacity 0.15s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = 1}
+          onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
+          title="Delete tournament">
+            🗑️
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -113,10 +127,29 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const [loadingPublic, setLoadingPublic] = useState(true);
   const [loadingMy, setLoadingMy] = useState(true);
   const [playerProfile, setPlayerProfile] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // tournament object
 
   useEffect(() => {
     if (user?.uid) getPlayerByUid(user.uid).then(p => { if (p) setPlayerProfile(p); });
   }, [user?.uid]);
+
+  const handleDelete = async (t) => {
+    const c = t.code;
+    if (!c) return;
+    // Remove from localStorage
+    const { loadH, saveH } = await import("../utils/history");
+    saveH(loadH().filter(x => x.code !== c));
+    // Remove from Realtime DB
+    const { ref: fbRef, set: fbSet } = await import("firebase/database");
+    const { db: rtdb } = await import("../firebase");
+    try { await fbSet(fbRef(rtdb, `tournaments/${c}`), null); } catch {}
+    // Remove from Firestore
+    if (user?.uid) {
+      try { await deleteDoc(doc(firestore, "users", user.uid, "tournaments", c)); } catch {}
+    }
+    try { await deleteDoc(doc(firestore, "tournaments", c)); } catch {}
+    setConfirmDelete(null);
+  };
 
   const normalize = (t) => ({
     ...t,
@@ -283,6 +316,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
 
           {/* LIVE — all live tournaments merged, deduped by code */}
           {(() => {
+            const myCodes = new Set(myLive.map(t => t.code));
             const seen = new Set();
             const all = [...myLive, ...publicLive.map(t => ({ ...t, code: t.code || t.id }))]
               .filter(t => { const k = t.code; if (seen.has(k)) return false; seen.add(k); return true; });
@@ -290,7 +324,9 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
               <>
                 <SectionHeader label="🔴 LIVE" count={all.length} color="var(--live)" />
                 {all.map((t, i) => (
-                  <TournamentCard key={t.code || i} t={{ ...t, status: "live" }} onClick={() => onOpenTournament(t)} />
+                  <TournamentCard key={t.code || i} t={{ ...t, status: "live" }}
+                    onClick={() => onOpenTournament(t)}
+                    onDelete={myCodes.has(t.code) ? () => setConfirmDelete(t) : undefined} />
                 ))}
               </>
             ) : null;
@@ -298,6 +334,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
 
           {/* UPCOMING — all upcoming merged, deduped */}
           {(() => {
+            const myCodes = new Set(myUpcoming.map(t => t.code));
             const seen = new Set();
             const all = [...myUpcoming, ...publicUpcoming.map(t => ({ ...t, code: t.code || t.id }))]
               .filter(t => { const k = t.code; if (seen.has(k)) return false; seen.add(k); return true; })
@@ -306,7 +343,9 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
               <>
                 <SectionHeader label="🕐 UPCOMING" count={all.length} color="var(--upcoming)" />
                 {all.map((t, i) => (
-                  <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
+                  <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }}
+                    onClick={() => onOpenTournament(t)}
+                    onDelete={myCodes.has(t.code) ? () => setConfirmDelete(t) : undefined} />
                 ))}
               </>
             ) : null;
@@ -351,6 +390,28 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
           )}
         </div>
       </div>
+
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", backdropFilter: "blur(4px)" }}>
+          <div className="card fu" style={{ maxWidth: 360, width: "100%", padding: "2rem", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2, marginBottom: 8, color: "var(--danger)" }}>DELETE TOURNAMENT?</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>{confirmDelete.name || `#${confirmDelete.code}`}</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24, lineHeight: 1.6 }}>
+              Permanently removes all scores, stats, and history. <strong style={{ color: "var(--danger)" }}>Cannot be undone.</strong>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", color: "var(--text)", fontWeight: 600, cursor: "pointer" }}>
+                CANCEL
+              </button>
+              <button onClick={() => handleDelete(confirmDelete)} style={{ flex: 1, padding: "12px", background: "var(--danger)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
+                DELETE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
