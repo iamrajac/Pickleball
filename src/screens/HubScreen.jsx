@@ -161,41 +161,29 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     return () => unsub();
   }, [user?.uid]);
 
-  // Load public tournaments — single where clause to avoid composite index requirement
+  const toMs = v => v ? (typeof v === 'number' ? v : new Date(v).getTime()) : 0;
+
+  // Real-time public tournaments listener
   useEffect(() => {
-    const fetchPublic = async () => {
-      setLoadingPublic(true);
-      try {
-        const q = query(
-          collection(firestore, "tournaments"),
-          where("isPublic", "==", true),
-          limit(30)
-        );
-        const snap = await getDocs(q);
-        const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const now = Date.now();
-        setPublicLive(
-          all
-            .filter(t => t.status === "live" || t.status === "in-progress")
-            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-            .slice(0, 10)
-        );
-        setPublicUpcoming(
-          all
-            .filter(t => t.status === "upcoming" && (typeof t.scheduledAt === "number" ? t.scheduledAt : new Date(t.scheduledAt).getTime()) > now)
-            .sort((a, b) => (a.scheduledAt || 0) - (b.scheduledAt || 0))
-            .slice(0, 10)
-        );
-      } catch (e) {
-        console.warn("fetchPublic failed:", e);
-      }
+    setLoadingPublic(true);
+    const q = query(collection(firestore, "tournaments"), where("isPublic", "==", true), limit(30));
+    const unsub = onSnapshot(q, snap => {
+      const now = Date.now();
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setPublicLive(
+        all.filter(t => t.status === "live" || t.status === "in-progress")
+          .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 10)
+      );
+      setPublicUpcoming(
+        all.filter(t => t.status === "upcoming" && toMs(t.scheduledAt) > now)
+          .sort((a, b) => toMs(a.scheduledAt) - toMs(b.scheduledAt)).slice(0, 10)
+      );
       setLoadingPublic(false);
-    };
-    fetchPublic();
+    }, e => { console.warn("fetchPublic failed:", e); setLoadingPublic(false); });
+    return () => unsub();
   }, []);
 
   const now = Date.now();
-  const toMs = v => v ? (typeof v === 'number' ? v : new Date(v).getTime()) : 0;
 
   // Auto-transition: upcoming tournaments whose time has now passed → mark live
   useEffect(() => {
@@ -310,27 +298,33 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
             </>
           )}
 
-          {/* Public live */}
-          {publicLive.length > 0 && (
-            <>
-              <SectionHeader label="⚡ LIVE NOW" count={publicLive.length} color="var(--live)" />
-              {publicLive.map(t => (
-                <TournamentCard key={t.id} t={{ ...t, status: "live" }} onClick={() => onOpenTournament(t)} />
-              ))}
-            </>
-          )}
+          {/* Public live — exclude user's own (already shown above) */}
+          {(() => {
+            const myCodes = new Set(myTournaments.map(t => t.code));
+            const others = publicLive.filter(t => !myCodes.has(t.code || t.id));
+            return others.length > 0 ? (
+              <>
+                <SectionHeader label="⚡ OTHERS LIVE" count={others.length} color="var(--live)" />
+                {others.map(t => (
+                  <TournamentCard key={t.id} t={{ ...t, status: "live" }} onClick={() => onOpenTournament(t)} />
+                ))}
+              </>
+            ) : null;
+          })()}
 
-          {/* Public upcoming */}
-          {publicUpcoming.length > 0 && (
-            <>
-              <SectionHeader label="🕐 PUBLIC UPCOMING" count={publicUpcoming.length} color="var(--upcoming, #f59e0b)" />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {publicUpcoming.map(t => (
+          {/* Public upcoming — exclude user's own */}
+          {(() => {
+            const myCodes = new Set(myTournaments.map(t => t.code));
+            const others = publicUpcoming.filter(t => !myCodes.has(t.code || t.id));
+            return others.length > 0 ? (
+              <>
+                <SectionHeader label="🕐 OTHERS UPCOMING" count={others.length} color="var(--upcoming)" />
+                {others.map(t => (
                   <TournamentCard key={t.id} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
                 ))}
-              </div>
-            </>
-          )}
+              </>
+            ) : null;
+          })()}
 
           {/* My history */}
           {myCompleted.length > 0 && (
