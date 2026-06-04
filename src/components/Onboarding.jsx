@@ -97,7 +97,7 @@ export function Onboarding({ onDone }) {
 
 export function useOnboarding() {
   const key = "pkl_onboarded_v1";
-  const done = !!localStorage.getItem(key);
-  const markDone = () => localStorage.setItem(key, "1");
-  return { showOnboarding: !done, markDone };
+  const [show, setShow] = useState(() => !localStorage.getItem(key));
+  const markDone = () => { localStorage.setItem(key, "1"); setShow(false); };
+  return { showOnboarding: show, markDone };
 }
