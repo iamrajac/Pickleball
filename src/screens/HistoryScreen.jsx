@@ -32,12 +32,12 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   const text = theme === 'light' ? '#0f172a' : 'var(--color-text)';
   const border = theme === 'light' ? '#e2e8f0' : 'var(--color-border)';
 
+  const onlyCompleted = (list) => list
+    .filter(t => t.code && t.status !== "upcoming" && t.status !== "live" && t.status !== "in-progress")
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
   // Always load from localStorage first so data shows immediately
-  const [hist, setHist] = useState(() => {
-    const all = loadH().filter(t => t.code)
-      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-    return all;
-  });
+  const [hist, setHist] = useState(() => onlyCompleted(loadH()));
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
     if (!uid) return; // Guests: localStorage already loaded in useState
@@ -55,10 +55,8 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
       collection(firestore, "users", uid, "tournaments"),
       (snap) => {
         if (snap.empty) return; // no cloud data yet — keep local
-        const docs = snap.docs
-          .map(d => fromFirestoreDoc(d.data()))
-          .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        setHist(docs);
+        const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
+        setHist(onlyCompleted(docs));
         saveH(docs);
       },
       (err) => { console.warn("Firestore history listener error:", err); }
