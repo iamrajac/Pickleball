@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { TournamentCardSkeleton } from "../components/Skeleton";
+import { PlayerAvatar } from "../components/PlayerAvatar";
 import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
 import { requestPermission, scheduleUpcomingNotifications, notify } from "../utils/notifications";
+import { getPlayerByUid } from "../utils/playerProfile";
 
 /* ── Time formatter ───────────────────────────────── */
 function fmtDateTime(ts) {
@@ -107,6 +109,11 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const [publicUpcoming, setPublicUpcoming] = useState([]);
   const [loadingPublic, setLoadingPublic] = useState(true);
   const [loadingMy, setLoadingMy] = useState(true);
+  const [playerProfile, setPlayerProfile] = useState(null);
+
+  useEffect(() => {
+    if (user?.uid) getPlayerByUid(user.uid).then(p => { if (p) setPlayerProfile(p); });
+  }, [user?.uid]);
 
   const normalize = (t) => ({
     ...t,
@@ -228,11 +235,20 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
                 PICKLEBALL
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button className="pb" onClick={onToggleTheme}
-                style={{ width: 40, height: 40, borderRadius: "var(--radius-md)", background: "var(--card)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", cursor: "pointer" }}>
+                style={{ width: 38, height: 38, borderRadius: "var(--radius-md)", background: "var(--card)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", cursor: "pointer", fontSize: 16 }}>
                 {theme === "dark" ? "☀️" : "🌙"}
               </button>
+              {user && (
+                <div style={{ cursor: "pointer" }} onClick={() => window.location.hash = "#/account"}>
+                  <PlayerAvatar
+                    name={playerProfile?.displayName || user?.displayName || "U"}
+                    profile={playerProfile?.avatar}
+                    size={38}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

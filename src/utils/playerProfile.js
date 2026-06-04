@@ -65,6 +65,16 @@ export async function searchPlayers(term) {
   } catch { return []; }
 }
 
+// ── Save full player profile ─────────────────────────────────────────────────
+
+export async function savePlayerProfile(uid, { displayName, bio, avatar }) {
+  if (!uid) return;
+  await setDoc(doc(firestore, "players", uid), {
+    displayName, bio: bio || "", avatar: avatar || null,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
 // ── Update stats snapshot on player doc ────────────────────────────────────
 
 export async function updatePlayerStats(uid, stats) {
