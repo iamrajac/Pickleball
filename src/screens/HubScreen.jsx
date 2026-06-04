@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { TournamentCardSkeleton } from "../components/Skeleton";
 import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
@@ -105,6 +106,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const [publicLive, setPublicLive] = useState([]);
   const [publicUpcoming, setPublicUpcoming] = useState([]);
   const [loadingPublic, setLoadingPublic] = useState(true);
+  const [loadingMy, setLoadingMy] = useState(true);
 
   const normalize = (t) => ({
     ...t,
@@ -122,7 +124,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
 
   // Load tournaments — show local immediately, then keep in sync via Firestore listener
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) { setLoadingMy(false); return; }
 
     // ONE-TIME MIGRATION: push all localStorage tournaments to Firestore
     // This runs once per device per account to sync historical data.
@@ -140,13 +142,14 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     const unsub = onSnapshot(
       collection(firestore, "users", user.uid, "tournaments"),
       (snap) => {
+        setLoadingMy(false);
         if (snap.empty) return; // Firestore empty — keep showing localStorage
         const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
         docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
         setMyTournaments(docs.map(normalize));
         saveH(docs); // keep local cache in sync with Firestore
       },
-      (err) => { console.warn("Firestore listener error:", err); }
+      (err) => { console.warn("Firestore listener error:", err); setLoadingMy(false); }
     );
     return () => unsub();
   }, [user?.uid]);
@@ -299,12 +302,31 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
             </>
           )}
 
+          {/* Skeleton loading */}
+          {(loadingMy || loadingPublic) && myLive.length === 0 && myCompleted.length === 0 && publicLive.length === 0 && (
+            <div style={{ marginTop: 20 }}>
+              {[...Array(3)].map((_, i) => <TournamentCardSkeleton key={i} />)}
+            </div>
+          )}
+
           {/* Empty state */}
-          {myLive.length === 0 && myCompleted.length === 0 && publicLive.length === 0 && !loadingPublic && (
+          {!loadingMy && !loadingPublic && myLive.length === 0 && myCompleted.length === 0 && myUpcoming.length === 0 && publicLive.length === 0 && (
             <div className="card fu" style={{ marginTop: 32, padding: "3rem 2rem", textAlign: "center" }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🏓</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 2, color: "var(--text)", marginBottom: 8 }}>NO TOURNAMENTS YET</div>
-              <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>Create your first tournament or join one with a code.</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 2, color: "var(--text)", marginBottom: 8 }}>
+                NO TOURNAMENTS YET
+              </div>
+              <div style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24 }}>
+                Create your first tournament or join one with a code.
+              </div>
+              <button onClick={onCreateTournament} style={{
+                padding: "14px 32px", background: "var(--accent)", border: "none",
+                borderRadius: "var(--radius-md)", color: "#fff",
+                fontFamily: "var(--font-display)", fontSize: 18,
+                letterSpacing: 2, cursor: "pointer",
+              }}>
+                + CREATE NOW
+              </button>
             </div>
           )}
         </div>

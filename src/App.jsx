@@ -27,15 +27,36 @@ import { AuthModal } from "./components/AuthModal";
 import { BottomNav } from "./components/BottomNav";
 import { playAudio } from "./utils/audio";
 import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, WifiOff } from "lucide-react";
+import { InstallPrompt } from "./components/InstallPrompt";
+import { Onboarding, useOnboarding } from "./components/Onboarding";
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 function useTheme() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("pkl_theme") || "dark");
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("pkl_theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  });
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("pkl_theme", theme);
   }, [theme]);
-  return { theme, toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")) };
+  // Auto-follow OS changes when user hasn't manually picked
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const handler = (e) => {
+      if (!localStorage.getItem("pkl_theme_manual")) {
+        setTheme(e.matches ? "light" : "dark");
+      }
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  const toggle = () => {
+    localStorage.setItem("pkl_theme_manual", "1");
+    setTheme((t) => (t === "dark" ? "light" : "dark"));
+  };
+  return { theme, toggle };
 }
 
 // ── Offline detection ──────────────────────────────────────────────────────
@@ -510,8 +531,10 @@ function AppInner() {
   const t = useTournament();
   const { user, loading, isGuest, isAuthenticated, signInWithGoogle, continueAsGuest } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [localCount, setLocalCount] = useState(0);
+  const { showOnboarding, markDone } = useOnboarding();
 
   // Request notification permission once after login
   useEffect(() => {
@@ -634,6 +657,9 @@ function AppInner() {
 
   return (
     <>
+      {showOnboarding && <Onboarding onDone={markDone} />}
+      <InstallPrompt />
+      <div key={location.pathname} className="page-in">
       <Routes>
         <Route path="/" element={
           <HubScreen
@@ -702,6 +728,7 @@ function AppInner() {
         } />
         <Route path="*" element={<HubScreen user={user} isGuest={isGuest} theme={theme} onToggleTheme={toggleTheme} onCreateTournament={() => navigate("/create")} onOpenTournament={() => {}} />} />
       </Routes>
+      </div>
       <BottomNav />
     </>
   );

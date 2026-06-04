@@ -9,8 +9,20 @@ import { notifyComeback } from "../utils/notifications";
 
 function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   const num = value === "" ? null : Number(value);
-  const dec = () => { if (num !== null && num > 0) onChange(String(num - 1)); };
-  const inc = () => { if (!incDisabled) onChange(String(num === null ? 0 : num + 1)); };
+  const [pop, setPop] = useState(false);
+  const prevNum = useRef(num);
+  useEffect(() => {
+    if (num !== prevNum.current && num !== null) {
+      setPop(true);
+      const t = setTimeout(() => setPop(false), 280);
+      prevNum.current = num;
+      return () => clearTimeout(t);
+    }
+    prevNum.current = num;
+  }, [num]);
+  const haptic = (ms = 8) => { try { navigator.vibrate?.(ms); } catch {} };
+  const dec = () => { if (num !== null && num > 0) { haptic(); onChange(String(num - 1)); } };
+  const inc = () => { if (!incDisabled) { haptic(); onChange(String(num === null ? 0 : num + 1)); } };
 
   const btnStyle = (active, disabled) => ({
     width: 32, height: 32, borderRadius: 6,
@@ -25,10 +37,11 @@ function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
       <button className="pb" onPointerDown={e => { e.preventDefault(); inc(); }} style={btnStyle(!incDisabled, incDisabled)} disabled={incDisabled}>+</button>
-      <div style={{
+      <div className={pop ? "score-count-pop" : ""} style={{
         fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, lineHeight: 1,
         color: hasError ? 'var(--color-danger)' : num !== null ? 'var(--color-lime)' : 'var(--color-muted)',
         minWidth: 32, textAlign: "center", userSelect: "none",
+        display: "inline-block",
       }}>
         {num !== null ? num : "—"}
       </div>

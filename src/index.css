@@ -422,9 +422,28 @@ body.modal-open { overflow: hidden; touch-action: none; }
   80%  { opacity: 1; transform: translateY(-10vh) scale(1.6); }
   100% { opacity: 0; transform: translateY(-20vh) scale(2); }
 }
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scoreCount {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); color: var(--accent); }
+  100% { transform: scale(1); }
+}
 
 /* ── Reaction / misc ───────────────────────────────── */
 .reaction-float { animation: reactionFloat 1.5s ease-out forwards; }
+
+/* ── Page transition ───────────────────────────────── */
+.page-in { animation: pageIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ── Score count pop ───────────────────────────────── */
+.score-count-pop { animation: scoreCount 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
 
 /* ═══════════════════════════════════════════════════
    RESPONSIVE
