@@ -69,6 +69,24 @@ export async function saveFullTournament(uid, entry) {
     }
 
     await setDoc(doc(firestore, "users", uid, "tournaments", entry.code), data, { merge: true });
+
+    // Also write a public summary to top-level tournaments collection for discovery
+    if (data.isPublic) {
+      const summary = sanitizeForFirestore({
+        code: data.code,
+        name: data.name,
+        status: data.status,
+        playerCount: data.playerCount,
+        champion: data.champion,
+        isPublic: true,
+        createdBy: uid,
+        scheduledAt: entry.scheduledAt || null,
+        updatedAt: data.updatedAt,
+        createdAt: data.createdAt || serverTimestamp(),
+      });
+      await setDoc(doc(firestore, "tournaments", entry.code), summary, { merge: true });
+    }
+
     console.log("✅ Firestore write OK:", entry.code, "uid:", uid?.slice(0,8));
   } catch (e) {
     console.error("❌ saveFullTournament failed:", e.code, e.message);
