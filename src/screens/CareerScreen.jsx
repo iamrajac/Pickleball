@@ -103,8 +103,8 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
   const diff = player.scored - player.conceded;
 
   return (
-    <div className="fu" style={{ position: "fixed", inset: 0, background: "var(--color-dark)", zIndex: 100, overflowY: "auto", padding: "1rem" }}>
-      <div style={{ maxWidth: 500, margin: "0 auto", paddingBottom: "3rem" }}>
+    <div className="fu" style={{ minHeight: "100vh", background: "var(--bg)", overflowY: "auto", padding: "1rem 1rem 90px" }}>
+      <div style={{ maxWidth: 500, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, paddingTop: "1rem" }}>
           <button onClick={onClose} className="ni" style={{ background: "none", border: "none", color: G.muted, display: "flex", alignItems: "center" }}>
             <ArrowLeft size={22} />
