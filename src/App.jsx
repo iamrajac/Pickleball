@@ -95,7 +95,7 @@ function TournamentView({ t, theme, toggleTheme }) {
   const {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
-    saveResult, savePlayoff, executeEnd, handleScorerPinEntered,
+    saveResult, savePlayoff, executeEnd, deleteTournament, handleScorerPinEntered,
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
     liveScores, pushLiveScore, scheduledAt,
   } = t;
@@ -125,11 +125,12 @@ function TournamentView({ t, theme, toggleTheme }) {
   const [showScorerPin, setShowScorerPin] = useState(false);
   const [showScorerEntry, setShowScorerEntry] = useState(false);
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const swipeTargetRef = useRef(null);
 
-  const anyModalOpen = showShare || showStandingsShare || showPlayoffShare || showScorerPin || showScorerEntry || showConfirmEnd;
+  const anyModalOpen = showShare || showStandingsShare || showPlayoffShare || showScorerPin || showScorerEntry || showConfirmEnd || showConfirmDelete;
   useEffect(() => {
     document.body.classList.toggle("modal-open", anyModalOpen);
     return () => document.body.classList.remove("modal-open");
@@ -238,16 +239,59 @@ function TournamentView({ t, theme, toggleTheme }) {
       {showScorerPin && scorerPin && <ScorerPinModal code={code} pin={scorerPin} onClose={() => setShowScorerPin(false)} />}
       {showScorerEntry && <ScorerPinEntry code={code} onGranted={async (pin) => { await handleScorerPinEntered(pin); setShowScorerEntry(false); }} onClose={() => setShowScorerEntry(false)} />}
 
-      {/* Confirm end */}
+      {/* Confirm end / delete */}
       {showConfirmEnd && (
         <div className="fu" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
           <div className="glass-card" style={{ padding: "2rem", borderRadius: "var(--radius-lg)", maxWidth: 360, width: "90%", textAlign: "center" }}>
             <AlertCircle size={44} color="var(--color-danger)" style={{ margin: "0 auto 16px" }} />
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, marginBottom: 8 }}>END TOURNAMENT?</div>
-            <div style={{ fontSize: 14, color: "var(--color-muted)", marginBottom: 24 }}>Progress is saved in history.</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, marginBottom: 8 }}>LEAVE TOURNAMENT?</div>
+            <div style={{ fontSize: 14, color: "var(--color-muted)", marginBottom: 24 }}>Choose what to do with this tournament.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button className="pb" onClick={() => setShowConfirmEnd(false)}
+                style={{ padding: "12px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontWeight: 600, cursor: "pointer" }}>
+                CANCEL — STAY
+              </button>
+              {!readOnly && (
+                <button className="pb" onClick={executeEnd}
+                  style={{ padding: "12px", background: "rgba(245,158,11,0.15)", border: "1px solid var(--color-gold)", borderRadius: "var(--radius-sm)", color: "var(--color-gold)", fontWeight: 600, cursor: "pointer" }}>
+                  END & SAVE TO HISTORY
+                </button>
+              )}
+              {readOnly && (
+                <button className="pb" onClick={executeEnd}
+                  style={{ padding: "12px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontWeight: 600, cursor: "pointer" }}>
+                  LEAVE
+                </button>
+              )}
+              {!readOnly && (
+                <button className="pb" onClick={() => { setShowConfirmEnd(false); setShowConfirmDelete(true); }}
+                  style={{ padding: "12px", background: "rgba(239,68,68,0.1)", border: "1px solid var(--color-danger)", borderRadius: "var(--radius-sm)", color: "var(--color-danger)", fontWeight: 600, cursor: "pointer" }}>
+                  DELETE TOURNAMENT ENTIRELY
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete */}
+      {showConfirmDelete && (
+        <div className="fu" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div className="glass-card" style={{ padding: "2rem", borderRadius: "var(--radius-lg)", maxWidth: 360, width: "90%", textAlign: "center" }}>
+            <div style={{ fontSize: 44, marginBottom: 12 }}>🗑️</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, marginBottom: 8, color: "var(--color-danger)" }}>DELETE TOURNAMENT?</div>
+            <div style={{ fontSize: 13, color: "var(--color-muted)", marginBottom: 24, lineHeight: 1.6 }}>
+              This will permanently remove all scores, stats, and history for this tournament. <strong style={{ color: "var(--color-danger)" }}>This cannot be undone.</strong>
+            </div>
             <div style={{ display: "flex", gap: 12 }}>
-              <button className="pb" onClick={() => setShowConfirmEnd(false)} style={{ flex: 1, padding: "12px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontWeight: 600, cursor: "pointer" }}>CANCEL</button>
-              <button className="pb" onClick={executeEnd} style={{ flex: 1, padding: "12px", background: "var(--color-danger)", border: "none", borderRadius: "var(--radius-sm)", color: "white", fontWeight: 600, cursor: "pointer" }}>END IT</button>
+              <button className="pb" onClick={() => setShowConfirmDelete(false)}
+                style={{ flex: 1, padding: "12px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontWeight: 600, cursor: "pointer" }}>
+                CANCEL
+              </button>
+              <button className="pb" onClick={() => { setShowConfirmDelete(false); deleteTournament(); }}
+                style={{ flex: 1, padding: "12px", background: "var(--color-danger)", border: "none", borderRadius: "var(--radius-sm)", color: "white", fontWeight: 600, cursor: "pointer" }}>
+                YES, DELETE
+              </button>
             </div>
           </div>
         </div>

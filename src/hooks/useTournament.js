@@ -790,6 +790,31 @@ export function useTournament() {
     localPlayedCount.current = 0;
   };
 
+  const deleteTournament = async () => {
+    if (!code) return;
+    const c = code;
+    const uid = getAuth().currentUser?.uid;
+
+    // 1. Clear UI state first
+    executeEnd();
+
+    // 2. Remove from localStorage history
+    const updated = loadH().filter(t => t.code !== c);
+    saveH(updated);
+
+    // 3. Remove from Realtime DB
+    try { await fbSet(`tournaments/${c}`, null); } catch {}
+
+    // 4. Remove from Firestore user collection
+    if (uid) {
+      try {
+        const { deleteDoc, doc: fsDoc } = await import("firebase/firestore");
+        await deleteDoc(fsDoc(firestore, "users", uid, "tournaments", c));
+        await deleteDoc(fsDoc(firestore, "tournaments", c));
+      } catch {}
+    }
+  };
+
   const handleScorerPinEntered = async (enteredPin) => {
     try {
       const snap = await get(ref(db, `tournaments/${code}/scorerPin`));
@@ -830,7 +855,7 @@ export function useTournament() {
     // Live score helpers
     liveScores, pushLiveScore, clearLiveScore,
     // Actions
-    handleStart, handleJoin, saveResult, savePlayoff, executeEnd,
+    handleStart, handleJoin, saveResult, savePlayoff, executeEnd, deleteTournament,
     handleScorerPinEntered, copyStandingsText, startPlayoffs, declareAsFinal,
   };
 }
