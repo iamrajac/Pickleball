@@ -72,10 +72,11 @@ export async function saveFullTournament(uid, entry) {
 
     // Also write a public summary to top-level tournaments collection for discovery
     if (data.isPublic) {
+      const publicStatus = data.status === "in-progress" ? "live" : data.status;
       const summary = sanitizeForFirestore({
         code: data.code,
         name: data.name,
-        status: data.status,
+        status: publicStatus,
         playerCount: data.playerCount,
         champion: data.champion,
         isPublic: true,
@@ -428,7 +429,7 @@ export function useTournament() {
       players: pl, code: c,
       isPublic,
       champion: newChamp || null,
-      status: newChamp ? "completed" : "in-progress",
+      status: newChamp ? "completed" : "live",
       finalStandings: computeStandings(pl, newRounds),
       playoffs: newPlayoffs || null,
       rounds: newRounds,
@@ -570,11 +571,12 @@ export function useTournament() {
       // Build entry directly with normalizedPlayers — do NOT use stale `players` state
       const newEntry = {
         code: c, name: meta.name || "", date: new Date().toISOString(),
-        status: "in-progress", players: normalizedPlayers, playerCount: normalizedPlayers.length,
+        status: isScheduledFuture ? "upcoming" : "live", players: normalizedPlayers, playerCount: normalizedPlayers.length,
         rounds: r, playoffs: null, champion: null,
         finalStandings: computeStandings(normalizedPlayers, r),
         profiles: normalizedProfiles, themeColor: tColor,
         isPublic: meta.isPublic !== false,
+        scheduledAt: sAt || null,
       };
       const all = loadH().filter(t => t.code);
       const seen = new Map();

@@ -3,16 +3,20 @@ import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { X, Copy, Download, MessageCircle } from "lucide-react";
 
-export function ShareModal({ code, onClose }) {
+export function ShareModal({ code, isPublic = true, onClose }) {
   const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}?join=${code}`;
+  const joinUrl = `${window.location.origin}?join=${code}`;
+  const publicUrl = `${window.location.origin}${window.location.pathname}#/tournament/${code}`;
+  const shareUrl = isPublic ? publicUrl : joinUrl;
 
   const copyCode = () => {
     navigator.clipboard?.writeText(code).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
 
   const whatsapp = () => {
-    const msg = `🏓 Join my Pickleball Tournament!\nCode: *${code}*\nOpen: ${url}`;
+    const msg = isPublic
+      ? `🏓 Watch my Pickleball Tournament live!\n*${code}*\n👉 ${publicUrl}`
+      : `🏓 Join my Pickleball Tournament!\nCode: *${code}*\nOpen: ${joinUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -28,7 +32,7 @@ export function ShareModal({ code, onClose }) {
 
         {/* QR Code */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 16, display: "inline-block", marginBottom: 20 }}>
-          <QRCodeSVG value={url} size={180} fgColor="#0d0f0a" bgColor="#ffffff" />
+          <QRCodeSVG value={shareUrl} size={180} fgColor="#0d0f0a" bgColor="#ffffff" />
         </div>
 
         {/* Code display */}

@@ -15,6 +15,7 @@ import { HistoryScreen, HistoryDetail } from "./screens/HistoryScreen";
 import { CareerScreen } from "./screens/CareerScreen";
 import { PlayerScreen } from "./screens/PlayerScreen";
 import { AccountScreen } from "./screens/AccountScreen";
+import { PublicTournamentScreen } from "./screens/PublicTournamentScreen";
 import { ToastProvider, useToast } from "./components/Toast";
 import { MatchCard } from "./components/MatchCard";
 import { StandingsTable } from "./components/StandingsTable";
@@ -31,6 +32,7 @@ import { playAudio } from "./utils/audio";
 import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, WifiOff } from "lucide-react";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { Onboarding, useOnboarding } from "./components/Onboarding";
+import { BracketTree } from "./components/BracketTree";
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 function useTheme() {
@@ -347,77 +349,9 @@ function TournamentView({ t, theme, toggleTheme }) {
                 )}
               </div>
             ) : (playoffs.q1 || playoffs.final || playoffs.sf1) ? (
-              <div style={{ maxWidth: 800, margin: "0 auto" }}>
-                {(() => {
-                  const mode = playoffs.mode || "ipl8";
-                  const labels = { final_only: "GRAND FINAL", elim_to_sf: "TOP 4 BRACKET", ipl6: "6-TEAM IPL BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
-                  const desc = { final_only: "Single match final", elim_to_sf: "Semi Final + Final", ipl6: "Q1 · Eliminator · Final", ipl8: "Q1 · Eliminator · Q2 · Final", top8: "QF · SF · Final", top8_ipl: "Q1 · Q2 · Elim · SF · Final" };
-                  return !champion && !playoffs.champion ? (
-                    <div style={{ textAlign: "center", marginBottom: 20 }}>
-                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-lime)", letterSpacing: 3 }}>{labels[mode]}</div>
-                      <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{desc[mode]} · {players.length} players</div>
-                    </div>
-                  ) : null;
-                })()}
-                {(champion || playoffs.champion) && (
-                  <div className="fu glass-card" style={{ border: "1px solid var(--color-lime)", borderRadius: "var(--radius-lg)", padding: "2rem", textAlign: "center", marginBottom: 24, background: "rgba(200,241,53,0.05)" }}>
-                    <div style={{ fontSize: 48, marginBottom: 8 }}>🏆</div>
-                    <div style={{ fontSize: 11, letterSpacing: 4, color: "var(--color-lime)", marginBottom: 8, fontWeight: 600 }}>TOURNAMENT CHAMPIONS</div>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: "var(--color-lime)", letterSpacing: 3 }}>{champion || playoffs.champion}</div>
-                  </div>
-                )}
-                {(() => {
-                  const mode = playoffs.mode || "ipl8";
-                  const elim = playoffs.eliminated || [];
-                  const Elim = () => elim.length > 0 ? <EliminatedBanner names={elim} /> : null;
-                  const Grid = ({ children }) => <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>{children}</div>;
-
-                  if (mode === "final_only") return (
-                    <><Elim /><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></>
-                  );
-                  if (mode === "elim_to_sf") return (
-                    <><Elim /><PC stage="sf1" match={playoffs.sf1} accent="var(--color-lime)" />
-                    {playoffs.final?.teamA && <div style={{ marginTop: 16 }}><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></div>}</>
-                  );
-                  if (mode === "ipl6") return (
-                    <><Elim /><PC stage="q1" match={playoffs.q1} accent="var(--color-lime)" />
-                    {playoffs.elim && <div style={{ marginTop: 16 }}><PC stage="elim" match={playoffs.elim} accent="var(--color-cyan)" /></div>}
-                    {playoffs.final?.teamA && <div style={{ marginTop: 16 }}><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></div>}</>
-                  );
-                  if (mode === "ipl8") return (
-                    <><Grid><PC stage="q1" match={playoffs.q1} accent="var(--color-lime)" /><PC stage="elim" match={playoffs.elim} accent="var(--color-cyan)" /></Grid>
-                    {playoffs.q2 && <div style={{ marginBottom: 16 }}><PC stage="q2" match={playoffs.q2} accent="var(--color-gold)" /></div>}
-                    {playoffs.final && <PC stage="final" match={playoffs.final} accent="var(--color-lime)" />}</>
-                  );
-                  if (mode === "top8") return (
-                    <><Elim />
-                    <Grid><PC stage="qf1" match={playoffs.qf1} accent="var(--color-lime)" /><PC stage="qf2" match={playoffs.qf2} accent="var(--color-cyan)" /></Grid>
-                    <Grid><PC stage="sf1" match={playoffs.sf1} accent="var(--color-gold)" /><PC stage="sf2" match={playoffs.sf2} accent="var(--color-gold)" /></Grid>
-                    {playoffs.final && <PC stage="final" match={playoffs.final} accent="var(--color-lime)" />}</>
-                  );
-                  if (mode === "top8_ipl") return (
-                    <><Elim />
-                    <Grid><PC stage="q1" match={playoffs.q1} accent="var(--color-lime)" /><PC stage="q2_b" match={playoffs.q2_b} accent="var(--color-cyan)" /></Grid>
-                    <Grid><PC stage="elim" match={playoffs.elim} accent="var(--color-gold)" /><PC stage="sf" match={playoffs.sf} accent="var(--color-gold)" /></Grid>
-                    {playoffs.final && <PC stage="final" match={playoffs.final} accent="var(--color-lime)" />}</>
-                  );
-                  return null;
-                })()}
-                <div style={{ marginTop: 32 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2 }}>FINAL STANDINGS</div>
-                    <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
-                  </div>
-                  <TournamentAwards players={players} rounds={rounds} champion={champion} />
-                  {(champion || playoffs?.champion) && (
-                    <div className="fu" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                      <button className="pb" onClick={copyStandingsText} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📋 COPY FOR WHATSAPP</button>
-                      <button className="pb" onClick={() => setShowPlayoffShare(true)} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><Camera size={14} /> SHARE IMAGE</button>
-                    </div>
-                  )}
-                  <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} />
-                </div>
-              </div>
+              <PlayoffSection playoffs={playoffs} champion={champion} players={players} profiles={profiles}
+                savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
+                copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} />
             ) : (
               <div className="glass-card" style={{ textAlign: "center", padding: "4rem", borderRadius: "var(--radius-lg)" }}>
                 <RefreshCw className="spin text-muted" size={32} style={{ margin: "0 auto 16px" }} />
@@ -427,10 +361,73 @@ function TournamentView({ t, theme, toggleTheme }) {
           </div>
         )}
       </div>
-
-      <ReactionsOverlay code={code} readOnly={readOnly} />
-      {champion && <div className="champion-trophy" style={{ fontSize: "25vh" }}>🏆</div>}
     </>
+  );
+}
+
+// ── Playoff section with bracket/scores toggle ────────────────────────────────
+function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds }) {
+  const [view, setView] = useState("bracket");
+  const mode = playoffs.mode || "ipl8";
+  const labels = { final_only: "GRAND FINAL", elim_to_sf: "TOP 4 BRACKET", ipl6: "6-TEAM IPL BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
+  const desc = { final_only: "Single match final", elim_to_sf: "Semi Final + Final", ipl6: "Q1 · Eliminator · Final", ipl8: "Q1 · Eliminator · Q2 · Final", top8: "QF · SF · Final", top8_ipl: "Q1 · Q2 · Elim · SF · Final" };
+  const elim = playoffs.eliminated || [];
+  const PC = ({ stage, match, accent }) => match ? <PlayoffCard match={match} onSave={(a, b, d, n) => savePlayoff(stage, a, b, d, n)} accent={accent || "var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} /> : null;
+  const Grid = ({ children }) => <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>{children}</div>;
+
+  return (
+    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      {/* Header */}
+      {!champion && !playoffs.champion && (
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-lime)", letterSpacing: 3 }}>{labels[mode]}</div>
+          <div style={{ fontSize: 12, color: "var(--color-muted)", marginBottom: 12 }}>{desc[mode]} · {players.length} players</div>
+          <div style={{ display: "inline-flex", gap: 4, background: "var(--surface)", borderRadius: "var(--radius-md)", padding: 4 }}>
+            {[["bracket","🌳 BRACKET"],["scores","📋 SCORES"]].map(([v,l]) => (
+              <button key={v} onClick={() => setView(v)} style={{ padding: "6px 14px", borderRadius: "var(--radius-sm)", border: "none", background: view === v ? "var(--accent)" : "transparent", color: view === v ? "#fff" : "var(--text-muted)", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, cursor: "pointer" }}>{l}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Champion */}
+      {(champion || playoffs.champion) && (
+        <div className="fu glass-card" style={{ border: "1px solid var(--color-lime)", borderRadius: "var(--radius-lg)", padding: "2rem", textAlign: "center", marginBottom: 24, background: "rgba(200,241,53,0.05)" }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>🏆</div>
+          <div style={{ fontSize: 11, letterSpacing: 4, color: "var(--color-lime)", marginBottom: 8, fontWeight: 600 }}>TOURNAMENT CHAMPIONS</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: "var(--color-lime)", letterSpacing: 3 }}>{champion || playoffs.champion}</div>
+        </div>
+      )}
+
+      {/* Bracket tree view */}
+      {view === "bracket" && <BracketTree playoffs={playoffs} profiles={profiles} />}
+
+      {/* Scores view */}
+      {view === "scores" && (() => {
+        if (mode === "final_only") return <><>{elim.length > 0 && <EliminatedBanner names={elim} />}</><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></>;
+        if (mode === "elim_to_sf") return <><PC stage="sf1" match={playoffs.sf1} accent="var(--color-lime)" />{playoffs.final?.teamA && <div style={{marginTop:16}}><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></div>}</>;
+        if (mode === "ipl6") return <><PC stage="q1" match={playoffs.q1} accent="var(--color-lime)" />{playoffs.elim && <div style={{marginTop:16}}><PC stage="elim" match={playoffs.elim} accent="var(--color-cyan)" /></div>}{playoffs.final?.teamA && <div style={{marginTop:16}}><PC stage="final" match={playoffs.final} accent="var(--color-gold)" /></div>}</>;
+        if (mode === "ipl8") return <><Grid><PC stage="q1" match={playoffs.q1} accent="var(--color-lime)" /><PC stage="elim" match={playoffs.elim} accent="var(--color-cyan)" /></Grid>{playoffs.q2 && <div style={{marginBottom:16}}><PC stage="q2" match={playoffs.q2} accent="var(--color-gold)" /></div>}{playoffs.final && <PC stage="final" match={playoffs.final} accent="var(--color-lime)" />}</>;
+        if (mode === "top8") return <><Grid><PC stage="qf1" match={playoffs.qf1} accent="var(--color-lime)" /><PC stage="qf2" match={playoffs.qf2} accent="var(--color-cyan)" /></Grid><Grid><PC stage="sf1" match={playoffs.sf1} accent="var(--color-gold)" /><PC stage="sf2" match={playoffs.sf2} accent="var(--color-gold)" /></Grid>{playoffs.final && <PC stage="final" match={playoffs.final} accent="var(--color-lime)" />}</>;
+        if (mode === "top8_ipl") return <><Grid><PC stage="q1" match={playoffs.q1} accent="var(--color-lime)" /><PC stage="q2_b" match={playoffs.q2_b} accent="var(--color-cyan)" /></Grid><Grid><PC stage="elim" match={playoffs.elim} accent="var(--color-gold)" /><PC stage="sf" match={playoffs.sf} accent="var(--color-gold)" /></Grid>{playoffs.final && <PC stage="final" match={playoffs.final} accent="var(--color-lime)" />}</>;
+        return null;
+      })()}
+
+      {/* Final standings */}
+      <div style={{ marginTop: 32 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2 }}>FINAL STANDINGS</div>
+          <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+        </div>
+        <TournamentAwards players={players} rounds={rounds} champion={champion} profiles={profiles} />
+        {(champion || playoffs?.champion) && (
+          <div className="fu" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <button className="pb" onClick={copyStandingsText} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📋 COPY FOR WHATSAPP</button>
+          </div>
+        )}
+        <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} />
+      </div>
+    </div>
   );
 }
 
@@ -593,10 +590,14 @@ function AppInner() {
     </div>
   );
 
-  // Show auth screen until user makes a choice
-  if (!isAuthenticated) return (
-    <AuthModal onGoogle={signInWithGoogle} onGuest={continueAsGuest} />
-  );
+  // Public tournament page — accessible without login
+  if (!isAuthenticated) {
+    const hash = window.location.hash;
+    if (hash.startsWith("#/tournament/")) {
+      return <PublicTournamentScreen />;
+    }
+    return <AuthModal onGoogle={signInWithGoogle} onGuest={continueAsGuest} />;
+  }
 
   // Local data sync prompt — shown once after first Google sign-in if local data exists
   if (showSyncPrompt) return (
@@ -695,6 +696,7 @@ function AppInner() {
         <Route path="/career" element={<CareerScreen onBack={() => navigate("/")} theme={theme} />} />
         <Route path="/account" element={<AccountScreen />} />
         <Route path="/player/:username" element={<PlayerScreen />} />
+        <Route path="/tournament/:code" element={<PublicTournamentScreen />} />
         <Route path="*" element={<HubScreen user={user} isGuest={isGuest} theme={theme} onToggleTheme={toggleTheme} onCreateTournament={() => navigate("/create")} onOpenTournament={() => {}} />} />
       </Routes>
       </div>

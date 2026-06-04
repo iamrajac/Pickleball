@@ -52,7 +52,7 @@ function Stepper({ label, value, onDec, onInc, min, max, note }) {
 }
 
 export function SetupScreen({ onStart, onJoin, onBack, theme }) {
-  const [step, setStep] = useState("form"); // "form" | "players"
+  const [step, setStep] = useState("form"); // "form" | "players" | "seeding"
   const [name, setName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState("");
@@ -196,8 +196,8 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             )}
 
             <button className="pb btn btn-primary" style={{ width: "100%", fontSize: 20, padding: "18px", borderRadius: "var(--radius-lg)", opacity: canStart ? 1 : 0.4, cursor: canStart ? "pointer" : "not-allowed" }}
-              onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null })}>
-              START TOURNAMENT →
+              onClick={() => canStart && setStep("seeding")}>
+              NEXT — SET SEEDING →
             </button>
           </div>
         </div>
@@ -206,6 +206,57 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             onSave={prof => { setProfiles(prev => ({ ...prev, [normalizePlayerName(names[editingAvatar])]: prof })); setEditingAvatar(null); }}
             onClose={() => setEditingAvatar(null)} />
         )}
+      </div>
+    );
+  }
+
+  if (step === "seeding") {
+    const seededNames = names.slice(0, numP).map(n => n.trim());
+    const move = (from, to) => {
+      const a = [...seededNames];
+      [a[from], a[to]] = [a[to], a[from]];
+      setNames([...a, ...names.slice(numP)]);
+    };
+
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", paddingBottom: 90 }}>
+        <div style={{ padding: "0 1rem" }}>
+          <div style={{ maxWidth: 640, margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, paddingTop: "2rem", paddingBottom: "1.5rem" }}>
+              <button className="pb ni" onClick={() => setStep("players")} style={{ background: "none", border: "none", color: "var(--text-secondary)", padding: 4, display: "flex", cursor: "pointer" }}>← Back</button>
+              <div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 2, color: "var(--accent)" }}>SEEDING</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Drag players to set seed order — Seed 1 is the strongest</div>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: "1.25rem", marginBottom: 16 }}>
+              {seededNames.map((n, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < seededNames.length - 1 ? "1px solid var(--border)" : "none" }}>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: i < 3 ? "var(--accent)" : "var(--text-muted)", width: 32, textAlign: "center", flexShrink: 0 }}>
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                  </div>
+                  <div style={{ flex: 1, fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{n}</div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => i > 0 && move(i, i - 1)} disabled={i === 0} style={{ width: 32, height: 32, borderRadius: 6, background: i === 0 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === 0 ? "var(--text-muted)" : "var(--text)", cursor: i === 0 ? "not-allowed" : "pointer", fontSize: 14 }}>↑</button>
+                    <button onClick={() => i < seededNames.length - 1 && move(i, i + 1)} disabled={i === seededNames.length - 1} style={{ width: 32, height: 32, borderRadius: 6, background: i === seededNames.length - 1 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === seededNames.length - 1 ? "var(--text-muted)" : "var(--text)", cursor: i === seededNames.length - 1 ? "not-allowed" : "pointer", fontSize: 14 }}>↓</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{ padding: "12px 16px", marginBottom: 16, borderLeft: "3px solid var(--upcoming)" }}>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                <strong style={{ color: "var(--text)" }}>Seeding affects playoffs:</strong> Seed 1 & 2 play Qualifier 1 (2 chances to reach Final). Seeds 3 & 4 play Eliminator (1 chance).
+              </div>
+            </div>
+
+            <button className="pb btn btn-primary" style={{ width: "100%", fontSize: 20, padding: "18px", borderRadius: "var(--radius-lg)" }}
+              onClick={() => onStart(seededNames, rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null })}>
+              START TOURNAMENT →
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { TournamentCardSkeleton } from "../components/Skeleton";
 import { PlayerAvatar } from "../components/PlayerAvatar";
-import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, query, where, limit, getDocs, onSnapshot } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
@@ -161,30 +161,33 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     return () => unsub();
   }, [user?.uid]);
 
-  // Load public tournaments from Firestore
+  // Load public tournaments — single where clause to avoid composite index requirement
   useEffect(() => {
     const fetchPublic = async () => {
       setLoadingPublic(true);
       try {
-        const liveQ = query(
+        const q = query(
           collection(firestore, "tournaments"),
           where("isPublic", "==", true),
-          where("status", "==", "live"),
-          orderBy("createdAt", "desc"),
-          limit(10)
+          limit(30)
         );
-        const upcomingQ = query(
-          collection(firestore, "tournaments"),
-          where("isPublic", "==", true),
-          where("status", "==", "upcoming"),
-          orderBy("scheduledAt", "asc"),
-          limit(10)
+        const snap = await getDocs(q);
+        const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const now = Date.now();
+        setPublicLive(
+          all
+            .filter(t => t.status === "live" || t.status === "in-progress")
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+            .slice(0, 10)
         );
-        const [liveSnap, upcomingSnap] = await Promise.all([getDocs(liveQ), getDocs(upcomingQ)]);
-        setPublicLive(liveSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-        setPublicUpcoming(upcomingSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setPublicUpcoming(
+          all
+            .filter(t => t.status === "upcoming" && (typeof t.scheduledAt === "number" ? t.scheduledAt : new Date(t.scheduledAt).getTime()) > now)
+            .sort((a, b) => (a.scheduledAt || 0) - (b.scheduledAt || 0))
+            .slice(0, 10)
+        );
       } catch (e) {
-        // Firestore not set up yet or offline — silently skip
+        console.warn("fetchPublic failed:", e);
       }
       setLoadingPublic(false);
     };
@@ -194,14 +197,20 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const now = Date.now();
   const toMs = v => v ? (typeof v === 'number' ? v : new Date(v).getTime()) : 0;
 
-  // Upcoming = scheduledAt is in the future (regardless of status field)
-  const myUpcoming = myTournaments.filter(t => toMs(t.scheduledAt) > now);
-  // Live = active status AND scheduledAt is in the past (or not set)
+  // UPCOMING — scheduled for the future (time hasn't arrived yet)
+  const myUpcoming = myTournaments.filter(t =>
+    t.status === "upcoming" && toMs(t.scheduledAt) > now
+  );
+
+  // LIVE — actively running (status is live/in-progress AND scheduled time has passed or no schedule)
   const myLive = myTournaments.filter(t =>
     (t.status === "live" || t.status === "in-progress") && toMs(t.scheduledAt) <= now
   );
-  // Completed = done/completed
-  const myCompleted = myTournaments.filter(t => t.status === "done" || t.status === "completed");
+
+  // RECENT — completed tournaments
+  const myCompleted = myTournaments.filter(t =>
+    t.status === "done" || t.status === "completed"
+  );
 
   // Schedule notifications for all upcoming tournaments
   useEffect(() => {
@@ -266,22 +275,22 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
       <div style={{ padding: "0 1rem" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
-          {/* My upcoming tournaments */}
-          {myUpcoming.length > 0 && (
+          {/* Live tournaments */}
+          {myLive.length > 0 && (
             <>
-              <SectionHeader label="🕐 UPCOMING" count={myUpcoming.length} color="var(--upcoming, #f59e0b)" />
-              {myUpcoming.sort((a, b) => toMs(a.scheduledAt) - toMs(b.scheduledAt)).map((t, i) => (
-                <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
+              <SectionHeader label="🔴 LIVE" count={myLive.length} color="var(--live)" />
+              {myLive.map((t, i) => (
+                <TournamentCard key={t.code || i} t={t} onClick={() => onOpenTournament(t)} />
               ))}
             </>
           )}
 
-          {/* My live tournaments */}
-          {myLive.length > 0 && (
+          {/* Upcoming tournaments */}
+          {myUpcoming.length > 0 && (
             <>
-              <SectionHeader label="🔴 RESUME" count={myLive.length} color="var(--live)" />
-              {myLive.map((t, i) => (
-                <TournamentCard key={t.code || i} t={t} onClick={() => onOpenTournament(t)} />
+              <SectionHeader label="🕐 UPCOMING" count={myUpcoming.length} color="var(--upcoming)" />
+              {myUpcoming.sort((a, b) => toMs(a.scheduledAt) - toMs(b.scheduledAt)).map((t, i) => (
+                <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
               ))}
             </>
           )}
