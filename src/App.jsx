@@ -13,6 +13,7 @@ import { HubScreen } from "./screens/HubScreen";
 import { SetupScreen } from "./screens/SetupScreen";
 import { HistoryScreen, HistoryDetail } from "./screens/HistoryScreen";
 import { CareerScreen } from "./screens/CareerScreen";
+import { PlayerScreen } from "./screens/PlayerScreen";
 import { ToastProvider, useToast } from "./components/Toast";
 import { MatchCard } from "./components/MatchCard";
 import { StandingsTable } from "./components/StandingsTable";
@@ -26,7 +27,8 @@ import { ScorerPinModal, ScorerPinEntry } from "./components/ScorerModal";
 import { AuthModal } from "./components/AuthModal";
 import { BottomNav } from "./components/BottomNav";
 import { playAudio } from "./utils/audio";
-import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, WifiOff } from "lucide-react";
+import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, WifiOff, ExternalLink } from "lucide-react";
+import { claimUsername, validateUsername, getPlayerByUid } from "./utils/playerProfile";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { Onboarding, useOnboarding } from "./components/Onboarding";
 
@@ -466,6 +468,32 @@ function SetupRoute({ t, theme, toggleTheme }) {
 function AccountScreen({ user, isGuest, onBack, theme }) {
   const { signOutUser, signInWithGoogle, clearGuest } = useAuth();
   const navigate = useNavigate();
+  const [playerProfile, setPlayerProfile] = useState(null);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [usernameErr, setUsernameErr] = useState("");
+  const [claimingUsername, setClaimingUsername] = useState(false);
+  const [claimSuccess, setClaimSuccess] = useState("");
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    getPlayerByUid(user.uid).then(p => { if (p) setPlayerProfile(p); });
+  }, [user?.uid]);
+
+  const handleClaimUsername = async () => {
+    const err = validateUsername(usernameInput);
+    if (err) { setUsernameErr(err); return; }
+    setClaimingUsername(true); setUsernameErr("");
+    try {
+      const u = await claimUsername(user.uid, usernameInput, user.displayName);
+      setPlayerProfile(prev => ({ ...prev, username: u, displayName: user.displayName }));
+      setClaimSuccess(u);
+      setUsernameInput("");
+    } catch (e) {
+      setUsernameErr(e.message || "Failed to claim username");
+    }
+    setClaimingUsername(false);
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 1rem 90px" }}>
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -473,23 +501,85 @@ function AccountScreen({ user, isGuest, onBack, theme }) {
           <button onClick={onBack} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 20 }}>←</button>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 28, letterSpacing: 2, color: "var(--accent)" }}>ACCOUNT</div>
         </div>
-        <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
-          {user ? (
-            <>
-              {user.photoURL && <img src={user.photoURL} alt="" style={{ width: 72, height: 72, borderRadius: "50%", marginBottom: 16, border: "3px solid var(--accent)" }} />}
+
+        {user ? (
+          <>
+            {/* User info card */}
+            <div className="card" style={{ padding: "1.75rem", textAlign: "center", marginBottom: 12 }}>
+              {user.photoURL && <img src={user.photoURL} alt="" style={{ width: 72, height: 72, borderRadius: "50%", marginBottom: 14, border: "3px solid var(--accent)" }} />}
               <div style={{ fontFamily: "var(--font-display)", fontSize: 24, letterSpacing: 2, marginBottom: 4 }}>{user.displayName}</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 28 }}>{user.email}</div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>{user.email}</div>
               <button className="pb btn btn-danger" onClick={signOutUser} style={{ width: "100%" }}>SIGN OUT</button>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2, marginBottom: 8 }}>GUEST MODE</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 28 }}>Sign in with Google to sync history across devices.</div>
-              <button className="pb btn btn-primary" onClick={async () => { await signInWithGoogle(); clearGuest(); navigate("/"); }} style={{ width: "100%", marginBottom: 12 }}>SIGN IN WITH GOOGLE</button>
-            </>
-          )}
-        </div>
+            </div>
+
+            {/* Username / Profile card */}
+            <div className="card" style={{ padding: "1.5rem", marginBottom: 12 }}>
+              {playerProfile?.username ? (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "var(--text-muted)", marginBottom: 10 }}>YOUR PROFILE</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 1.5, color: "var(--accent)" }}>
+                        @{playerProfile.username}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                        Public profile · stats auto-update
+                      </div>
+                    </div>
+                    <button onClick={() => navigate(`/player/${playerProfile.username}`)} style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      background: "var(--accent-dim)", border: "1px solid var(--accent)",
+                      borderRadius: "var(--radius-md)", padding: "8px 14px",
+                      color: "var(--accent)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                    }}>
+                      VIEW <ExternalLink size={13} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "var(--text-muted)", marginBottom: 6 }}>CLAIM YOUR USERNAME</div>
+                  <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14, lineHeight: 1.5 }}>
+                    Get a public profile page at <strong>/player/you</strong> — your stats update automatically across all tournaments you're tagged in.
+                  </div>
+                  {claimSuccess ? (
+                    <div style={{ textAlign: "center", padding: "12px", background: "var(--accent-dim)", borderRadius: "var(--radius-md)", color: "var(--accent)", fontWeight: 600 }}>
+                      ✓ @{claimSuccess} claimed!
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <input
+                        value={usernameInput}
+                        onChange={e => { setUsernameInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setUsernameErr(""); }}
+                        placeholder="your_username"
+                        className="input si"
+                        style={{ flex: 1, fontSize: 15 }}
+                        onKeyDown={e => e.key === "Enter" && handleClaimUsername()}
+                      />
+                      <button onClick={handleClaimUsername} disabled={claimingUsername} style={{
+                        background: "var(--accent)", color: "#fff", border: "none",
+                        borderRadius: "var(--radius-md)", padding: "0 18px",
+                        fontFamily: "var(--font-display)", fontSize: 15, letterSpacing: 1,
+                        cursor: claimingUsername ? "not-allowed" : "pointer", flexShrink: 0,
+                      }}>
+                        {claimingUsername ? "..." : "CLAIM"}
+                      </button>
+                    </div>
+                  )}
+                  {usernameErr && <div style={{ fontSize: 12, color: "var(--danger)", marginTop: 8 }}>{usernameErr}</div>}
+                  {!claimSuccess && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>3–20 chars · letters, numbers, underscores</div>}
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2, marginBottom: 8 }}>GUEST MODE</div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 28 }}>Sign in with Google to sync history across devices.</div>
+            <button className="pb btn btn-primary" onClick={async () => { await signInWithGoogle(); clearGuest(); navigate("/"); }} style={{ width: "100%", marginBottom: 12 }}>SIGN IN WITH GOOGLE</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -726,6 +816,7 @@ function AppInner() {
         <Route path="/account" element={
           <AccountScreen user={user} isGuest={isGuest} onBack={() => navigate("/")} theme={theme} />
         } />
+        <Route path="/player/:username" element={<PlayerScreen />} />
         <Route path="*" element={<HubScreen user={user} isGuest={isGuest} theme={theme} onToggleTheme={toggleTheme} onCreateTournament={() => navigate("/create")} onOpenTournament={() => {}} />} />
       </Routes>
       </div>

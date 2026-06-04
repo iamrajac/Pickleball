@@ -4,6 +4,7 @@ import { db } from "../firebase";
 import { Wifi, AlertCircle } from "lucide-react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { AvatarPickerModal } from "../components/AvatarPickerModal";
+import { PlayerSearchInput } from "../components/PlayerSearchInput";
 import { suggestRounds } from "./HubScreen";
 import { findDuplicatePlayerNames, normalizePlayerName } from "../utils/players";
 
@@ -137,14 +138,27 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
                 {Array.from({ length: numP }, (_, i) => {
                   const normName = normalizePlayerName(names[i]);
                   return (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: focus === i ? "var(--accent-dim)" : "var(--surface)", border: `1.5px solid ${focus === i ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--radius-md)", padding: "10px 14px", transition: "all 0.15s" }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: focus === i ? "var(--accent-dim)" : "var(--surface)", border: `1.5px solid ${focus === i ? "var(--accent)" : profiles[normName]?.uid ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--radius-md)", padding: "10px 14px", transition: "all 0.15s", position: "relative" }}>
                       <div onClick={() => setEditingAvatar(i)} style={{ cursor: "pointer", flexShrink: 0 }}>
                         <PlayerAvatar name={names[i]} profile={profiles[normName]} size={30} fallbackIndex={i} />
                       </div>
-                      <input value={names[i] || ""} placeholder={`Player ${i + 1}`}
-                        onFocus={() => setFocus(i)} onBlur={() => setFocus(null)}
-                        onChange={e => { const a = [...names]; a[i] = e.target.value; setNames(a); }}
-                        style={{ background: "transparent", border: "none", color: "var(--text)", fontSize: 15, outline: "none", flex: 1, fontFamily: "var(--font-body)" }} />
+                      <PlayerSearchInput
+                        value={names[i] || ""}
+                        placeholder={`Player ${i + 1}`}
+                        onChange={v => { const a = [...names]; a[i] = v; setNames(a); }}
+                        onLink={player => {
+                          const a = [...names]; a[i] = player?.displayName || names[i]; setNames(a);
+                          const norm = normalizePlayerName(player?.displayName || names[i]);
+                          setProfiles(prev => ({
+                            ...prev,
+                            [norm]: player ? { ...prev[norm], uid: player.uid, username: player.username, displayName: player.displayName } : prev[norm],
+                          }));
+                        }}
+                        style={{ color: "var(--text)", fontSize: 15, fontFamily: "var(--font-body)" }}
+                      />
+                      {profiles[normName]?.username && (
+                        <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 700, flexShrink: 0 }}>@{profiles[normName].username}</span>
+                      )}
                       <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-display)", flexShrink: 0 }}>{i + 1}</span>
                     </div>
                   );
