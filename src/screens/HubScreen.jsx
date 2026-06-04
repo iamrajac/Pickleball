@@ -60,7 +60,10 @@ function TournamentCard({ t, onClick }) {
           <span style={{ opacity: 0.7 }}>📅 {fmtDate(t.date || t.updatedAt)}</span>
         )}
         {t.champion && <span>🏆 {t.champion}</span>}
-        {!t.isPublic && <span className="badge badge-private" style={{ fontSize: 9 }}>🔒 PRIVATE</span>}
+        {t.isPublic === false || t.isPublic === undefined && t.code
+          ? <span className="badge badge-private" style={{ fontSize: 9 }}>🔒 PRIVATE</span>
+          : <span className="badge" style={{ fontSize: 9, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(16,212,142,0.25)" }}>🌐 PUBLIC</span>
+        }
       </div>
 
       {t.code && (
@@ -278,49 +281,32 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
       <div style={{ padding: "0 1rem" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
-          {/* Live tournaments */}
-          {myLive.length > 0 && (
-            <>
-              <SectionHeader label="🔴 LIVE" count={myLive.length} color="var(--live)" />
-              {myLive.map((t, i) => (
-                <TournamentCard key={t.code || i} t={t} onClick={() => onOpenTournament(t)} />
-              ))}
-            </>
-          )}
-
-          {/* Upcoming tournaments */}
-          {myUpcoming.length > 0 && (
-            <>
-              <SectionHeader label="🕐 UPCOMING" count={myUpcoming.length} color="var(--upcoming)" />
-              {myUpcoming.sort((a, b) => toMs(a.scheduledAt) - toMs(b.scheduledAt)).map((t, i) => (
-                <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
-              ))}
-            </>
-          )}
-
-          {/* Public live — exclude user's own (already shown above) */}
+          {/* LIVE — all live tournaments merged, deduped by code */}
           {(() => {
-            const myCodes = new Set(myTournaments.map(t => t.code));
-            const others = publicLive.filter(t => !myCodes.has(t.code || t.id));
-            return others.length > 0 ? (
+            const seen = new Set();
+            const all = [...myLive, ...publicLive.map(t => ({ ...t, code: t.code || t.id }))]
+              .filter(t => { const k = t.code; if (seen.has(k)) return false; seen.add(k); return true; });
+            return all.length > 0 ? (
               <>
-                <SectionHeader label="⚡ OTHERS LIVE" count={others.length} color="var(--live)" />
-                {others.map(t => (
-                  <TournamentCard key={t.id} t={{ ...t, status: "live" }} onClick={() => onOpenTournament(t)} />
+                <SectionHeader label="🔴 LIVE" count={all.length} color="var(--live)" />
+                {all.map((t, i) => (
+                  <TournamentCard key={t.code || i} t={{ ...t, status: "live" }} onClick={() => onOpenTournament(t)} />
                 ))}
               </>
             ) : null;
           })()}
 
-          {/* Public upcoming — exclude user's own */}
+          {/* UPCOMING — all upcoming merged, deduped */}
           {(() => {
-            const myCodes = new Set(myTournaments.map(t => t.code));
-            const others = publicUpcoming.filter(t => !myCodes.has(t.code || t.id));
-            return others.length > 0 ? (
+            const seen = new Set();
+            const all = [...myUpcoming, ...publicUpcoming.map(t => ({ ...t, code: t.code || t.id }))]
+              .filter(t => { const k = t.code; if (seen.has(k)) return false; seen.add(k); return true; })
+              .sort((a, b) => toMs(a.scheduledAt) - toMs(b.scheduledAt));
+            return all.length > 0 ? (
               <>
-                <SectionHeader label="🕐 OTHERS UPCOMING" count={others.length} color="var(--upcoming)" />
-                {others.map(t => (
-                  <TournamentCard key={t.id} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
+                <SectionHeader label="🕐 UPCOMING" count={all.length} color="var(--upcoming)" />
+                {all.map((t, i) => (
+                  <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }} onClick={() => onOpenTournament(t)} />
                 ))}
               </>
             ) : null;
