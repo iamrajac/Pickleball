@@ -344,9 +344,9 @@ export function useTournament() {
           seen.set(code, finalEntry);
           saveH(Array.from(seen.values())); // update localStorage cache
 
-          // Also save to this device's Firestore account (works for viewers too)
+          // Only save to Firestore for the creator/scorer — not for spectators
           const uid = getAuth().currentUser?.uid;
-          if (uid) saveFullTournament(uid, finalEntry);
+          if (uid && canEditRef.current) saveFullTournament(uid, finalEntry);
         }
       }
       setSyncing(false);
@@ -450,8 +450,9 @@ export function useTournament() {
     if (idx >= 0) h[idx] = entry; else h.push(entry);
     saveH(h); // always cache locally
 
+    // Only persist to Firestore for creator/scorer — spectators don't get it in their history
     const uid = getAuth().currentUser?.uid;
-    if (uid) saveFullTournament(uid, entry);
+    if (uid && canEditRef.current) saveFullTournament(uid, entry);
   }, [code, players, profiles, themeColor, tournamentName, isPublic]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
