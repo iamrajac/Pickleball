@@ -147,11 +147,12 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
                         placeholder={`Player ${i + 1}`}
                         onChange={v => { const a = [...names]; a[i] = v; setNames(a); }}
                         onLink={player => {
-                          const a = [...names]; a[i] = player?.displayName || names[i]; setNames(a);
-                          const norm = normalizePlayerName(player?.displayName || names[i]);
+                          if (!player) return;
+                          const a = [...names]; a[i] = player.displayName || player.username; setNames(a);
+                          const norm = normalizePlayerName(player.displayName || player.username);
                           setProfiles(prev => ({
                             ...prev,
-                            [norm]: player ? { ...prev[norm], uid: player.uid, username: player.username, displayName: player.displayName } : prev[norm],
+                            [norm]: { ...prev[norm], uid: player.uid, username: player.username, displayName: player.displayName },
                           }));
                         }}
                         style={{ color: "var(--text)", fontSize: 15, fontFamily: "var(--font-body)" }}

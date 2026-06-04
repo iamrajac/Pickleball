@@ -40,7 +40,7 @@ export function PlayerSearchInput({ value, onChange, onLink, placeholder, style 
       <input
         value={value}
         placeholder={placeholder}
-        onChange={e => { onChange(e.target.value); onLink?.(null); }}
+        onChange={e => onChange(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}
         style={{ ...style, background: "transparent", border: "none", outline: "none", width: "100%" }}
       />
