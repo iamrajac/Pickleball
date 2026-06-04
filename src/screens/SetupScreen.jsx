@@ -8,6 +8,8 @@ import { PlayerSearchInput } from "../components/PlayerSearchInput";
 import { suggestRounds } from "./HubScreen";
 import { findDuplicatePlayerNames, normalizePlayerName } from "../utils/players";
 import { getGlobalProfiles } from "../utils/globalProfiles";
+import { loadH } from "../utils/history";
+import { computeCareerStats } from "../utils/careerStats";
 
 const OPTIMAL_REASONS = {
   4: "3 rounds — everyone pairs with everyone once",
@@ -218,31 +220,71 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
       setNames([...a, ...names.slice(numP)]);
     };
 
+    const autoSeedByStats = () => {
+      const history = loadH();
+      const { players: statPlayers } = computeCareerStats(history);
+      const statMap = {};
+      statPlayers.forEach(p => { statMap[p.name.toLowerCase()] = p; });
+
+      const sorted = [...seededNames].sort((a, b) => {
+        const sa = statMap[a.toLowerCase()];
+        const sb = statMap[b.toLowerCase()];
+        // Known players sorted by win rate desc, unknown players go to bottom
+        if (!sa && !sb) return 0;
+        if (!sa) return 1;
+        if (!sb) return -1;
+        if (sb.winRate !== sa.winRate) return sb.winRate - sa.winRate;
+        return sb.wins - sa.wins;
+      });
+      setNames([...sorted, ...names.slice(numP)]);
+    };
+
     return (
       <div style={{ minHeight: "100vh", background: "var(--bg)", paddingBottom: 90 }}>
         <div style={{ padding: "0 1rem" }}>
           <div style={{ maxWidth: 640, margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, paddingTop: "2rem", paddingBottom: "1.5rem" }}>
               <button className="pb ni" onClick={() => setStep("players")} style={{ background: "none", border: "none", color: "var(--text-secondary)", padding: 4, display: "flex", cursor: "pointer" }}>← Back</button>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 2, color: "var(--accent)" }}>SEEDING</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Drag players to set seed order — Seed 1 is the strongest</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Seed 1 is strongest — plays Q1 (2 chances)</div>
               </div>
+              <button onClick={autoSeedByStats} style={{
+                background: "var(--accent-dim)", border: "1px solid var(--accent)",
+                borderRadius: "var(--radius-md)", padding: "8px 12px",
+                color: "var(--accent)", fontSize: 11, fontWeight: 700,
+                letterSpacing: 1, cursor: "pointer", flexShrink: 0,
+              }}>
+                ⚡ AUTO SEED
+              </button>
             </div>
 
             <div className="card" style={{ padding: "1.25rem", marginBottom: 16 }}>
-              {seededNames.map((n, i) => (
+              {(() => {
+                const history = loadH();
+                const { players: sp } = computeCareerStats(history);
+                const sm = {};
+                sp.forEach(p => { sm[p.name.toLowerCase()] = p; });
+                return seededNames.map((n, i) => {
+                  const st = sm[n.toLowerCase()];
+                  return (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < seededNames.length - 1 ? "1px solid var(--border)" : "none" }}>
                   <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: i < 3 ? "var(--accent)" : "var(--text-muted)", width: 32, textAlign: "center", flexShrink: 0 }}>
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                   </div>
-                  <div style={{ flex: 1, fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{n}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{n}</div>
+                    {st ? <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{st.winRate}% win rate · {st.matches} matches</div>
+                        : <div style={{ fontSize: 11, color: "var(--text-muted)" }}>No stats yet</div>}
+                  </div>
                   <div style={{ display: "flex", gap: 4 }}>
                     <button onClick={() => i > 0 && move(i, i - 1)} disabled={i === 0} style={{ width: 32, height: 32, borderRadius: 6, background: i === 0 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === 0 ? "var(--text-muted)" : "var(--text)", cursor: i === 0 ? "not-allowed" : "pointer", fontSize: 14 }}>↑</button>
                     <button onClick={() => i < seededNames.length - 1 && move(i, i + 1)} disabled={i === seededNames.length - 1} style={{ width: 32, height: 32, borderRadius: 6, background: i === seededNames.length - 1 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === seededNames.length - 1 ? "var(--text-muted)" : "var(--text)", cursor: i === seededNames.length - 1 ? "not-allowed" : "pointer", fontSize: 14 }}>↓</button>
                   </div>
                 </div>
-              ))}
+                  );
+                });
+              })()}
             </div>
 
             <div className="card" style={{ padding: "12px 16px", marginBottom: 16, borderLeft: "3px solid var(--upcoming)" }}>

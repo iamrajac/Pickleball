@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { TournamentCardSkeleton } from "../components/Skeleton";
 import { PlayerAvatar } from "../components/PlayerAvatar";
-import { collection, query, where, limit, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, query, where, limit, getDocs, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
@@ -197,17 +197,32 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const now = Date.now();
   const toMs = v => v ? (typeof v === 'number' ? v : new Date(v).getTime()) : 0;
 
-  // UPCOMING — scheduled for the future (time hasn't arrived yet)
-  const myUpcoming = myTournaments.filter(t =>
-    t.status === "upcoming" && toMs(t.scheduledAt) > now
-  );
+  // Auto-transition: upcoming tournaments whose time has now passed → mark live
+  useEffect(() => {
+    if (!user?.uid) return;
+    myTournaments.forEach(t => {
+      const sAt = toMs(t.scheduledAt);
+      if (t.status === "upcoming" && sAt > 0 && sAt <= now) {
+        updateDoc(doc(firestore, "users", user.uid, "tournaments", t.code), { status: "live" }).catch(() => {});
+        if (t.isPublic) updateDoc(doc(firestore, "tournaments", t.code), { status: "live" }).catch(() => {});
+      }
+    });
+  }, [myTournaments, user?.uid]);
 
-  // LIVE — actively running (status is live/in-progress AND scheduled time has passed or no schedule)
-  const myLive = myTournaments.filter(t =>
-    (t.status === "live" || t.status === "in-progress") && toMs(t.scheduledAt) <= now
-  );
+  // UPCOMING — scheduled time is in the future (time-based, works regardless of status field)
+  const myUpcoming = myTournaments.filter(t => {
+    const sAt = toMs(t.scheduledAt);
+    return sAt > now && t.status !== "done" && t.status !== "completed";
+  });
 
-  // RECENT — completed tournaments
+  // LIVE — time has passed (or no schedule) and not completed
+  const myLive = myTournaments.filter(t => {
+    if (t.status === "done" || t.status === "completed") return false;
+    const sAt = toMs(t.scheduledAt);
+    return sAt <= now && (t.status === "live" || t.status === "in-progress" || t.status === "upcoming");
+  });
+
+  // RECENT — completed
   const myCompleted = myTournaments.filter(t =>
     t.status === "done" || t.status === "completed"
   );

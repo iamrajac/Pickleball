@@ -43,11 +43,19 @@ export async function saveFullTournament(uid, entry) {
       ({ matches: Array.isArray(round) ? round : [] })
     );
 
+    const sAtMs = entry.scheduledAt
+      ? (typeof entry.scheduledAt === 'number' ? entry.scheduledAt : new Date(entry.scheduledAt).getTime())
+      : null;
+    const derivedStatus = entry.champion ? "completed"
+      : (sAtMs && sAtMs > Date.now()) ? "upcoming"
+      : "live";
+
     const raw = {
       code: entry.code,
       name: entry.name || "",
       date: entry.date || new Date().toISOString(),
-      status: entry.status || (entry.champion ? "completed" : "in-progress"),
+      status: entry.status || derivedStatus,
+      scheduledAt: sAtMs || null,
       players: entry.players || [],
       playerCount: entry.players?.length || 0,
       rounds: firestoreRounds,
@@ -72,11 +80,14 @@ export async function saveFullTournament(uid, entry) {
 
     // Also write a public summary to top-level tournaments collection for discovery
     if (data.isPublic) {
-      const publicStatus = data.status === "in-progress" ? "live" : data.status;
+      const publicStatus = (data.status === "in-progress" || data.status === "live") && data.scheduledAt && data.scheduledAt > Date.now()
+        ? "upcoming"
+        : data.status === "in-progress" ? "live" : data.status;
       const summary = sanitizeForFirestore({
         code: data.code,
         name: data.name,
         status: publicStatus,
+        scheduledAt: data.scheduledAt || null,
         playerCount: data.playerCount,
         champion: data.champion,
         isPublic: true,
