@@ -649,37 +649,35 @@ export function useTournament() {
     joinCompleteRef.current = true;
     window.scrollTo(0, 0);
 
-    // Save to localStorage + Firestore for ALL Google users who join (viewer or creator)
-    // data.rounds from Firebase is an object {0:{...},1:{...}} — convert to array
-    const joinedRounds = Array.isArray(data.rounds)
-      ? data.rounds.map(r => (r && !Array.isArray(r) ? Object.values(r) : r || []))
-      : data.rounds
-        ? Object.values(data.rounds).map(r => r ? Object.values(r) : [])
-        : [];
-    const joinedPlayers = data.players || [];
-    const entry = {
-      code: c,
-      name: data.name || "",
-      date: new Date().toISOString(),
-      status: data.champion ? "completed" : "in-progress",
-      players: joinedPlayers,
-      playerCount: joinedPlayers.length,
-      rounds: joinedRounds,
-      playoffs: safePlayoffs(data.playoffs),
-      champion: data.champion || null,
-      finalStandings: computeStandings(joinedPlayers, joinedRounds),
-      profiles: data.profiles || {},
-      themeColor: data.themeColor || "#10d48e",
-      isPublic: data.isPublic !== false,
-    };
-    const all = loadH().filter(t => t.code);
-    const seen = new Map();
-    all.forEach(t => seen.set(t.code, t));
-    const existing = seen.get(c);
-    const toSave = { ...entry, date: existing?.date || entry.date };
-    seen.set(c, toSave);
-    saveH(Array.from(seen.values()));
-    if (uid) saveFullTournament(uid, toSave);
+    // Only save to history/Firestore for creators — not spectators
+    if (canEdit) {
+      const joinedRounds = Array.isArray(data.rounds)
+        ? data.rounds.map(r => (r && !Array.isArray(r) ? Object.values(r) : r || []))
+        : data.rounds
+          ? Object.values(data.rounds).map(r => r ? Object.values(r) : [])
+          : [];
+      const joinedPlayers = data.players || [];
+      const entry = {
+        code: c, name: data.name || "",
+        date: new Date().toISOString(),
+        status: data.champion ? "completed" : "live",
+        players: joinedPlayers, playerCount: joinedPlayers.length,
+        rounds: joinedRounds, playoffs: safePlayoffs(data.playoffs),
+        champion: data.champion || null,
+        finalStandings: computeStandings(joinedPlayers, joinedRounds),
+        profiles: data.profiles || {}, themeColor: data.themeColor || "#10d48e",
+        isPublic: data.isPublic !== false,
+        scheduledAt: data.scheduledAt || null,
+      };
+      const all = loadH().filter(t => t.code);
+      const seen = new Map();
+      all.forEach(t => seen.set(t.code, t));
+      const existing = seen.get(c);
+      const toSave = { ...entry, date: existing?.date || entry.date };
+      seen.set(c, toSave);
+      saveH(Array.from(seen.values()));
+      if (uid) saveFullTournament(uid, toSave);
+    }
   };
 
   const saveResult = (ri, mi, sA, sB, dur, notes = "") => {
