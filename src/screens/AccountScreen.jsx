@@ -310,7 +310,15 @@ export function AccountScreen() {
   const [showUsername, setShowUsername] = useState(false);
 
   useEffect(() => {
-    if (user?.uid) getPlayerByUid(user.uid).then(p => setProfile(p || {}));
+    if (!user?.uid) return;
+    getPlayerByUid(user.uid).then(p => {
+      setProfile(p || {});
+      // Push avatar into globalProfiles so it shows everywhere without needing to re-save
+      if (p?.avatar && p?.displayName) {
+        mergeIntoGlobal({ [normalizePlayerName(p.displayName)]: p.avatar });
+        syncGlobalProfilesToFirestore(user.uid, firestore);
+      }
+    });
   }, [user?.uid]);
 
   const handleSave = async ({ displayName, bio, avatar }) => {

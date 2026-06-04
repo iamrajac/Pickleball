@@ -20,7 +20,7 @@ export function mergeIntoGlobal(tournamentProfiles) {
   const current = getGlobalProfiles();
   let changed = false;
   Object.entries(tournamentProfiles).forEach(([name, profile]) => {
-    if (profile && (profile.photo || profile.color)) {
+    if (profile && (profile.photo || profile.color || profile.type)) {
       const existing = current[name] || {};
       const merged = { ...existing, ...profile };
       // Only update if something actually changed

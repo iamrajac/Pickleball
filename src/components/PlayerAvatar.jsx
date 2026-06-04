@@ -21,10 +21,10 @@ export function PlayerAvatar({ name, profile, size = 30, fallbackIndex = 0 }) {
     overflow: "hidden"
   };
 
-  if (profile?.type === 'image') {
+  if (profile?.type === 'image' || profile?.photo) {
     return (
       <div style={st}>
-        <img src={profile.value} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={profile.value || profile.photo} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
     );
   }
