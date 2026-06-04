@@ -7,6 +7,7 @@ import { AvatarPickerModal } from "../components/AvatarPickerModal";
 import { PlayerSearchInput } from "../components/PlayerSearchInput";
 import { suggestRounds } from "./HubScreen";
 import { findDuplicatePlayerNames, normalizePlayerName } from "../utils/players";
+import { getGlobalProfiles } from "../utils/globalProfiles";
 
 const OPTIMAL_REASONS = {
   4: "3 rounds — everyone pairs with everyone once",
@@ -59,7 +60,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
   const [rounds, setRounds] = useState(7);
   const [roundsSuggested, setRoundsSuggested] = useState(true);
   const [names, setNames] = useState(Array(8).fill("").map((_, i) => `Player ${i + 1}`));
-  const [profiles, setProfiles] = useState({});
+  const [profiles, setProfiles] = useState(() => getGlobalProfiles());
   const [editingAvatar, setEditingAvatar] = useState(null);
   const [focus, setFocus] = useState(null);
 

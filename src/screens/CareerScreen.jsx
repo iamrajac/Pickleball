@@ -5,6 +5,9 @@ import { fetchUserTournaments } from "../hooks/useTournament";
 import { computeCareerStats, getH2HBetween } from "../utils/careerStats";
 import { ACOLORS } from "../utils/theme";
 import { ArrowLeft, Trophy, Zap, Users, Target, TrendingUp, Award } from "lucide-react";
+import { PlayerAvatar } from "../components/PlayerAvatar";
+import { getGlobalProfiles } from "../utils/globalProfiles";
+import { normalizePlayerName } from "../utils/players";
 
 // G is computed per render based on theme
 const getG = (theme) => ({
@@ -32,11 +35,8 @@ function StatCard({ icon, label, value, sub, color, G = {} }) {
 }
 
 function Avatar({ name, size = 36, index = 0 }) {
-  return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: ACOLORS[index % ACOLORS.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, color: "#0d0f0a", flexShrink: 0 }}>
-      {name?.[0]?.toUpperCase()}
-    </div>
-  );
+  const profile = getGlobalProfiles()[normalizePlayerName(name)];
+  return <PlayerAvatar name={name} profile={profile} size={size} fallbackIndex={index} />;
 }
 
 function PlayerCard({ player, rank, onClick, isSelected, G }) {

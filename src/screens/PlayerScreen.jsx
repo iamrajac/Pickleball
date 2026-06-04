@@ -6,29 +6,7 @@ import { ArrowLeft, Trophy, Zap, Target, TrendingUp, Users } from "lucide-react"
 import { getPlayerByUsername, computeBadges, BADGES } from "../utils/playerProfile";
 import { computeCareerStats } from "../utils/careerStats";
 import { fromFirestoreDoc } from "../hooks/useTournament";
-import { ACOLORS } from "../utils/theme";
-
-// ── Avatar ──────────────────────────────────────────────────────────────────
-
-function BigAvatar({ name, size = 72 }) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%",
-      background: ACOLORS[Math.abs(hashStr(name || "")) % ACOLORS.length],
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.4, fontWeight: 700, color: "#0d0f0a",
-      border: "3px solid var(--accent)", flexShrink: 0,
-    }}>
-      {(name || "?")[0].toUpperCase()}
-    </div>
-  );
-}
-
-function hashStr(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return h;
-}
+import { PlayerAvatar } from "../components/PlayerAvatar";
 
 // ── Stat pill ───────────────────────────────────────────────────────────────
 
@@ -213,7 +191,9 @@ export function PlayerScreen() {
         {/* Profile hero */}
         <div className="card" style={{ padding: "1.75rem", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: badges.length > 0 ? 18 : 0 }}>
-            <BigAvatar name={displayName} size={68} />
+            <div style={{ border: "3px solid var(--accent)", borderRadius: "50%", flexShrink: 0 }}>
+              <PlayerAvatar name={displayName} profile={profile?.avatar} size={68} />
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 1.5, color: "var(--text)", lineHeight: 1.1, marginBottom: 3 }}>
                 {displayName}
