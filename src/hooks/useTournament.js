@@ -444,6 +444,7 @@ export function useTournament() {
         isPublic, scheduledAt: scheduledAt || null,
         scorerPin: scorerPin ? String(scorerPin) : null,
         creatorUid: uid || null,
+        claims: claims || null,
         ts: Date.now()
       });
       pendingSync.current = null;
@@ -506,6 +507,7 @@ export function useTournament() {
         isPublic, scheduledAt: scheduledAt || null,
         scorerPin: scorerPin ? String(scorerPin) : null,
         creatorUid: uid || null,
+        claims: claims || null,
         ts: Date.now()
       });
       pendingSync.current = null;
