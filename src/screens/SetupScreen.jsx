@@ -212,8 +212,6 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             </button>
           </div>
         </div>
-        {false && (
-        )}
       </div>
     );
   }
