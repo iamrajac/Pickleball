@@ -13,13 +13,14 @@ export function computeCareerStats(history) {
   const getPlayer = (name) => {
     const norm = normalizePlayerName(name);
     if (!players[norm]) players[norm] = {
-      name, // Store original display name for UI
+      name,
       matches: 0, wins: 0, losses: 0,
       scored: 0, conceded: 0, pts: 0,
       tournaments: 0, titles: 0,
       currentStreak: 0, bestStreak: 0, streakType: null,
-      lastResults: [], // W/L array across all tournaments in order
-      tournamentsPlayed: [],
+      lastResults: [],
+      tournamentsPlayed: [], // { code, date, wins, losses, name }
+      roundStats: {},        // { roundIndex: { wins, losses } }
     };
     return players[norm];
   };
@@ -104,13 +105,41 @@ export function computeCareerStats(history) {
           });
     };
 
+    // Track per-tournament win/loss per player
+    const tMatchResults = {}; // playerName -> { wins, losses }
+
     // Process group stage matches
     if (t.rounds && Array.isArray(t.rounds)) {
-      t.rounds.forEach(round => {
+      t.rounds.forEach((round, roundIdx) => {
         if (!round || !Array.isArray(round)) return;
-        round.forEach(m => processMatch(m));
+        round.forEach(m => {
+          processMatch(m);
+          if (!m?.played || !m.teamA || !m.teamB) return;
+          const sA = Number(m.scoreA), sB = Number(m.scoreB);
+          const winA = sA > sB;
+          [...m.teamA, ...m.teamB].forEach((p, idx) => {
+            const inTeamA = idx < m.teamA.length;
+            const won = inTeamA ? winA : !winA;
+            const pl = getPlayer(p);
+            // Round stats
+            if (!pl.roundStats[roundIdx]) pl.roundStats[roundIdx] = { wins: 0, losses: 0 };
+            if (won) pl.roundStats[roundIdx].wins++; else pl.roundStats[roundIdx].losses++;
+            // Tournament stats
+            if (!tMatchResults[p]) tMatchResults[p] = { wins: 0, losses: 0 };
+            if (won) tMatchResults[p].wins++; else tMatchResults[p].losses++;
+          });
+        });
       });
     }
+
+    // Save per-tournament record for each player
+    Object.entries(tMatchResults).forEach(([name, rec]) => {
+      getPlayer(name).tournamentsPlayed.push({
+        code: t.code, name: t.name || t.code,
+        date: t.date, wins: rec.wins, losses: rec.losses,
+        winRate: rec.wins + rec.losses > 0 ? Math.round((rec.wins / (rec.wins + rec.losses)) * 100) : 0,
+      });
+    });
 
     // Process playoff matches
     if (t.playoffs) {
@@ -118,6 +147,38 @@ export function computeCareerStats(history) {
       playoffStages.forEach(stage => {
         if (t.playoffs[stage]) processMatch(t.playoffs[stage]);
       });
+    }
+  });
+
+  // Compute nemesis, best partner, worst partner per player
+  Object.values(players).forEach(p => {
+    const norm = normalizePlayerName(p.name);
+
+    // Nemesis: player who beats you most (min 2 matches)
+    let nemesis = null, nemesisLosses = 0;
+    Object.values(h2h).forEach(rec => {
+      if (!rec.players.some(x => normalizePlayerName(x) === norm)) return;
+      const aIsP = normalizePlayerName(rec.players[0]) === norm;
+      const myWins = aIsP ? rec.aWins : rec.bWins;
+      const theirWins = aIsP ? rec.bWins : rec.aWins;
+      if (rec.matches < 2) return;
+      if (theirWins > nemesisLosses) {
+        nemesisLosses = theirWins;
+        nemesis = { name: aIsP ? rec.players[1] : rec.players[0], theirWins, myWins, matches: rec.matches };
+      }
+    });
+    p.nemesis = nemesis;
+
+    // Best & worst partner (min 2 matches together)
+    const myPartnerships = Object.values(partnerships).filter(pr =>
+      pr.players.some(x => normalizePlayerName(x) === norm) && pr.matches >= 2
+    );
+    if (myPartnerships.length > 0) {
+      const sorted = [...myPartnerships].sort((a, b) => (b.wins/b.matches) - (a.wins/a.matches));
+      const best = sorted[0];
+      const worst = sorted[sorted.length - 1];
+      p.bestPartner = { name: best.players.find(x => normalizePlayerName(x) !== norm), winRate: Math.round((best.wins / best.matches) * 100), matches: best.matches };
+      p.worstPartner = worst !== best ? { name: worst.players.find(x => normalizePlayerName(x) !== norm), winRate: Math.round((worst.wins / worst.matches) * 100), matches: worst.matches } : null;
     }
   });
 

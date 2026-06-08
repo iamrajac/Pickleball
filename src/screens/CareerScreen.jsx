@@ -201,6 +201,121 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
           })()}
           {!h2hTarget && <div style={{ fontSize: 12, color: G.muted }}>Select a player to see head-to-head record</div>}
         </div>
+
+        {/* Nemesis */}
+        {player.nemesis && (
+          <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem", marginBottom: 16, border: "1px solid rgba(239,68,68,0.25)" }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 10, fontWeight: 600 }}>😤 NEMESIS</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Avatar name={player.nemesis.name} size={40} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: G.danger }}>{player.nemesis.name}</div>
+                <div style={{ fontSize: 12, color: G.muted }}>beats you {player.nemesis.theirWins}/{player.nemesis.matches} times</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: G.danger, lineHeight: 1 }}>
+                  {Math.round((player.nemesis.theirWins / player.nemesis.matches) * 100)}%
+                </div>
+                <div style={{ fontSize: 9, color: G.muted, letterSpacing: 1 }}>THEIR WIN RATE vs YOU</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Partner Analytics */}
+        {(player.bestPartner || player.worstPartner) && (
+          <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem", marginBottom: 16 }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 12, fontWeight: 600 }}>🤝 PARTNER ANALYTICS</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              {player.bestPartner && (
+                <div style={{ flex: 1, background: "rgba(16,212,142,0.08)", borderRadius: 10, padding: "12px", border: "1px solid rgba(16,212,142,0.2)" }}>
+                  <div style={{ fontSize: 9, color: G.lime, letterSpacing: 1, fontWeight: 700, marginBottom: 6 }}>✅ BEST PARTNER</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <Avatar name={player.bestPartner.name} size={28} />
+                    <div style={{ fontWeight: 600, fontSize: 13, color: G.text }}>{player.bestPartner.name}</div>
+                  </div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: G.lime, lineHeight: 1 }}>{player.bestPartner.winRate}%</div>
+                  <div style={{ fontSize: 10, color: G.muted }}>{player.bestPartner.matches} matches</div>
+                </div>
+              )}
+              {player.worstPartner && (
+                <div style={{ flex: 1, background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "12px", border: "1px solid rgba(239,68,68,0.2)" }}>
+                  <div style={{ fontSize: 9, color: G.danger, letterSpacing: 1, fontWeight: 700, marginBottom: 6 }}>⚠️ AVOID WITH</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <Avatar name={player.worstPartner.name} size={28} />
+                    <div style={{ fontWeight: 600, fontSize: 13, color: G.text }}>{player.worstPartner.name}</div>
+                  </div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: G.danger, lineHeight: 1 }}>{player.worstPartner.winRate}%</div>
+                  <div style={{ fontSize: 10, color: G.muted }}>{player.worstPartner.matches} matches</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Win Rate Trend — per tournament */}
+        {player.tournamentsPlayed?.length > 1 && (
+          <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem", marginBottom: 16 }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 12, fontWeight: 600 }}>📈 WIN RATE TREND</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 60, marginBottom: 8 }}>
+              {player.tournamentsPlayed.map((t, i) => (
+                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                  <div style={{ fontSize: 9, color: t.winRate >= 60 ? G.lime : t.winRate >= 40 ? G.gold : G.danger, fontWeight: 700 }}>{t.winRate}%</div>
+                  <div style={{ width: "100%", background: t.winRate >= 60 ? "rgba(16,212,142,0.8)" : t.winRate >= 40 ? "rgba(241,200,53,0.8)" : "rgba(239,68,68,0.8)", borderRadius: "4px 4px 0 0", height: `${Math.max(t.winRate * 0.44, 4)}px`, transition: "height 0.4s" }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {player.tournamentsPlayed.map((t, i) => (
+                <div key={i} style={{ flex: 1, fontSize: 8, color: G.muted, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {t.name?.slice(0, 6) || `T${i + 1}`}
+                </div>
+              ))}
+            </div>
+            {(() => {
+              const recent = player.tournamentsPlayed.slice(-3);
+              if (recent.length < 2) return null;
+              const avg = recent.reduce((s, t) => s + t.winRate, 0) / recent.length;
+              const prev = player.tournamentsPlayed.slice(-6, -3);
+              if (prev.length === 0) return null;
+              const prevAvg = prev.reduce((s, t) => s + t.winRate, 0) / prev.length;
+              const delta = Math.round(avg - prevAvg);
+              if (delta === 0) return null;
+              return (
+                <div style={{ marginTop: 8, fontSize: 12, color: delta > 0 ? G.lime : G.danger, fontWeight: 600 }}>
+                  {delta > 0 ? "↑" : "↓"} {Math.abs(delta)}% vs previous 3 tournaments — {delta > 0 ? "improving" : "declining"}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Performance by Round */}
+        {Object.keys(player.roundStats || {}).length > 0 && (
+          <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem", marginBottom: 16 }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 12, fontWeight: 600 }}>🎯 PERFORMANCE BY ROUND</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {Object.entries(player.roundStats).sort((a, b) => Number(a[0]) - Number(b[0])).map(([ri, rs]) => {
+                const total = rs.wins + rs.losses;
+                const wr = total > 0 ? Math.round((rs.wins / total) * 100) : 0;
+                return (
+                  <div key={ri} style={{ flex: 1, minWidth: 60, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 8px", textAlign: "center", border: `1px solid ${G.border}` }}>
+                    <div style={{ fontSize: 9, color: G.muted, letterSpacing: 1, marginBottom: 4 }}>R{Number(ri) + 1}</div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: wr >= 60 ? G.lime : wr >= 40 ? G.gold : G.danger, lineHeight: 1 }}>{wr}%</div>
+                    <div style={{ fontSize: 9, color: G.muted, marginTop: 2 }}>{rs.wins}W {rs.losses}L</div>
+                  </div>
+                );
+              })}
+            </div>
+            {(() => {
+              const rounds = Object.entries(player.roundStats).sort((a, b) => Number(a[0]) - Number(b[0]));
+              if (rounds.length < 2) return null;
+              const best = rounds.reduce((b, r) => { const wr = r[1].wins / (r[1].wins + r[1].losses); return wr > (b[1].wins / (b[1].wins + b[1].losses)) ? r : b; });
+              return <div style={{ marginTop: 8, fontSize: 12, color: G.muted }}>Strongest in <span style={{ color: G.lime, fontWeight: 600 }}>Round {Number(best[0]) + 1}</span> — {Math.round(best[1].wins / (best[1].wins + best[1].losses) * 100)}% win rate</div>;
+            })()}
+          </div>
+        )}
+
       </div>
     </div>
   );
