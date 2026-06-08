@@ -1,0 +1,276 @@
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Copy, Plus, Trophy, Users, Calendar, Award } from "lucide-react";
+import { getAuth } from "firebase/auth";
+import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub } from "../hooks/useClub";
+import { PlayerAvatar } from "../components/PlayerAvatar";
+
+function MembersTab({ members, club }) {
+  const uid = getAuth().currentUser?.uid;
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 12 }}>
+        {members.length} members · Share code <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 2, color: "var(--color-lime)" }}>{club?.code}</span> to invite
+      </div>
+      {members.map((m, i) => (
+        <div key={m.uid} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+          <PlayerAvatar name={m.name} profile={{ photoURL: m.photoURL }} size={36} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
+              {m.name}
+              {m.uid === uid && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{m.role === "admin" ? "👑 Admin" : "Member"}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LeaderboardTab({ members, tournaments }) {
+  // Compute stats from club tournaments
+  const stats = {};
+  members.forEach(m => {
+    stats[m.playerName || m.name] = { name: m.playerName || m.name, uid: m.uid, photoURL: m.photoURL, wins: 0, losses: 0, titles: 0, matches: 0 };
+  });
+
+  tournaments.forEach(t => {
+    if (!t.players) return;
+    // Count title
+    if (t.champion) {
+      t.champion.split(" & ").map(s => s.trim()).forEach(p => {
+        if (stats[p]) stats[p].titles++;
+      });
+    }
+  });
+
+  const ranked = Object.values(stats).sort((a, b) => b.titles - a.titles || b.wins - a.wins);
+
+  if (ranked.length === 0) return (
+    <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>
+      <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+      <div>Play tournaments to see leaderboard</div>
+    </div>
+  );
+
+  return (
+    <div>
+      {ranked.map((p, i) => (
+        <div key={p.name} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, background: i === 0 ? "rgba(241,200,53,0.06)" : undefined, border: i === 0 ? "1px solid rgba(241,200,53,0.2)" : undefined }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i === 0 ? "var(--color-gold)" : i === 1 ? "var(--color-muted)" : "var(--color-muted)", width: 28, textAlign: "center" }}>
+            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+          </div>
+          <PlayerAvatar name={p.name} profile={{ photoURL: p.photoURL }} size={32} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{p.name}</div>
+          </div>
+          <div style={{ display: "flex", gap: 16, textAlign: "center" }}>
+            <div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-gold)", lineHeight: 1 }}>{p.titles}</div>
+              <div style={{ fontSize: 9, color: "var(--color-muted)", letterSpacing: 1 }}>TITLES</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TournamentsTab({ tournaments, navigate }) {
+  if (tournaments.length === 0) return (
+    <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>
+      <div style={{ fontSize: 32, marginBottom: 8 }}>🏓</div>
+      <div>No tournaments yet — create one from this club</div>
+    </div>
+  );
+  return (
+    <div>
+      {tournaments.map(t => (
+        <div key={t.code} className="rh glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: "pointer" }}
+          onClick={() => navigate("/history/detail", { state: { tournament: t } })}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{t.name || `#${t.code}`}</div>
+              <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>
+                {t.date ? new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" }) : ""} · {t.playerCount} players
+              </div>
+              {t.champion && <div style={{ fontSize: 11, color: "var(--color-gold)", marginTop: 2 }}>🏆 {t.champion}</div>}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: t.status === "completed" ? "rgba(16,212,142,0.12)" : "rgba(239,68,68,0.12)", color: t.status === "completed" ? "var(--color-lime)" : "var(--color-danger)" }}>
+              {t.status === "completed" ? "DONE" : "LIVE"}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SeasonTab({ seasons, clubId, isAdmin }) {
+  const [creating, setCreating] = useState(false);
+  const [seasonName, setSeasonName] = useState("");
+  const [working, setWorking] = useState(false);
+
+  const handleCreate = async () => {
+    if (!seasonName.trim()) return;
+    setWorking(true);
+    await createSeason(clubId, seasonName.trim());
+    setSeasonName(""); setCreating(false); setWorking(false);
+  };
+
+  const activeSeason = seasons.find(s => s.status === "active");
+  const pastSeasons = seasons.filter(s => s.status === "completed");
+
+  return (
+    <div>
+      {isAdmin() && !activeSeason && !creating && (
+        <button className="pb" onClick={() => setCreating(true)}
+          style={{ width: "100%", padding: 14, borderRadius: 12, border: "1px dashed var(--color-border)", background: "none", color: "var(--color-lime)", fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Plus size={16} /> START NEW SEASON
+        </button>
+      )}
+
+      {creating && (
+        <div className="glass-card" style={{ borderRadius: 12, padding: "1rem", marginBottom: 16 }}>
+          <input value={seasonName} onChange={e => setSeasonName(e.target.value)}
+            placeholder="Season name (e.g. June 2026)"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.05)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="pb" onClick={() => setCreating(false)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>CANCEL</button>
+            <button className="pb" onClick={handleCreate} disabled={working} style={{ flex: 2, padding: 10, borderRadius: 8, border: "none", background: "var(--color-lime)", color: "#0d0f0a", fontWeight: 700, cursor: "pointer" }}>
+              {working ? "CREATING..." : "CREATE"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeSeason && (
+        <div className="glass-card" style={{ borderRadius: 14, padding: "1.2rem", marginBottom: 16, border: "1px solid rgba(16,212,142,0.3)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, color: "var(--color-lime)", letterSpacing: 2, fontWeight: 700 }}>🟢 ACTIVE SEASON</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-text)", letterSpacing: 1, marginTop: 2 }}>{activeSeason.name}</div>
+            </div>
+            {isAdmin() && (
+              <button className="pb" onClick={() => endSeason(clubId, activeSeason.id)}
+                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-danger)", background: "none", color: "var(--color-danger)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                END SEASON
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 12 }}>{(activeSeason.tournaments || []).length} tournaments played</div>
+          {Object.keys(activeSeason.standings || {}).length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, letterSpacing: 2, color: "var(--color-muted)", marginBottom: 8, fontWeight: 600 }}>STANDINGS</div>
+              {Object.entries(activeSeason.standings)
+                .sort((a, b) => b[1].points - a[1].points)
+                .map(([name, s], i) => (
+                  <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--color-border)" }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: i === 0 ? "var(--color-gold)" : "var(--color-muted)", width: 24 }}>{i + 1}</div>
+                    <div style={{ flex: 1, fontSize: 13, color: "var(--color-text)", fontWeight: 500 }}>{name}</div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-lime)" }}>{s.points} pts</div>
+                    <div style={{ fontSize: 10, color: "var(--color-muted)" }}>{s.wins}W · {s.played} played</div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {pastSeasons.map(s => (
+        <div key={s.id} className="glass-card" style={{ borderRadius: 12, padding: "1rem", marginBottom: 10, opacity: 0.7 }}>
+          <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 2, fontWeight: 600 }}>COMPLETED SEASON</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "var(--color-text)", marginTop: 2 }}>{s.name}</div>
+          <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>{(s.tournaments || []).length} tournaments</div>
+          {Object.keys(s.standings || {}).length > 0 && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--color-gold)" }}>
+              🏆 {Object.entries(s.standings).sort((a, b) => b[1].points - a[1].points)[0]?.[0]}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {seasons.length === 0 && !creating && (
+        <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🏅</div>
+          <div>No seasons yet — start one to track league standings</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ClubDashboardScreen() {
+  const { clubId } = useParams();
+  const navigate = useNavigate();
+  const { club, members, tournaments, seasons, loading, isAdmin } = useClubDetail(clubId);
+  const [tab, setTab] = useState("members");
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = () => {
+    navigator.clipboard?.writeText(club?.code || "");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-muted)" }}>
+      Loading club...
+    </div>
+  );
+
+  if (!club) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-muted)" }}>
+      Club not found.
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--color-dark)", paddingBottom: "5rem" }}>
+      {/* Header */}
+      <div className="glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid var(--color-border)" }}>
+        <div style={{ padding: "0 1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, height: 60 }}>
+            <button onClick={() => navigate("/clubs")} className="ni" style={{ background: "none", border: "none", color: "var(--color-muted)", display: "flex", alignItems: "center", cursor: "pointer" }}>
+              <ArrowLeft size={22} />
+            </button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: club.themeColor || "var(--color-lime)", letterSpacing: 2, lineHeight: 1 }}>{club.name}</div>
+              <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{members.length} members</div>
+            </div>
+            <button className="pb" onClick={copyCode}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: copied ? "var(--color-lime)" : "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              <Copy size={12} /> {copied ? "COPIED!" : club.code}
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
+            {[
+              { id: "members", label: "👥 MEMBERS" },
+              { id: "leaderboard", label: "🏆 LEADERBOARD" },
+              { id: "tournaments", label: "📅 MATCHES" },
+              { id: "season", label: "🏅 SEASON" },
+            ].map(t => (
+              <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => setTab(t.id)} style={{ flex: 1 }}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "1rem 1rem", maxWidth: 600, margin: "0 auto" }}>
+        {/* New tournament button */}
+        {isAdmin() && (
+          <button className="pb" onClick={() => navigate("/create", { state: { clubId, clubMembers: members } })}
+            style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: "var(--color-lime)", color: "#0d0f0a", fontWeight: 800, fontSize: 14, cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <Plus size={16} /> NEW TOURNAMENT
+          </button>
+        )}
+
+        {tab === "members" && <MembersTab members={members} club={club} />}
+        {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} />}
+        {tab === "tournaments" && <TournamentsTab tournaments={tournaments} navigate={navigate} />}
+        {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}
+      </div>
+    </div>
+  );
+}

@@ -389,9 +389,16 @@ export function useTournament() {
           saveH(Array.from(seen.values())); // update localStorage cache
 
           // Save to Firestore for ALL logged-in users (including spectators)
-          // so the tournament moves from "live" to "completed" in their history
           const uid = getAuth().currentUser?.uid;
           if (uid) saveFullTournament(uid, finalEntry);
+
+          // Update club tournament record if this belongs to a club
+          const storedClubId = localStorage.getItem(`pkl_club_${code}`);
+          if (storedClubId) {
+            import("../hooks/useClub").then(({ saveTournamentToClub, addTournamentToSeason }) => {
+              saveTournamentToClub(storedClubId, finalEntry);
+            });
+          }
         }
       }
       setSyncing(false);
@@ -709,6 +716,12 @@ export function useTournament() {
       seen.set(c, newEntry);
       saveH(Array.from(seen.values()));
       if (uid) saveFullTournament(uid, newEntry);
+
+      // Save to club if created from a club
+      if (meta.clubId) {
+        localStorage.setItem(`pkl_club_${c}`, meta.clubId);
+        import("../hooks/useClub").then(({ saveTournamentToClub }) => saveTournamentToClub(meta.clubId, newEntry));
+      }
 
       addToast("Tournament created! Share the code.", "success");
       joinCompleteRef.current = true;

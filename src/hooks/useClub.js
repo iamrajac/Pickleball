@@ -1,0 +1,217 @@
+import { useState, useEffect, useCallback } from "react";
+import {
+  doc, collection, setDoc, getDoc, getDocs, updateDoc,
+  deleteDoc, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
+} from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { firestore } from "../firebase";
+
+function genClubCode() {
+  return Math.random().toString(36).substr(2, 6).toUpperCase();
+}
+
+// ── Club CRUD ──────────────────────────────────────────────────────────────
+
+export async function createClub({ name, description = "", themeColor = "#10d48e" }) {
+  const auth = getAuth();
+  const uid = auth.currentUser?.uid;
+  const user = auth.currentUser;
+  if (!uid) throw new Error("Not logged in");
+
+  const clubId = `${Date.now()}_${uid.slice(0, 6)}`;
+  const code = genClubCode();
+
+  const clubRef = doc(firestore, "clubs", clubId);
+  await setDoc(clubRef, {
+    id: clubId, name, description, themeColor, code,
+    adminUid: uid, memberCount: 1, createdAt: serverTimestamp(),
+  });
+
+  // Add creator as admin member
+  await setDoc(doc(firestore, "clubs", clubId, "members", uid), {
+    uid, name: user.displayName || "Admin",
+    photoURL: user.photoURL || null,
+    role: "admin", joinedAt: serverTimestamp(),
+    playerName: user.displayName || "Admin",
+  });
+
+  // Add club to user's profile
+  await updateDoc(doc(firestore, "users", uid), {
+    clubs: arrayUnion(clubId),
+  });
+
+  return { clubId, code };
+}
+
+export async function joinClub(code) {
+  const auth = getAuth();
+  const uid = auth.currentUser?.uid;
+  const user = auth.currentUser;
+  if (!uid) throw new Error("Not logged in");
+
+  // Find club by code
+  const { getDocs: gd, collection: col, query, where } = await import("firebase/firestore");
+  const q = query(col(firestore, "clubs"), where("code", "==", code.toUpperCase()));
+  const snap = await gd(q);
+  if (snap.empty) throw new Error("Club not found");
+
+  const clubDoc = snap.docs[0];
+  const clubId = clubDoc.id;
+
+  // Check not already a member
+  const memberSnap = await getDoc(doc(firestore, "clubs", clubId, "members", uid));
+  if (memberSnap.exists()) throw new Error("Already a member");
+
+  await setDoc(doc(firestore, "clubs", clubId, "members", uid), {
+    uid, name: user.displayName || "Player",
+    photoURL: user.photoURL || null,
+    role: "member", joinedAt: serverTimestamp(),
+    playerName: user.displayName || "Player",
+  });
+
+  await updateDoc(doc(firestore, "clubs", clubId), {
+    memberCount: (clubDoc.data().memberCount || 0) + 1,
+  });
+
+  await updateDoc(doc(firestore, "users", uid), {
+    clubs: arrayUnion(clubId),
+  });
+
+  return { clubId, club: clubDoc.data() };
+}
+
+export async function leaveClub(clubId) {
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) return;
+  await deleteDoc(doc(firestore, "clubs", clubId, "members", uid));
+  await updateDoc(doc(firestore, "users", uid), { clubs: arrayRemove(clubId) });
+}
+
+export async function saveTournamentToClub(clubId, tournamentEntry) {
+  if (!clubId || !tournamentEntry?.code) return;
+  await setDoc(doc(firestore, "clubs", clubId, "tournaments", tournamentEntry.code), {
+    code: tournamentEntry.code,
+    name: tournamentEntry.name || "",
+    date: tournamentEntry.date || new Date().toISOString(),
+    champion: tournamentEntry.champion || null,
+    playerCount: tournamentEntry.players?.length || 0,
+    status: tournamentEntry.champion ? "completed" : "live",
+    players: tournamentEntry.players || [],
+  }, { merge: true });
+}
+
+// ── Season CRUD ────────────────────────────────────────────────────────────
+
+export async function createSeason(clubId, name) {
+  const seasonId = `${Date.now()}`;
+  await setDoc(doc(firestore, "clubs", clubId, "seasons", seasonId), {
+    id: seasonId, name, status: "active",
+    tournaments: [], standings: {},
+    createdAt: serverTimestamp(),
+  });
+  return seasonId;
+}
+
+export async function endSeason(clubId, seasonId) {
+  await updateDoc(doc(firestore, "clubs", clubId, "seasons", seasonId), { status: "completed" });
+}
+
+export async function addTournamentToSeason(clubId, seasonId, tournamentCode, players, champion) {
+  const seasonRef = doc(firestore, "clubs", clubId, "seasons", seasonId);
+  const snap = await getDoc(seasonRef);
+  if (!snap.exists()) return;
+
+  const season = snap.data();
+  if ((season.tournaments || []).includes(tournamentCode)) return;
+
+  // Compute new standings
+  const standings = { ...(season.standings || {}) };
+  (players || []).forEach(p => {
+    if (!standings[p]) standings[p] = { points: 0, wins: 0, played: 0 };
+    standings[p].played++;
+    standings[p].points++; // 1 point for participating
+  });
+  if (champion) {
+    champion.split(" & ").map(s => s.trim()).forEach(p => {
+      if (!standings[p]) standings[p] = { points: 0, wins: 0, played: 0 };
+      standings[p].points += 2; // 2 bonus points for winning
+      standings[p].wins++;
+    });
+  }
+
+  await updateDoc(seasonRef, {
+    tournaments: arrayUnion(tournamentCode),
+    standings,
+  });
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────
+
+export function useClubs() {
+  const [clubs, setClubs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) { setLoading(false); return; }
+
+    // Load clubs user belongs to
+    getDoc(doc(firestore, "users", uid)).then(async snap => {
+      const clubIds = snap.exists() ? (snap.data().clubs || []) : [];
+      if (!clubIds.length) { setLoading(false); return; }
+
+      const clubDocs = await Promise.all(
+        clubIds.map(id => getDoc(doc(firestore, "clubs", id)))
+      );
+      setClubs(clubDocs.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+  }, []);
+
+  return { clubs, loading };
+}
+
+export function useClubDetail(clubId) {
+  const [club, setClub] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
+  const [seasons, setSeasons] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!clubId) return;
+
+    // Club doc
+    const unsubClub = onSnapshot(doc(firestore, "clubs", clubId), snap => {
+      if (snap.exists()) setClub({ id: snap.id, ...snap.data() });
+      setLoading(false);
+    });
+
+    // Members
+    const unsubMembers = onSnapshot(collection(firestore, "clubs", clubId, "members"), snap => {
+      setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+    });
+
+    // Tournaments
+    const unsubTournaments = onSnapshot(collection(firestore, "clubs", clubId, "tournaments"), snap => {
+      const list = snap.docs.map(d => ({ ...d.data() }));
+      list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      setTournaments(list);
+    });
+
+    // Seasons
+    const unsubSeasons = onSnapshot(collection(firestore, "clubs", clubId, "seasons"), snap => {
+      setSeasons(snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+    });
+
+    return () => { unsubClub(); unsubMembers(); unsubTournaments(); unsubSeasons(); };
+  }, [clubId]);
+
+  const isAdmin = useCallback(() => {
+    const uid = getAuth().currentUser?.uid;
+    return club?.adminUid === uid;
+  }, [club]);
+
+  return { club, members, tournaments, seasons, loading, isAdmin };
+}

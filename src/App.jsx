@@ -16,6 +16,8 @@ import { CareerScreen } from "./screens/CareerScreen";
 import { PlayerScreen } from "./screens/PlayerScreen";
 import { AccountScreen } from "./screens/AccountScreen";
 import { PublicTournamentScreen } from "./screens/PublicTournamentScreen";
+import { ClubsScreen } from "./screens/ClubsScreen";
+import { ClubDashboardScreen } from "./screens/ClubDashboardScreen";
 import { ToastProvider, useToast } from "./components/Toast";
 import { MatchCard } from "./components/MatchCard";
 import { StandingsTable } from "./components/StandingsTable";
@@ -102,7 +104,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
     saveResult, savePlayoff, executeEnd, deleteTournament, handleScorerPinEntered,
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
-    liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic, claims,
+    liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic, claims, initialElos,
   } = t;
 
   const leaveAndGoHome = () => { executeEnd(); navigate("/"); };
@@ -426,7 +428,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
               <button className="pb" onClick={() => setShowStandingsShare(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><Camera size={14} /> SHARE IMAGE</button>
             </div>
             <TournamentAwards players={players} rounds={rounds} champion={champion} profiles={profiles} />
-            <StandingsTable standings={standings} rounds={rounds} profiles={profiles} />
+            <StandingsTable standings={standings} rounds={rounds} profiles={profiles} initialElos={initialElos} />
             {allDone && !playoffs && !readOnly && (
               <div className="fu" style={{ display: "flex", gap: 16, marginTop: 24, flexWrap: "wrap", animationDelay: "0.2s" }}>
                 <button className="pb" style={{ flex: 1, minWidth: 200, padding: 18, background: "var(--color-lime)", border: "none", borderRadius: "var(--radius-md)", fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, color: "var(--color-dark)" }} onClick={startPlayoffs}>🏆 FULL PLAYOFFS</button>
@@ -552,7 +554,7 @@ function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, re
             <button className="pb" onClick={copyStandingsText} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📋 COPY FOR WHATSAPP</button>
           </div>
         )}
-        <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} />
+        <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} initialElos={initialElos} />
       </div>
     </div>
   );
@@ -835,6 +837,8 @@ function AppInner() {
         <Route path="/account" element={<AccountScreen />} />
         <Route path="/player/:username" element={<PlayerScreen />} />
         <Route path="/tournament/:code" element={<PublicTournamentScreen />} />
+        <Route path="/clubs" element={<ClubsScreen />} />
+        <Route path="/clubs/:clubId" element={<ClubDashboardScreen />} />
         <Route path="*" element={<HubScreen user={user} isGuest={isGuest} theme={theme} onToggleTheme={toggleTheme} onCreateTournament={() => navigate("/create")} onOpenTournament={() => {}} />} />
       </Routes>
       </div>

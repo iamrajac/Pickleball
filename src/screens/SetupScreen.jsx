@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { db } from "../firebase";
 import { Wifi, AlertCircle } from "lucide-react";
@@ -54,6 +55,9 @@ function Stepper({ label, value, onDec, onInc, min, max, note }) {
 }
 
 export function SetupScreen({ onStart, onJoin, onBack, theme }) {
+  const location = useLocation();
+  const clubId = location.state?.clubId || null;
+  const clubMembers = location.state?.clubMembers || null; // [{uid, name, playerName, photoURL}]
   const [step, setStep] = useState("form"); // "form" | "players" | "seeding"
   const [name, setName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
@@ -144,6 +148,42 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
               </div>
             </div>
 
+            {/* Club member picker — shown when creating from a club */}
+            {clubMembers && clubMembers.length > 0 && (
+              <div className="card" style={{ padding: "1rem 1.2rem", marginBottom: 14, border: "1px solid rgba(16,212,142,0.25)" }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, color: "var(--accent)", fontWeight: 700, marginBottom: 10 }}>👥 SELECT FROM CLUB MEMBERS</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {clubMembers.map(m => {
+                    const pName = m.playerName || m.name;
+                    const isSelected = names.slice(0, numP).includes(pName);
+                    return (
+                      <button key={m.uid} className="pb"
+                        onClick={() => {
+                          if (isSelected) {
+                            const idx = names.indexOf(pName);
+                            if (idx !== -1) { const a = [...names]; a[idx] = `Player ${idx + 1}`; setNames(a); }
+                          } else {
+                            const emptyIdx = names.findIndex((n, i) => i < numP && (n.startsWith("Player ") || n.trim() === ""));
+                            if (emptyIdx !== -1) {
+                              const a = [...names]; a[emptyIdx] = pName; setNames(a);
+                              if (m.photoURL) {
+                                const norm = pName.toLowerCase().replace(/\s+/g, "_");
+                                setProfiles(prev => ({ ...prev, [norm]: { ...prev[norm], uid: m.uid, photoURL: m.photoURL, displayName: pName } }));
+                              }
+                            }
+                          }
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 20, border: `1px solid ${isSelected ? "var(--accent)" : "var(--border)"}`, background: isSelected ? "rgba(16,212,142,0.12)" : "transparent", color: isSelected ? "var(--accent)" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
+                        {m.photoURL && <img src={m.photoURL} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />}
+                        {pName}
+                        {isSelected && <span style={{ fontSize: 10 }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Players grid */}
             <div className="card" style={{ padding: "1.4rem", marginBottom: 16 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }} className="player-grid">
@@ -207,7 +247,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             )}
 
             <button className="pb btn btn-primary" style={{ width: "100%", fontSize: 20, padding: "18px", borderRadius: "var(--radius-lg)", opacity: canStart ? 1 : 0.4, cursor: canStart ? "pointer" : "not-allowed" }}
-              onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null })}>
+              onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null, clubId: clubId || null })}>
               START TOURNAMENT →
             </button>
           </div>
