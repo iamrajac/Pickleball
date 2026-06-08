@@ -475,21 +475,17 @@ export function useTournament() {
   // Runs when champion is declared live OR when opening an already-finished tournament
   const eloSavedRef = useRef(null);
   useEffect(() => {
-    console.log("[ELO] effect ran — champion:", champion, "code:", code, "players:", players.length, "claims:", JSON.stringify(claims), "savedRef:", eloSavedRef.current);
-    if (!champion || !code || !players.length || !Object.keys(claims).length) { console.log("[ELO] early return: missing data"); return; }
-    if (eloSavedRef.current === code) { console.log("[ELO] early return: already saved for", code); return; }
+    if (!champion || !code || !players.length || !Object.keys(claims).length) return;
+    if (eloSavedRef.current === code) return;
     const uid = getAuth().currentUser?.uid;
-    console.log("[ELO] uid:", uid, "claim keys:", Object.keys(claims));
-    if (!uid) { console.log("[ELO] early return: no uid"); return; }
+    if (!uid) return;
     const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
-    console.log("[ELO] claimedKey:", claimedKey, "claim uids:", Object.values(claims).map(c => c?.uid));
-    if (!claimedKey) { console.log("[ELO] early return: uid not in claims"); return; }
+    if (!claimedKey) return;
     const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
-    if (!playerName) { console.log("[ELO] early return: playerName not found for key", claimedKey); return; }
+    if (!playerName) return;
     eloSavedRef.current = code;
     const elosAfter = computeElo(players, rounds, initialElos);
     const singleClaim = { [claimedKey]: claims[claimedKey] };
-    console.log("[ELO] saving for", playerName, "→", elosAfter[playerName]);
     saveClaimedElos(singleClaim, players, initialElos, elosAfter, code, tournamentName);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, code, claims]);
