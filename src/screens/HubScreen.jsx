@@ -375,7 +375,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
                 {all.map((t, i) => (
                   <TournamentCard key={t.code || i} t={{ ...t, status: "live" }}
                     onClick={() => onOpenTournament(t)}
-                    onDelete={myCodes.has(t.code) ? () => setConfirmDelete(t) : undefined} />
+                    onDelete={myCodes.has(t.code) || t.createdBy === user?.uid ? () => setConfirmDelete(t) : undefined} />
                 ))}
               </>
             ) : null;
@@ -394,7 +394,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
                 {all.map((t, i) => (
                   <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }}
                     onClick={() => onOpenTournament(t)}
-                    onDelete={myCodes.has(t.code) ? () => setConfirmDelete(t) : undefined} />
+                    onDelete={myCodes.has(t.code) || t.createdBy === user?.uid ? () => setConfirmDelete(t) : undefined} />
                 ))}
               </>
             ) : null;
