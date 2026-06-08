@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getMessaging, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB1itlBl7vdO5JSRTlUifMHZn09fj8LyMI",
@@ -19,3 +20,6 @@ export const db        = getDatabase(app);
 export const auth      = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const firestore = getFirestore(app);
+
+// Messaging is not supported in all environments (e.g. Safari without permissions, SSR)
+export const messagingPromise = isSupported().then(ok => ok ? getMessaging(app) : null).catch(() => null);

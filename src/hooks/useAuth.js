@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import emailjs from "@emailjs/browser";
 import { auth, googleProvider, firestore } from "../firebase";
+import { initFCM } from "../utils/fcm";
 
 // ── EmailJS config — replace these with your values from emailjs.com ──────
 const EMAILJS_SERVICE_ID  = "service_2k7c608";
@@ -65,6 +66,7 @@ export function useAuth() {
         setIsGuest(false);
         await ensureUserProfile(firebaseUser);
         setUser(firebaseUser);
+        initFCM(firebaseUser.uid);
       } else {
         setUser(null);
       }

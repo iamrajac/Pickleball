@@ -12,6 +12,8 @@ import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
 import { normalizePlayerName } from "../utils/players";
 import { mergeIntoGlobal, profilesForPlayers, syncGlobalProfilesToFirestore, loadGlobalProfilesFromFirestore, clearOrganizerSetProfiles } from "../utils/globalProfiles";
+import { computeElo } from "../utils/elo";
+import { loadClaimedElos, saveClaimedElos } from "../utils/eloFirestore";
 
 // ── Helpers (must come before saveFullTournament) ─────────────────────────
 
@@ -230,6 +232,7 @@ export function useTournament() {
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState(null); // ms timestamp or null
   const [claims, setClaims] = useState({});
+  const [initialElos, setInitialElos] = useState({}); // ELOs loaded from Firestore at start
 
   // Refs that must not trigger re-renders
   const isWriting = useRef(false);
@@ -415,10 +418,17 @@ export function useTournament() {
   useEffect(() => {
     if (!code) return;
     const unsubClaims = onValue(ref(db, `tournaments/${code}/claims`), snap => {
-      setClaims(snap.exists() ? snap.val() : {});
+      const c = snap.exists() ? snap.val() : {};
+      setClaims(c);
+      // Load stored ELO ratings for claimed players so cross-tournament ratings work
+      if (players.length > 0) {
+        loadClaimedElos(c, players).then(elos => {
+          if (Object.keys(elos).length > 0) setInitialElos(elos);
+        });
+      }
     });
     return () => unsubClaims();
-  }, [code]);
+  }, [code, players]);
 
   // ── Reconnect: flush any pending offline write ────────────────────────────
   useEffect(() => {
@@ -452,7 +462,9 @@ export function useTournament() {
     }());
     _upsertHist(rounds, playoffs, champion);
     setSavedToHist(true);
-    // _upsertHist already saves full data to Firestore for Google users
+    // Save updated ELO ratings for all claimed players
+    const elosAfter = computeElo(players, rounds, initialElos);
+    saveClaimedElos(claims, players, initialElos, elosAfter, code, tournamentName);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, savedToHist, readOnly]);
 
@@ -735,6 +747,12 @@ export function useTournament() {
     joinCompleteRef.current = true;
     window.scrollTo(0, 0);
 
+    // Subscribe logged-in users to FCM notifications for this tournament
+    const currentUid = getAuth().currentUser?.uid;
+    if (currentUid) {
+      import("../utils/fcm").then(({ subscribeToTournament }) => subscribeToTournament(currentUid, c, db));
+    }
+
     // Only save to history/Firestore for creators — not spectators
     if (canEdit) {
       const joinedRounds = Array.isArray(data.rounds)
@@ -938,7 +956,7 @@ export function useTournament() {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin,
     profiles, themeColor, h2hMatrix, savedToHist,
-    tournamentName, isPublic, scheduledAt, claims,
+    tournamentName, isPublic, scheduledAt, claims, initialElos,
     // Timer helpers
     startMatchTimer, stopMatchTimer, resetMatchTimer, getMatchTimer,
     // Live score helpers

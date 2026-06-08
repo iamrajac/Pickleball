@@ -1,6 +1,7 @@
-export function computeElo(players, rounds) {
+// initialElos: { playerName: number } — pass stored ratings so ELO carries across tournaments
+export function computeElo(players, rounds, initialElos = {}) {
   const elos = {};
-  players.forEach(p => elos[p] = 1200);
+  players.forEach(p => elos[p] = initialElos[p] ?? 1200);
 
   if (!rounds) return elos;
 

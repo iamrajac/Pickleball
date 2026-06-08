@@ -3,7 +3,7 @@ import { Trophy, ChevronDown, ChevronUp, Flame } from "lucide-react";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { computeElo } from "../utils/elo";
 
-export function StandingsTable({ standings, rounds, profiles = {}, playoffs = null, champion = null }) {
+export function StandingsTable({ standings, rounds, profiles = {}, playoffs = null, champion = null, initialElos = {} }) {
 
   // Derive playoff result badges from playoffs object
   const getPlayoffBadge = (name) => {
@@ -98,7 +98,7 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
       </div>
       
       {(() => {
-        const elos = computeElo(standings.map(s => s.name), rounds);
+        const elos = computeElo(standings.map(s => s.name), rounds, initialElos);
         return standings.map((s, i) => {
           const diff = s.scored - s.conceded;
           const top = i < 4;
@@ -157,7 +157,14 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: diff > 0 ? 'var(--color-lime)' : diff < 0 ? 'var(--color-danger)' : 'var(--color-muted)' }}>{diff > 0 ? "+" : ""}{diff}</span>
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-text)' }}>{s.scored}</span>
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-muted)' }}>{s.conceded}</span>
-              <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-gold)', fontWeight: 600 }}>{elos[s.name]}</span>
+              <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-gold)', fontWeight: 600, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                {elos[s.name]}
+                {initialElos[s.name] && (() => {
+                  const delta = elos[s.name] - initialElos[s.name];
+                  if (delta === 0) return null;
+                  return <span style={{ fontSize: 9, fontWeight: 700, color: delta > 0 ? 'var(--color-lime)' : 'var(--color-danger)', lineHeight: 1 }}>{delta > 0 ? "+" : ""}{delta}</span>;
+                })()}
+              </span>
               
               <span style={{ display: "flex", gap: 2, alignItems: "center", justifyContent: "center", flexWrap: "nowrap", overflow: "hidden" }}>
                 {recentForm.slice(-5).map((f, fi) => (
