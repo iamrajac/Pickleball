@@ -227,12 +227,12 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 8 }}>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamA?.join(" & ")}</div>
-              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updatePlayoffScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={aWon} />
+              <ScoreCounter value={sA} onChange={v => { setSA(v); const nb = sB === "" ? "0" : sB; if (sB === "") setSB("0"); setIsActive(true); updatePlayoffScore(v, nb); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={aWon} />
             </div>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 16, color: "var(--text-muted)", letterSpacing: 2 }}>VS</div>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamB?.join(" & ")}</div>
-              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updatePlayoffScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={bWon} />
+              <ScoreCounter value={sB} onChange={v => { setSB(v); const na = sA === "" ? "0" : sA; if (sA === "") setSA("0"); setIsActive(true); updatePlayoffScore(na, v); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={bWon} />
             </div>
           </div>
 

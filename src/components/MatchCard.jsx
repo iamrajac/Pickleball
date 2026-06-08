@@ -412,9 +412,9 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         ) : (
           <div className="match-score-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 120, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <ScoreCounter value={sA} onChange={v => { setSA(v); setIsActive(true); updateScore(v, sB); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={aWon} />
+              <ScoreCounter value={sA} onChange={v => { setSA(v); const nb = sB === "" ? "0" : sB; if (sB === "") setSB("0"); setIsActive(true); updateScore(v, nb); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={aWon} />
               <span style={{ color: 'var(--color-muted)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, margin: "0 2px" }}>VS</span>
-              <ScoreCounter value={sB} onChange={v => { setSB(v); setIsActive(true); updateScore(sA, v); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={bWon} />
+              <ScoreCounter value={sB} onChange={v => { setSB(v); const na = sA === "" ? "0" : sA; if (sA === "") setSA("0"); setIsActive(true); updateScore(na, v); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={bWon} />
             </div>
             <button className="pb" onClick={handleSave} disabled={!canSave}
               style={{ width: "100%", background: canSave ? 'var(--color-lime)' : 'rgba(200,241,53,0.2)', border: "none", borderRadius: 'var(--radius-sm)', padding: "8px 4px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed", position: "relative", overflow: "hidden" }}>
