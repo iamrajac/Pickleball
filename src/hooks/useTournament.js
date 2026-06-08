@@ -468,25 +468,25 @@ export function useTournament() {
 
   // ── Save ELO for the currently logged-in user when champion is declared ───
   // Runs for ALL users (organizer + spectators) on their own device
-  // Each user saves only their own ELO — avoids Firestore permission issues
+  // Each user saves only their own ELO when champion is set and claims are loaded
+  // Runs when champion is declared live OR when opening an already-finished tournament
+  const eloSavedRef = useRef(false);
   useEffect(() => {
-    if (!champion || !code || !players.length) return;
+    if (!champion || !code || !players.length || !Object.keys(claims).length) return;
+    if (eloSavedRef.current) return; // only save once per session
     const uid = getAuth().currentUser?.uid;
-    console.log("[ELO] champion effect fired, uid:", uid, "claims:", claims, "players:", players);
     if (!uid) return;
-    // Find if this user has a claimed player in this tournament
     const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
-    console.log("[ELO] claimedKey:", claimedKey);
     if (!claimedKey) return;
     const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
-    console.log("[ELO] playerName:", playerName);
     if (!playerName) return;
-    // Save only this user's own ELO to their own Firestore profile
+    eloSavedRef.current = true;
     const elosAfter = computeElo(players, rounds, initialElos);
     const singleClaim = { [claimedKey]: claims[claimedKey] };
+    console.log("[ELO] saving for", playerName, "→", elosAfter[playerName]);
     saveClaimedElos(singleClaim, players, initialElos, elosAfter, code, tournamentName);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [champion, code]);
+  }, [champion, code, claims]);
 
   // ── Internal: push to Firebase ────────────────────────────────────────────
   const pushToFirebase = useCallback(async (newRounds, newPlayoffs, newChamp, currentProfiles) => {
