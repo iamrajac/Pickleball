@@ -6,6 +6,8 @@ import { useClubDetail, leaveClub, createSeason, endSeason } from "../hooks/useC
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
 import { firestore } from "../firebase";
+import { getGlobalProfiles } from "../utils/globalProfiles";
+import { normalizePlayerName } from "../utils/players";
 
 async function deleteClub(clubId, adminUid) {
   // Delete all subcollections
@@ -38,21 +40,25 @@ function MembersTab({ members, club, isAdmin, clubId, navigate }) {
       <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 12 }}>
         {members.length} members · Share code <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 2, color: "var(--color-lime)" }}>{club?.code}</span> to invite
       </div>
-      {members.map(m => (
+      {members.map(m => {
+        const pName = m.playerName || m.name;
+        const globalProfile = getGlobalProfiles()[normalizePlayerName(pName)];
+        const avatarProfile = globalProfile || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+        return (
         <div key={m.uid} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
-          <PlayerAvatar name={m.name} profile={m.photoURL ? { type: "image", value: m.photoURL } : null} size={36} />
+          <PlayerAvatar name={pName} profile={avatarProfile} size={36} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
-              {m.playerName || m.name}
+              {pName}
               {m.uid === uid && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
             </div>
             <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
               {m.role === "admin" ? "👑 Admin" : "Member"}
-              {m.name !== (m.playerName || m.name) && <span style={{ marginLeft: 6, color: "var(--color-muted)" }}>· {m.name}</span>}
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Leave / Delete buttons */}
       <div style={{ marginTop: 24 }}>

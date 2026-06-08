@@ -310,6 +310,7 @@ export function AccountScreen() {
   const [profile, setProfile] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showUsername, setShowUsername] = useState(false);
+  const { clubs } = useClubs(); // must be before any early returns
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -362,7 +363,6 @@ export function AccountScreen() {
     </div>
   );
 
-  const { clubs } = useClubs();
   const displayName = profile?.displayName || user.displayName || "";
   const avatar = profile?.avatar || null;
   const bio = profile?.bio || "";
