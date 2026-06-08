@@ -467,6 +467,10 @@ function TournamentView({ t, theme, toggleTheme, user }) {
   );
 }
 
+function PlayoffGrid({ children }) {
+  return <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>{children}</div>;
+}
+
 // ── Playoff section with bracket/scores toggle ────────────────────────────────
 function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds, pushLiveScore, liveScores }) {
   const [view, setView] = useState("bracket");
@@ -475,7 +479,6 @@ function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, re
   const desc = { final_only: "Single match final", elim_to_sf: "Semi Final + Final", ipl6: "Q1 · Eliminator · Final", ipl8: "Q1 · Eliminator · Q2 · Final", top8: "QF · SF · Final", top8_ipl: "Q1 · Q2 · Elim · SF · Final" };
   const elim = playoffs.eliminated || [];
   const pc = (stage, match, accent) => match ? <PlayoffCard key={stage} match={match} onSave={(a, b, d, n) => savePlayoff(stage, a, b, d, n)} accent={accent || "var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} onLiveScore={pushLiveScore ? (a, b, note, startedAt) => pushLiveScore(`playoff-${stage}`, a, b, note, startedAt) : undefined} liveScore={liveScores?.[`playoff-${stage}`]} /> : null;
-  const Grid = ({ children }) => <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>{children}</div>;
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
@@ -509,9 +512,9 @@ function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, re
         if (mode === "final_only") return <><>{elim.length > 0 && <EliminatedBanner names={elim} />}</>{pc("final", playoffs.final, "var(--color-gold)")}</>;
         if (mode === "elim_to_sf") return <>{pc("sf1", playoffs.sf1, "var(--color-lime)")}{playoffs.final?.teamA && <div style={{marginTop:16}}>{pc("final", playoffs.final, "var(--color-gold)")}</div>}</>;
         if (mode === "ipl6") return <>{pc("q1", playoffs.q1, "var(--color-lime)")}{playoffs.elim && <div style={{marginTop:16}}>{pc("elim", playoffs.elim, "var(--color-cyan)")}</div>}{playoffs.final?.teamA && <div style={{marginTop:16}}>{pc("final", playoffs.final, "var(--color-gold)")}</div>}</>;
-        if (mode === "ipl8") return <><Grid>{pc("q1", playoffs.q1, "var(--color-lime)")}{pc("elim", playoffs.elim, "var(--color-cyan)")}</Grid>{playoffs.q2 && <div style={{marginBottom:16}}>{pc("q2", playoffs.q2, "var(--color-gold)")}</div>}{playoffs.final && pc("final", playoffs.final, "var(--color-lime)")}</>;
-        if (mode === "top8") return <><Grid>{pc("qf1", playoffs.qf1, "var(--color-lime)")}{pc("qf2", playoffs.qf2, "var(--color-cyan)")}</Grid><Grid>{pc("sf1", playoffs.sf1, "var(--color-gold)")}{pc("sf2", playoffs.sf2, "var(--color-gold)")}</Grid>{playoffs.final && pc("final", playoffs.final, "var(--color-lime)")}</>;
-        if (mode === "top8_ipl") return <><Grid>{pc("q1", playoffs.q1, "var(--color-lime)")}{pc("q2_b", playoffs.q2_b, "var(--color-cyan)")}</Grid><Grid>{pc("elim", playoffs.elim, "var(--color-gold)")}{pc("sf", playoffs.sf, "var(--color-gold)")}</Grid>{playoffs.final && pc("final", playoffs.final, "var(--color-lime)")}</>;
+        if (mode === "ipl8") return <><PlayoffGrid>{pc("q1", playoffs.q1, "var(--color-lime)")}{pc("elim", playoffs.elim, "var(--color-cyan)")}</PlayoffGrid>{playoffs.q2 && <div style={{marginBottom:16}}>{pc("q2", playoffs.q2, "var(--color-gold)")}</div>}{playoffs.final && pc("final", playoffs.final, "var(--color-lime)")}</>;
+        if (mode === "top8") return <><PlayoffGrid>{pc("qf1", playoffs.qf1, "var(--color-lime)")}{pc("qf2", playoffs.qf2, "var(--color-cyan)")}</PlayoffGrid><PlayoffGrid>{pc("sf1", playoffs.sf1, "var(--color-gold)")}{pc("sf2", playoffs.sf2, "var(--color-gold)")}</PlayoffGrid>{playoffs.final && pc("final", playoffs.final, "var(--color-lime)")}</>;
+        if (mode === "top8_ipl") return <><PlayoffGrid>{pc("q1", playoffs.q1, "var(--color-lime)")}{pc("q2_b", playoffs.q2_b, "var(--color-cyan)")}</PlayoffGrid><PlayoffGrid>{pc("elim", playoffs.elim, "var(--color-gold)")}{pc("sf", playoffs.sf, "var(--color-gold)")}</PlayoffGrid>{playoffs.final && pc("final", playoffs.final, "var(--color-lime)")}</>;
         return null;
       })()}
 

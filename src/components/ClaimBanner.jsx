@@ -17,15 +17,22 @@ export function ClaimBanner({ code, players, currentUser, existingClaims, profil
   const dismissed = savedState === "__dismissed__";
   const displayName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "";
 
-  // Find unclaimed player slots that fuzzy-match this user
+  // Show all unclaimed players — let the user pick their own name
+  // Also try fuzzy match to highlight the most likely one first
   const matches = useMemo(() => {
-    if (!displayName || !players || !players.length) return [];
+    if (!players || !players.length) return [];
     const claims = existingClaims || {};
     const unclaimed = players.filter(p => {
       const key = p.replace(/\s+/g, "_").toLowerCase();
       return !claims[key];
     });
-    return findBestMatches(unclaimed, displayName, 0.6);
+    if (!unclaimed.length) return [];
+    // If displayName exists, sort by fuzzy match score (best match first)
+    if (displayName) {
+      const scored = findBestMatches(unclaimed, displayName, 0);
+      return scored.length ? scored : unclaimed.map(name => ({ name, score: 0 }));
+    }
+    return unclaimed.map(name => ({ name, score: 0 }));
   }, [players, displayName, existingClaims]);
 
   if (!readOnly || !currentUser || dismissed || alreadyClaimed || claimed || matches.length === 0) return null;

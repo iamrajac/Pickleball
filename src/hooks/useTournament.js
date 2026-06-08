@@ -678,12 +678,15 @@ export function useTournament() {
     setRounds(data.rounds ? data.rounds.map((r) => (r ? Object.values(r) : [])) : []);
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
-    // Only use profiles that players set themselves (from their own Account page via claims)
-    // Don't merge organizer-set profiles into global — those are stale
+    // Only keep profiles that came from real accounts (have photoURL = claimed via Account)
+    // Strip old organizer-set profiles (emoji/color only, no photoURL)
     const joinProfiles = data.profiles || {};
+    const cleanProfiles = {};
+    Object.entries(joinProfiles).forEach(([name, p]) => {
+      if (p?.photoURL) cleanProfiles[name] = p; // real account photo only
+    });
     const globalFilled = profilesForPlayers(data.players || []);
-    // globalFilled (from Account) takes priority over old tournament profiles
-    setProfiles({ ...joinProfiles, ...globalFilled });
+    setProfiles({ ...cleanProfiles, ...globalFilled });
     setThemeColor(data.themeColor || "#10d48e");
     setTournamentName(data.name || "");
     setIsPublic(data.isPublic !== false);
