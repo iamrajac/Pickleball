@@ -451,7 +451,8 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                 )}
               </div>
             ) : (playoffs.q1 || playoffs.final || playoffs.sf1) ? (
-              <PlayoffSection playoffs={playoffs} champion={champion} players={players} profiles={profiles}
+              <PlayoffSection key={playoffs ? Object.keys(playoffs).filter(k => playoffs[k]?.teamA).sort().join(",") : "empty"}
+                playoffs={playoffs} champion={champion} players={players} profiles={profiles}
                 savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
                 copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} liveScores={liveScores} />
             ) : (
