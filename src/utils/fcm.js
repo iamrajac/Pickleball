@@ -4,7 +4,7 @@ import { messagingPromise, firestore } from "../firebase";
 
 // ── Get this from Firebase Console ────────────────────────────────────────
 // Project Settings → Cloud Messaging → Web Push certificates → Key pair
-const VAPID_KEY = "YOUR_VAPID_KEY_HERE";
+const VAPID_KEY = "BD9s2iukqsDxp7feThqlTv8eF5WXYJID9uWIhzKhPydmys05tO4cQc8Y-KpHQoDg2Sz4iyxBoGoJtcrA1hf-EAE";
 
 // Request notification permission, get FCM token, save to users/{uid}/fcmTokens
 export async function initFCM(uid) {
