@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Component } from "react";
 import { HashRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { db, firestore } from "./firebase";
@@ -451,10 +451,12 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                 )}
               </div>
             ) : (playoffs.q1 || playoffs.final || playoffs.sf1) ? (
-              <PlayoffSection key={playoffs ? Object.keys(playoffs).filter(k => playoffs[k]?.teamA).sort().join(",") : "empty"}
-                playoffs={playoffs} champion={champion} players={players} profiles={profiles}
-                savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
-                copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} liveScores={liveScores} />
+              <PlayoffBoundary>
+                <PlayoffSection key={playoffs ? Object.keys(playoffs).filter(k => playoffs[k]?.teamA).sort().join(",") : "empty"}
+                  playoffs={playoffs} champion={champion} players={players} profiles={profiles}
+                  savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
+                  copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} liveScores={liveScores} />
+              </PlayoffBoundary>
             ) : (
               <div className="glass-card" style={{ textAlign: "center", padding: "4rem", borderRadius: "var(--radius-lg)" }}>
                 <RefreshCw className="spin text-muted" size={32} style={{ margin: "0 auto 16px" }} />
@@ -466,6 +468,25 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
       </div>
     </>
   );
+}
+
+// Auto-recovering error boundary for playoffs — catches React hook reconciliation crashes
+// when new stages appear (Q2/Final) and re-renders cleanly after a brief delay
+class PlayoffBoundary extends Component {
+  constructor(props) { super(props); this.state = { crashed: false, resetKey: 0 }; }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  componentDidCatch() {
+    setTimeout(() => this.setState(s => ({ crashed: false, resetKey: s.resetKey + 1 })), 100);
+  }
+  render() {
+    if (this.state.crashed) return (
+      <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-muted)", fontSize: 13 }}>
+        <RefreshCw className="spin" size={24} style={{ margin: "0 auto 12px", display: "block" }} />
+        Loading playoffs...
+      </div>
+    );
+    return <div key={this.state.resetKey}>{this.props.children}</div>;
+  }
 }
 
 function PlayoffGrid({ children }) {
