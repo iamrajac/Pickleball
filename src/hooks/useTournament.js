@@ -388,9 +388,10 @@ export function useTournament() {
           seen.set(code, finalEntry);
           saveH(Array.from(seen.values())); // update localStorage cache
 
-          // Only save to Firestore for the creator/scorer — not for spectators
+          // Save to Firestore for ALL logged-in users (including spectators)
+          // so the tournament moves from "live" to "completed" in their history
           const uid = getAuth().currentUser?.uid;
-          if (uid && canEditRef.current) saveFullTournament(uid, finalEntry);
+          if (uid) saveFullTournament(uid, finalEntry);
         }
       }
       setSyncing(false);
