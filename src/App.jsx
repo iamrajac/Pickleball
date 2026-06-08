@@ -29,10 +29,13 @@ import { ScorerPinModal, ScorerPinEntry } from "./components/ScorerModal";
 import { AuthModal } from "./components/AuthModal";
 import { BottomNav } from "./components/BottomNav";
 import { playAudio } from "./utils/audio";
-import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, WifiOff } from "lucide-react";
+import { Share2, Users, AlertCircle, RefreshCw, ArrowLeft, Moon, Sun, Camera, Lock, WifiOff, Tv, MessageCircle } from "lucide-react";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { Onboarding, useOnboarding } from "./components/Onboarding";
 import { BracketTree } from "./components/BracketTree";
+import { Announcements } from "./components/Announcements";
+import { TVMode } from "./components/TVMode";
+import { TournamentChat } from "./components/TournamentChat";
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 function useTheme() {
@@ -98,7 +101,7 @@ function TournamentView({ t, theme, toggleTheme }) {
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
     saveResult, savePlayoff, executeEnd, deleteTournament, handleScorerPinEntered,
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
-    liveScores, pushLiveScore, scheduledAt,
+    liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic,
   } = t;
 
   const leaveAndGoHome = () => { executeEnd(); navigate("/"); };
@@ -129,6 +132,8 @@ function TournamentView({ t, theme, toggleTheme }) {
   const [showScorerEntry, setShowScorerEntry] = useState(false);
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showTVMode, setShowTVMode] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const swipeTargetRef = useRef(null);
@@ -207,6 +212,14 @@ function TournamentView({ t, theme, toggleTheme }) {
                   <Lock size={13} /> PIN
                 </button>
               ) : null}
+              <button className="pb topbar-btn" onClick={() => setShowTVMode(true)}
+                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer" }}>
+                <Tv size={16} />
+              </button>
+              <button className="pb topbar-btn" onClick={() => setShowChat(true)}
+                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#34d399", cursor: "pointer", position: "relative" }}>
+                <MessageCircle size={16} />
+              </button>
               <button className="pb topbar-btn" onClick={() => setShowShare(true)}
                 style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#93c5fd", cursor: "pointer" }}>
                 <Share2 size={16} />
@@ -236,7 +249,7 @@ function TournamentView({ t, theme, toggleTheme }) {
       </div>
 
       {/* Modals */}
-      {showShare && <ShareModal code={code} onClose={() => setShowShare(false)} />}
+      {showShare && <ShareModal code={code} isPublic={isPublic} onClose={() => setShowShare(false)} tournamentName={tournamentName} playerCount={players.length} standings={standings} currentRound={rounds.filter(r => r.some(m => m.played)).length || 1} totalRounds={rounds.length} />}
       {showStandingsShare && <StandingsShareModal standings={standings} onClose={() => setShowStandingsShare(false)} />}
       {showPlayoffShare && <StandingsShareModal standings={standings} onClose={() => setShowPlayoffShare(false)} playoffs={playoffs} champion={champion} />}
       {showScorerPin && scorerPin && <ScorerPinModal code={code} pin={scorerPin} onClose={() => setShowScorerPin(false)} />}
@@ -300,6 +313,17 @@ function TournamentView({ t, theme, toggleTheme }) {
         </div>
       )}
 
+      {/* TVMode overlay */}
+      {showTVMode && <TVMode code={code} rounds={rounds} liveScores={liveScores} profiles={profiles} tournamentName={tournamentName} onClose={() => setShowTVMode(false)} />}
+
+      {/* Chat bottom sheet */}
+      {showChat && <TournamentChat code={code} readOnly={false} currentUserName={readOnly ? "Spectator" : "Organizer"} isOrganizer={!readOnly} onClose={() => setShowChat(false)} />}
+
+      {/* Announcements panel */}
+      <div style={{ padding: "8px 1rem 0" }}>
+        <Announcements code={code} readOnly={readOnly} scorerName="Organizer" />
+      </div>
+
       {/* Scheduled lock banner */}
       {countdown && (
         <div style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.4)", borderRadius: 0, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
@@ -347,6 +371,7 @@ function TournamentView({ t, theme, toggleTheme }) {
                             onTimerStop={() => t.stopMatchTimer(tk)}
                             onTimerReset={() => t.resetMatchTimer(tk)}
                             onLiveScore={(a, b, note, startedAt) => pushLiveScore(tk, a, b, note, startedAt)}
+                            tournamentName={tournamentName} roundIndex={ri}
                             liveScore={liveScores[tk]} />
                         </div>
                       );

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useTimer } from "../utils/useTimer";
-import { Play, Pause, X } from "lucide-react";
+import { Play, Pause, X, Share2 } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { playAudio } from "../utils/audio";
 import { notifyComeback } from "../utils/notifications";
+import html2canvas from "html2canvas";
 
 function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   const num = value === "" ? null : Number(value);
@@ -117,7 +118,7 @@ export function generateAutoNote(history, teamA, teamB) {
 }
 
 export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {},
-  timerState, onTimerStart, onTimerStop, onTimerReset, onLiveScore, liveScore }) {
+  timerState, onTimerStart, onTimerStop, onTimerReset, onLiveScore, liveScore, tournamentName, roundIndex }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
   const [localTouched, setLocalTouched] = useState(false); // true once THIS device taps +/-
@@ -281,6 +282,62 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   }
 
   const cardRef = useRef(null);
+  const shareCardRef = useRef(null);
+
+  const shareCard = async () => {
+    // Build off-screen card
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;left:-9999px;top:0;width:400px;height:220px;";
+    const scoreA = match.scoreA ?? 0;
+    const scoreB = match.scoreB ?? 0;
+    const winnerA = scoreA > scoreB;
+    const teamA = match.teamA?.join(" & ") || "Team A";
+    const teamB = match.teamB?.join(" & ") || "Team B";
+    const winner = winnerA ? teamA : teamB;
+    const rndLabel = roundIndex != null ? `Round ${roundIndex + 1}` : "";
+    container.innerHTML = `
+      <div style="width:400px;height:220px;background:#0d1117;display:flex;flex-direction:column;justify-content:space-between;padding:20px 24px;box-sizing:border-box;font-family:'Bebas Neue',Arial,sans-serif;color:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:14px;color:#c8f135;letter-spacing:2px;">${(tournamentName || "PICKLEBALL").toUpperCase()}</span>
+          <span style="font-size:12px;color:rgba(255,255,255,0.5);letter-spacing:1px;">${rndLabel.toUpperCase()}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="flex:1;text-align:left;">
+            <div style="font-size:${teamA.length > 14 ? 14 : 18}px;letter-spacing:1px;color:${winnerA ? '#c8f135' : 'rgba(255,255,255,0.55)'};">${teamA}</div>
+            ${winnerA ? '<div style="font-size:10px;color:#c8f135;letter-spacing:2px;margin-top:4px;">WINNER ✓</div>' : ''}
+          </div>
+          <div style="text-align:center;min-width:90px;">
+            <div style="font-size:52px;letter-spacing:4px;line-height:1;color:#c8f135;">${scoreA}–${scoreB}</div>
+          </div>
+          <div style="flex:1;text-align:right;">
+            <div style="font-size:${teamB.length > 14 ? 14 : 18}px;letter-spacing:1px;color:${!winnerA ? '#c8f135' : 'rgba(255,255,255,0.55)'};">${teamB}</div>
+            ${!winnerA ? '<div style="font-size:10px;color:#c8f135;letter-spacing:2px;margin-top:4px;">WINNER ✓</div>' : ''}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:center;align-items:center;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:1px;">pickleball-eosin.vercel.app</span>
+        </div>
+      </div>`;
+    document.body.appendChild(container);
+    try {
+      const canvas = await html2canvas(container.firstElementChild, { backgroundColor: "#0d1117", scale: 2, logging: false });
+      document.body.removeChild(container);
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], "match-result.png", { type: "image/png" });
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], title: `${teamA} vs ${teamB}`, text: `${winner} wins ${scoreA}-${scoreB}!` });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = "match-result.png"; a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+      }, "image/png");
+    } catch (e) {
+      if (document.body.contains(container)) document.body.removeChild(container);
+    }
+  };
 
   useEffect(() => {
     if (!isActive) return;
@@ -345,6 +402,10 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
               {localSaved ? `${sA}–${sB}` : `${match.scoreA}–${match.scoreB}`}
             </div>
             {match.duration && <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 4 }}>⏱ {fmtDur(match.duration)}</div>}
+            <button className="pb" onClick={(e) => { e.stopPropagation(); shareCard(); }}
+              style={{ marginTop: 6, background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", gap: 4, fontSize: 10, margin: "6px auto 0" }}>
+              <Share2 size={10} /> SHARE
+            </button>
           </div>
         ) : readOnly ? (
           <div style={{ textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-muted)', letterSpacing: 2 }}>VS</div>

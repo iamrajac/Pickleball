@@ -853,12 +853,16 @@ export function useTournament() {
 
   const copyStandingsText = () => {
     const st = computeStandings(players, rounds);
-    const lines = ["🏓 PICKLEBALL STANDINGS", ""];
+    const currentRound = rounds.filter(r => r.some(m => m.played)).length || 1;
+    const totalRounds = rounds.length;
+    const name = tournamentName || "Pickleball Tournament";
+    const publicUrl = `${window.location.origin}${window.location.pathname}#/tournament/${code}`;
+    const lines = [`🏓 *${name}* — Round ${currentRound}/${totalRounds}`, "📊 STANDINGS", ""];
     st.forEach((s, i) => {
       const diff = s.scored - s.conceded;
       lines.push(`${i + 1}. ${s.name} — ${s.pts}pts | ${s.won}W ${s.lost}L | ${diff > 0 ? "+" : ""}${diff}`);
     });
-    lines.push("", `Code: ${code}`);
+    lines.push("", isPublic ? `👀 Watch live: ${publicUrl}` : `🔑 Code: ${code}`);
     navigator.clipboard?.writeText(lines.join("\n"))
       .then(() => addToast("Standings copied! Paste to WhatsApp 📋", "success", 3000));
   };

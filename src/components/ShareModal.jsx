@@ -3,7 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { X, Copy, Download, MessageCircle } from "lucide-react";
 
-export function ShareModal({ code, isPublic = true, onClose }) {
+export function ShareModal({ code, isPublic = true, onClose, tournamentName, playerCount, standings, currentRound, totalRounds }) {
   const [copied, setCopied] = useState(false);
   const joinUrl = `${window.location.origin}?join=${code}`;
   const publicUrl = `${window.location.origin}${window.location.pathname}#/tournament/${code}`;
@@ -14,9 +14,23 @@ export function ShareModal({ code, isPublic = true, onClose }) {
   };
 
   const whatsapp = () => {
-    const msg = isPublic
-      ? `🏓 Watch my Pickleball Tournament live!\n*${code}*\n👉 ${publicUrl}`
-      : `🏓 Join my Pickleball Tournament!\nCode: *${code}*\nOpen: ${joinUrl}`;
+    const name = tournamentName || "Pickleball Tournament";
+    const players = playerCount ? `👥 ${playerCount} players` : "";
+    const round = (currentRound && totalRounds) ? `· Round ${currentRound}/${totalRounds}` : "";
+    const playersRound = [players, round].filter(Boolean).join(" ");
+
+    let msg;
+    if (isPublic) {
+      const top3 = (standings || []).slice(0, 3).map((s, i) => `${i + 1}. ${s.name} (${s.pts}pts)`).join("  ");
+      msg = `🏓 *${name}* is LIVE!`;
+      if (playersRound) msg += `\n${playersRound}`;
+      if (top3) msg += `\n📊 Top 3: ${top3}`;
+      msg += `\n👀 Watch live: ${publicUrl}`;
+    } else {
+      msg = `🏓 Join *${name}*!`;
+      if (playersRound) msg += `\n${playersRound}`;
+      msg += `\n🔑 Code: *${code}*\n📲 Open app & enter code to join`;
+    }
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -28,6 +42,7 @@ export function ShareModal({ code, isPublic = true, onClose }) {
         </button>
 
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, color: "var(--color-lime)", marginBottom: 4 }}>SHARE TOURNAMENT</div>
+        {tournamentName && <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 2 }}>{tournamentName}</div>}
         <div style={{ fontSize: 12, color: "var(--color-muted)", marginBottom: 24 }}>Scan QR or share the code</div>
 
         {/* QR Code */}
