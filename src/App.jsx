@@ -452,7 +452,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                   </div>
                 )}
               </div>
-            ) : (playoffs.q1 || playoffs.final || playoffs.sf1) ? (
+            ) : (playoffs && Object.values(playoffs).some(v => v?.teamA)) ? (
               <PlayoffBoundary>
                 <PlayoffSection key={playoffs ? Object.keys(playoffs).filter(k => playoffs[k]?.teamA).sort().join(",") : "empty"}
                   playoffs={playoffs} champion={champion} players={players} profiles={profiles}
@@ -475,16 +475,20 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
 // Auto-recovering error boundary for playoffs — catches React hook reconciliation crashes
 // when new stages appear (Q2/Final) and re-renders cleanly after a brief delay
 class PlayoffBoundary extends Component {
-  constructor(props) { super(props); this.state = { crashed: false, resetKey: 0 }; }
+  constructor(props) { super(props); this.state = { crashed: false, resetKey: 0, attempts: 0 }; }
   static getDerivedStateFromError() { return { crashed: true }; }
   componentDidCatch() {
-    setTimeout(() => this.setState(s => ({ crashed: false, resetKey: s.resetKey + 1 })), 100);
+    const attempts = this.state.attempts + 1;
+    // Give up recovering after 3 attempts to avoid infinite crash loop
+    if (attempts < 3) {
+      setTimeout(() => this.setState(s => ({ crashed: false, resetKey: s.resetKey + 1, attempts })), 300);
+    }
   }
   render() {
     if (this.state.crashed) return (
       <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-muted)", fontSize: 13 }}>
         <RefreshCw className="spin" size={24} style={{ margin: "0 auto 12px", display: "block" }} />
-        Loading playoffs...
+        {this.state.attempts >= 3 ? "Error loading playoffs — try refreshing the page." : "Loading playoffs..."}
       </div>
     );
     return <div key={this.state.resetKey}>{this.props.children}</div>;
