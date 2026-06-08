@@ -95,9 +95,9 @@ function TournamentCard({ t, onClick, onDelete }) {
           <span style={{ opacity: 0.7 }}>📅 {fmtDate(t.date || t.updatedAt)}</span>
         )}
         {t.champion && <span>🏆 {t.champion}</span>}
-        {t.isPublic === false
-          ? <span className="badge badge-private" style={{ fontSize: 9 }}>🔒 PRIVATE</span>
-          : <span className="badge" style={{ fontSize: 9, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(16,212,142,0.25)" }}>🌐 PUBLIC</span>
+        {t.isPublic === true
+          ? <span className="badge" style={{ fontSize: 9, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(16,212,142,0.25)" }}>🌐 PUBLIC</span>
+          : <span className="badge badge-private" style={{ fontSize: 9 }}>🔒 PRIVATE</span>
         }
       </div>
 
@@ -219,8 +219,6 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     if (!user?.uid) { setLoadingMy(false); return; }
 
     // ONE-TIME MIGRATION: push all localStorage tournaments to Firestore
-    // This runs once per device per account to sync historical data.
-    // After the first run, Firestore stays up-to-date via saveFullTournament() on every write.
     const MIGRATION_KEY = `pkl_migrated_${user.uid}`;
     if (!localStorage.getItem(MIGRATION_KEY)) {
       const local = loadH().filter(t => t.code);
@@ -228,6 +226,21 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
         local.forEach(t => saveFullTournament(user.uid, t));
       }
       localStorage.setItem(MIGRATION_KEY, '1');
+    }
+
+    // FIX: update any stuck "live" tournaments that actually have a champion
+    // (spectators previously didn't get their Firestore status updated on champion)
+    const STATUS_FIX_KEY = `pkl_status_fixed_${user.uid}`;
+    if (!localStorage.getItem(STATUS_FIX_KEY)) {
+      getDocs(collection(firestore, "users", user.uid, "tournaments")).then(snap => {
+        snap.docs.forEach(d => {
+          const data = d.data();
+          if (data.champion && data.status !== "completed" && data.status !== "done") {
+            setDoc(doc(firestore, "users", user.uid, "tournaments", d.id), { status: "completed" }, { merge: true });
+          }
+        });
+      }).catch(() => {});
+      localStorage.setItem(STATUS_FIX_KEY, '1');
     }
 
     // Real-time listener — fires immediately with current data, then on every change
