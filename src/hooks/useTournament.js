@@ -433,6 +433,14 @@ export function useTournament() {
     return () => unsubClaims();
   }, [code]);
 
+  // Re-load initial ELOs whenever claims or players change (catches late-loading claims)
+  useEffect(() => {
+    if (!Object.keys(claims).length || !players.length) return;
+    loadClaimedElos(claims, players).then(elos => {
+      if (Object.keys(elos).length > 0) setInitialElos(elos);
+    });
+  }, [claims, players]);
+
   // ── Reconnect: flush any pending offline write ────────────────────────────
   useEffect(() => {
     const flush = () => {
