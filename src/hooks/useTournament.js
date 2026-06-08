@@ -415,21 +415,23 @@ export function useTournament() {
     return () => unsubLive();
   }, [code]);
 
-  // ── Claims listener ────────────────────────────────────────────────────────
+  // ── Claims listener — depends only on code, not players (avoids re-subscribing on every update)
+  const playersRef = useRef(players);
+  useEffect(() => { playersRef.current = players; }, [players]);
+
   useEffect(() => {
     if (!code) return;
     const unsubClaims = onValue(ref(db, `tournaments/${code}/claims`), snap => {
       const c = snap.exists() ? snap.val() : {};
       setClaims(c);
-      // Load stored ELO ratings for claimed players so cross-tournament ratings work
-      if (players.length > 0) {
-        loadClaimedElos(c, players).then(elos => {
+      if (playersRef.current.length > 0) {
+        loadClaimedElos(c, playersRef.current).then(elos => {
           if (Object.keys(elos).length > 0) setInitialElos(elos);
         });
       }
     });
     return () => unsubClaims();
-  }, [code, players]);
+  }, [code]);
 
   // ── Reconnect: flush any pending offline write ────────────────────────────
   useEffect(() => {
