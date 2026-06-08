@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Trophy, ChevronDown, ChevronUp, Flame } from "lucide-react";
 import { PlayerAvatar } from "./PlayerAvatar";
-import { computeElo } from "../utils/elo";
-
-export function StandingsTable({ standings, rounds, profiles = {}, playoffs = null, champion = null, initialElos = {} }) {
+export function StandingsTable({ standings, rounds, profiles = {}, playoffs = null, champion = null }) {
 
   // Derive playoff result badges from playoffs object
   const getPlayoffBadge = (name) => {
@@ -84,7 +82,7 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
   return (
     <div className="glass-card fu" style={{ borderRadius: 'var(--radius-lg)', overflow: "hidden" }}>
       <div className="standings-wrapper" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-      <div className="standings-grid" style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "12px 14px", borderBottom: `1px solid var(--color-border)`, fontSize: 10, letterSpacing: 2, color: 'var(--color-muted)', fontWeight: 600 }}>
+      <div className="standings-grid" style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 76px", padding: "12px 14px", borderBottom: `1px solid var(--color-border)`, fontSize: 10, letterSpacing: 2, color: 'var(--color-muted)', fontWeight: 600 }}>
         <span>#</span><span>PLAYER</span>
         <span style={{ textAlign: "center" }}>P</span>
         <span style={{ textAlign: "center" }}>W</span>
@@ -93,12 +91,10 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
         <span style={{ textAlign: "center" }}>+/-</span>
         <span style={{ textAlign: "center" }}>FOR</span>
         <span style={{ textAlign: "center" }}>AGN</span>
-        <span style={{ textAlign: "center" }}>ELO</span>
         <span style={{ textAlign: "center" }}>FORM</span>
       </div>
-      
+
       {(() => {
-        const elos = computeElo(standings.map(s => s.name), rounds, initialElos);
         return standings.map((s, i) => {
           const diff = s.scored - s.conceded;
           const top = i < 4;
@@ -124,7 +120,7 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
                                   isChamp ? "1px solid rgba(241,200,53,0.2)" : `1px solid var(--color-border)`;
                 return (
               <div className="rh standings-grid" onClick={() => setExpandedRow(expanded ? null : s.name)}
-                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px", padding: "10px 14px", borderBottom: rowBorder, background: rowBg, cursor: "pointer", alignItems: "center", opacity: isElim ? 0.65 : 1 }}>
+                style={{ display: "grid", gridTemplateColumns: "28px 1fr 24px 24px 24px 36px 36px 36px 36px 76px", padding: "10px 14px", borderBottom: rowBorder, background: rowBg, cursor: "pointer", alignItems: "center", opacity: isElim ? 0.65 : 1 }}>
               
               <span className="standings-rank" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: i === 0 ? 'var(--color-gold)' : i < 4 ? 'var(--color-lime)' : 'var(--color-muted)', lineHeight: 1.1 }}>
                 {i === 0 ? <Trophy size={16} /> : i + 1}
@@ -157,15 +153,6 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: diff > 0 ? 'var(--color-lime)' : diff < 0 ? 'var(--color-danger)' : 'var(--color-muted)' }}>{diff > 0 ? "+" : ""}{diff}</span>
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-text)' }}>{s.scored}</span>
               <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-muted)' }}>{s.conceded}</span>
-              <span className="standings-num" style={{ textAlign: "center", fontSize: 13, color: 'var(--color-gold)', fontWeight: 600, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                {elos[s.name]}
-                {initialElos[s.name] && (() => {
-                  const delta = elos[s.name] - initialElos[s.name];
-                  if (delta === 0) return null;
-                  return <span style={{ fontSize: 9, fontWeight: 700, color: delta > 0 ? 'var(--color-lime)' : 'var(--color-danger)', lineHeight: 1 }}>{delta > 0 ? "+" : ""}{delta}</span>;
-                })()}
-              </span>
-              
               <span style={{ display: "flex", gap: 2, alignItems: "center", justifyContent: "center", flexWrap: "nowrap", overflow: "hidden" }}>
                 {recentForm.slice(-5).map((f, fi) => (
                   <span key={fi} style={{ width: 13, height: 13, borderRadius: 3, background: f === "W" ? 'rgba(26, 61, 18, 0.9)' : 'rgba(61, 18, 18, 0.9)', display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: f === "W" ? 'var(--color-lime)' : 'var(--color-danger)', flexShrink: 0 }}>{f}</span>

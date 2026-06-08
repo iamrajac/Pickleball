@@ -104,7 +104,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
     saveResult, savePlayoff, executeEnd, deleteTournament, handleScorerPinEntered,
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
-    liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic, claims, initialElos,
+    liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic, claims,
   } = t;
 
   const leaveAndGoHome = () => { executeEnd(); navigate("/"); };
@@ -428,7 +428,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
               <button className="pb" onClick={() => setShowStandingsShare(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><Camera size={14} /> SHARE IMAGE</button>
             </div>
             <TournamentAwards players={players} rounds={rounds} champion={champion} profiles={profiles} />
-            <StandingsTable standings={standings} rounds={rounds} profiles={profiles} initialElos={initialElos} />
+            <StandingsTable standings={standings} rounds={rounds} profiles={profiles} />
             {allDone && !playoffs && !readOnly && (
               <div className="fu" style={{ display: "flex", gap: 16, marginTop: 24, flexWrap: "wrap", animationDelay: "0.2s" }}>
                 <button className="pb" style={{ flex: 1, minWidth: 200, padding: 18, background: "var(--color-lime)", border: "none", borderRadius: "var(--radius-md)", fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, color: "var(--color-dark)" }} onClick={startPlayoffs}>🏆 FULL PLAYOFFS</button>
@@ -457,7 +457,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                 <PlayoffSection key={playoffs ? Object.keys(playoffs).filter(k => playoffs[k]?.teamA).sort().join(",") : "empty"}
                   playoffs={playoffs} champion={champion} players={players} profiles={profiles}
                   savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
-                  copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} liveScores={liveScores} initialElos={initialElos} />
+                  copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} liveScores={liveScores} />
               </PlayoffBoundary>
             ) : (
               <div className="glass-card" style={{ textAlign: "center", padding: "4rem", borderRadius: "var(--radius-lg)" }}>
@@ -500,7 +500,7 @@ function PlayoffGrid({ children }) {
 }
 
 // ── Playoff section with bracket/scores toggle ────────────────────────────────
-function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds, pushLiveScore, liveScores, initialElos }) {
+function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds, pushLiveScore, liveScores }) {
   const [view, setView] = useState("bracket");
   const mode = playoffs.mode || "ipl8";
   const labels = { final_only: "GRAND FINAL", elim_to_sf: "TOP 4 BRACKET", ipl6: "6-TEAM IPL BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
@@ -558,7 +558,7 @@ function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, re
             <button className="pb" onClick={copyStandingsText} style={{ flex: 1, minWidth: 160, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📋 COPY FOR WHATSAPP</button>
           </div>
         )}
-        <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} initialElos={initialElos} />
+        <StandingsTable standings={standings} rounds={rounds} playoffs={playoffs} champion={champion} />
       </div>
     </div>
   );

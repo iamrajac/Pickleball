@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ref, onValue, set, onDisconnect, get } from "firebase/database";
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db, firestore } from "../firebase";
 import confetti from "canvas-confetti";
@@ -12,8 +12,6 @@ import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
 import { normalizePlayerName } from "../utils/players";
 import { mergeIntoGlobal, profilesForPlayers, syncGlobalProfilesToFirestore, loadGlobalProfilesFromFirestore, clearOrganizerSetProfiles } from "../utils/globalProfiles";
-import { computeElo } from "../utils/elo";
-import { loadClaimedElos, saveClaimedElos } from "../utils/eloFirestore";
 
 // ── Helpers (must come before saveFullTournament) ─────────────────────────
 
@@ -232,7 +230,6 @@ export function useTournament() {
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState(null); // ms timestamp or null
   const [claims, setClaims] = useState({});
-  const [initialElos, setInitialElos] = useState({}); // ELOs loaded from Firestore at start
 
   // Refs that must not trigger re-renders
   const isWriting = useRef(false);
@@ -429,34 +426,10 @@ export function useTournament() {
   useEffect(() => {
     if (!code) return;
     const unsubClaims = onValue(ref(db, `tournaments/${code}/claims`), snap => {
-      const c = snap.exists() ? snap.val() : {};
-      setClaims(c);
-      if (playersRef.current.length > 0) {
-        loadClaimedElos(c, playersRef.current).then(elos => {
-          if (Object.keys(elos).length > 0) setInitialElos(elos);
-        });
-      }
+      setClaims(snap.exists() ? snap.val() : {});
     });
     return () => unsubClaims();
   }, [code]);
-
-  // Pre-load current user's own ELO immediately when tournament loads
-  // This ensures the standings show correct ELO even before claims fully sync
-  useEffect(() => {
-    if (!code || !players.length) return;
-    const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
-    getDoc(doc(firestore, "users", uid)).then(snap => {
-      if (!snap.exists()) return;
-      const storedElo = snap.data().eloRating;
-      if (!storedElo) return;
-      // Find which player this user is (check claims)
-      const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
-      if (!claimedKey) return;
-      const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
-      if (playerName) setInitialElos(prev => ({ ...prev, [playerName]: storedElo }));
-    });
-  }, [code, claims, players]);
 
   // ── Reconnect: flush any pending offline write ────────────────────────────
   useEffect(() => {
@@ -494,26 +467,6 @@ export function useTournament() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, savedToHist, readOnly]);
 
-  // ── Save ELO for the currently logged-in user when champion is declared ───
-  // Runs for ALL users (organizer + spectators) on their own device
-  // Each user saves only their own ELO when champion is set and claims are loaded
-  // Runs when champion is declared live OR when opening an already-finished tournament
-  const eloSavedRef = useRef(null);
-  useEffect(() => {
-    if (!champion || !code || !players.length || !Object.keys(claims).length) return;
-    if (eloSavedRef.current === code) return;
-    const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
-    const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
-    if (!claimedKey) return;
-    const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
-    if (!playerName) return;
-    eloSavedRef.current = code;
-    const elosAfter = computeElo(players, rounds, initialElos);
-    const singleClaim = { [claimedKey]: claims[claimedKey] };
-    saveClaimedElos(singleClaim, players, initialElos, elosAfter, code, tournamentName);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [champion, code, claims]);
 
   // ── Internal: push to Firebase ────────────────────────────────────────────
   const pushToFirebase = useCallback(async (newRounds, newPlayoffs, newChamp, currentProfiles) => {
@@ -968,23 +921,6 @@ export function useTournament() {
     // 4. Remove from Firestore — user collection AND public collection
     if (uid) {
       try { await deleteDoc(doc(firestore, "users", uid, "tournaments", c)); } catch {}
-      // Revert ELO if this tournament is in the user's eloHistory
-      try {
-        const userSnap = await getDoc(doc(firestore, "users", uid));
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          const history = data.eloHistory || [];
-          const entry = history.find(h => h.tournamentCode === c);
-          if (entry) {
-            const newHistory = history.filter(h => h.tournamentCode !== c);
-            // Revert to ratingBefore for this tournament
-            await updateDoc(doc(firestore, "users", uid), {
-              eloRating: entry.ratingBefore,
-              eloHistory: newHistory,
-            });
-          }
-        }
-      } catch {}
     }
     try { await deleteDoc(doc(firestore, "tournaments", c)); } catch {}
   };
@@ -1027,7 +963,7 @@ export function useTournament() {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin,
     profiles, themeColor, h2hMatrix, savedToHist,
-    tournamentName, isPublic, scheduledAt, claims, initialElos,
+    tournamentName, isPublic, scheduledAt, claims,
     // Timer helpers
     startMatchTimer, stopMatchTimer, resetMatchTimer, getMatchTimer,
     // Live score helpers

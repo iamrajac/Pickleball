@@ -96,7 +96,7 @@ function PlayerCard({ player, rank, onClick, isSelected, G }) {
 }
 
 // ── AI-style insight generator ────────────────────────────────────────────
-function computeInsights(player, eloHistory = []) {
+function computeInsights(player) {
   const insights = [];
   if (!player) return insights;
 
@@ -136,15 +136,6 @@ function computeInsights(player, eloHistory = []) {
     if (wr >= 60) insights.push({ emoji: "🎯", text: `Strongest in Round ${Number(best[0]) + 1} — ${wr}% win rate`, color: "var(--color-cyan)" });
   }
 
-  // ELO growth
-  if (eloHistory.length >= 2) {
-    const oldest = eloHistory[0];
-    const newest = eloHistory[eloHistory.length - 1];
-    const delta = newest.ratingAfter - oldest.ratingBefore;
-    if (delta > 0) insights.push({ emoji: "⚡", text: `ELO grown +${delta} since you started — ${newest.ratingAfter} rating`, color: "var(--color-gold)" });
-    else if (delta < 0) insights.push({ emoji: "💪", text: `ELO at ${newest.ratingAfter} — ${Math.abs(delta)} points to recover`, color: "#eab308" });
-  }
-
   // Titles
   if (player.titles >= 2) insights.push({ emoji: "🏆", text: `${player.titles} tournament titles — champion mentality!`, color: "var(--color-gold)" });
   else if (player.titles === 1) insights.push({ emoji: "🥇", text: `Tournament champion! Now defend that title`, color: "var(--color-gold)" });
@@ -180,13 +171,13 @@ function InsightStrip({ insights, G }) {
   );
 }
 
-function PlayerDetail({ player, allPlayers, h2h, eloHistory = [], onClose, theme = 'dark' }) {
+function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
   const G = getG(theme);
   const [h2hTarget, setH2hTarget] = useState(null);
   const otherPlayers = allPlayers.filter(p => p.name !== player.name);
   const winRate = player.winRate;
   const diff = player.scored - player.conceded;
-  const insights = computeInsights(player, eloHistory);
+  const insights = computeInsights(player);
 
   return (
     <div className="fu" style={{ minHeight: "100vh", background: "var(--bg)", overflowY: "auto", padding: "1rem 1rem 90px" }}>
@@ -412,7 +403,6 @@ function PlayerDetail({ player, allPlayers, h2h, eloHistory = [], onClose, theme
 
 export function CareerScreen({ onBack, theme = 'dark' }) {
   const [history, setHistory] = useState(() => loadH());
-  const [eloHistory, setEloHistory] = useState([]);
   const [currentUserName, setCurrentUserName] = useState(null);
 
   useEffect(() => {
@@ -421,14 +411,11 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
     fetchUserTournaments(uid).then(list => {
       if (list && list.length > 0) setHistory(list);
     });
-    // Load ELO history + display name for current user
+    // Load display name for current user
     import("firebase/firestore").then(({ doc, getDoc }) => {
       import("../firebase").then(({ firestore }) => {
         getDoc(doc(firestore, "users", uid)).then(snap => {
-          if (snap.exists()) {
-            setEloHistory(snap.data().eloHistory || []);
-            setCurrentUserName(snap.data().name || null);
-          }
+          if (snap.exists()) setCurrentUserName(snap.data().name || null);
         });
       });
     });
@@ -440,8 +427,7 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
   const G = getG(theme);
 
   if (selectedPlayer) {
-    const isCurrentUser = currentUserName && normalizePlayerName(selectedPlayer.name) === normalizePlayerName(currentUserName);
-    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players || []} h2h={stats.h2h || {}} eloHistory={isCurrentUser ? eloHistory : []} onClose={() => setSelectedPlayer(null)} theme={theme} />;
+    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players || []} h2h={stats.h2h || {}} onClose={() => setSelectedPlayer(null)} theme={theme} />;
   }
 
   const { players = [], partnerships = [], records = {}, totalTournaments = 0, totalMatches = 0 } = stats;
@@ -499,7 +485,7 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
             {(() => {
               const me = currentUserName && stats.players?.find(p => normalizePlayerName(p.name) === normalizePlayerName(currentUserName));
               if (!me) return null;
-              const ins = computeInsights(me, eloHistory);
+              const ins = computeInsights(me);
               if (!ins.length) return null;
               return (
                 <div className="fu" style={{ animationDelay: ".06s", marginBottom: 20 }}>
