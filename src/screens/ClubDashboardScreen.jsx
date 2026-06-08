@@ -1,29 +1,100 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Copy, Plus, Trophy, Users, Calendar, Award } from "lucide-react";
+import { ArrowLeft, Copy, Plus, LogOut, Trash2 } from "lucide-react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub } from "../hooks/useClub";
+import { useClubDetail, leaveClub, createSeason, endSeason } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
+import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
+import { firestore } from "../firebase";
 
-function MembersTab({ members, club }) {
+async function deleteClub(clubId, adminUid) {
+  // Delete all subcollections
+  for (const sub of ["members", "tournaments", "seasons"]) {
+    const snap = await getDocs(collection(firestore, "clubs", clubId, sub));
+    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+  }
+  await deleteDoc(doc(firestore, "clubs", clubId));
+  // Remove from all members' user docs
+  // Note: other members' clubs array will have a stale reference — harmless, useClubs filters missing clubs
+}
+
+function MembersTab({ members, club, isAdmin, clubId, navigate }) {
   const uid = getAuth().currentUser?.uid;
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleLeave = async () => {
+    await leaveClub(clubId);
+    navigate("/clubs");
+  };
+
+  const handleDelete = async () => {
+    await deleteClub(clubId, uid);
+    navigate("/clubs");
+  };
+
   return (
     <div>
       <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 12 }}>
         {members.length} members · Share code <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 2, color: "var(--color-lime)" }}>{club?.code}</span> to invite
       </div>
-      {members.map((m, i) => (
+      {members.map(m => (
         <div key={m.uid} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
-          <PlayerAvatar name={m.name} profile={{ photoURL: m.photoURL }} size={36} />
+          <PlayerAvatar name={m.name} profile={m.photoURL ? { type: "image", value: m.photoURL } : null} size={36} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
-              {m.name}
+              {m.playerName || m.name}
               {m.uid === uid && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{m.role === "admin" ? "👑 Admin" : "Member"}</div>
+            <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
+              {m.role === "admin" ? "👑 Admin" : "Member"}
+              {m.name !== (m.playerName || m.name) && <span style={{ marginLeft: 6, color: "var(--color-muted)" }}>· {m.name}</span>}
+            </div>
           </div>
         </div>
       ))}
+
+      {/* Leave / Delete buttons */}
+      <div style={{ marginTop: 24 }}>
+        {!isAdmin() && (
+          <>
+            {!confirmLeave ? (
+              <button className="pb" onClick={() => setConfirmLeave(true)}
+                style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <LogOut size={15} /> LEAVE CLUB
+              </button>
+            ) : (
+              <div className="glass-card" style={{ borderRadius: 10, padding: "1rem", border: "1px solid rgba(239,68,68,0.3)" }}>
+                <div style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 10 }}>Leave this club? Your match history stays but you'll lose access.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setConfirmLeave(false)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>CANCEL</button>
+                  <button onClick={handleLeave} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "var(--color-danger)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>LEAVE</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {isAdmin() && (
+          <>
+            {!confirmDelete ? (
+              <button className="pb" onClick={() => setConfirmDelete(true)}
+                style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <Trash2 size={15} /> DELETE CLUB
+              </button>
+            ) : (
+              <div className="glass-card" style={{ borderRadius: 10, padding: "1rem", border: "1px solid rgba(239,68,68,0.3)" }}>
+                <div style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 4 }}>Delete this club permanently?</div>
+                <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 10 }}>All members will lose access. Match history is not deleted.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>CANCEL</button>
+                  <button onClick={handleDelete} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "var(--color-danger)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>DELETE</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -61,7 +132,7 @@ function LeaderboardTab({ members, tournaments }) {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i === 0 ? "var(--color-gold)" : i === 1 ? "var(--color-muted)" : "var(--color-muted)", width: 28, textAlign: "center" }}>
             {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
           </div>
-          <PlayerAvatar name={p.name} profile={{ photoURL: p.photoURL }} size={32} />
+          <PlayerAvatar name={p.name} profile={p.photoURL ? { type: "image", value: p.photoURL } : null} size={32} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{p.name}</div>
           </div>
@@ -266,7 +337,7 @@ export function ClubDashboardScreen() {
           </button>
         )}
 
-        {tab === "members" && <MembersTab members={members} club={club} />}
+        {tab === "members" && <MembersTab members={members} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} />}
         {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} />}
         {tab === "tournaments" && <TournamentsTab tournaments={tournaments} navigate={navigate} />}
         {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}

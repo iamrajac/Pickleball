@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useClubs } from "../hooks/useClub";
 import { ArrowLeft, Camera, ExternalLink, Edit2, Trash2, X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -361,6 +362,7 @@ export function AccountScreen() {
     </div>
   );
 
+  const { clubs } = useClubs();
   const displayName = profile?.displayName || user.displayName || "";
   const avatar = profile?.avatar || null;
   const bio = profile?.bio || "";
@@ -430,6 +432,25 @@ export function AccountScreen() {
             </button>
           )}
         </div>
+
+        {/* My Clubs */}
+        {clubs.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "var(--text-muted)", marginBottom: 10 }}>MY CLUBS</div>
+            {clubs.map(club => (
+              <button key={club.id} onClick={() => navigate(`/clubs/${club.id}`)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)", cursor: "pointer", marginBottom: 8, textAlign: "left" }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${club.themeColor || "#10d48e"}22`, border: `1.5px solid ${club.themeColor || "#10d48e"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🏓</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>{club.name}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{club.memberCount || 1} members · {club.adminUid === user.uid ? "Admin" : "Member"}</div>
+                </div>
+                <span style={{ color: "var(--text-muted)" }}>›</span>
+              </button>
+            ))}
+            <div style={{ height: 1, background: "var(--border)", margin: "16px 0 24px" }} />
+          </>
+        )}
 
         {/* Divider */}
         <div style={{ height: 1, background: "var(--border)", marginBottom: 24 }} />
