@@ -313,7 +313,7 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
-            {[{ id: "rounds", label: "⚡ ROUNDS" }, { id: "standings", label: "📊 TABLE" }, { id: "playoffs", label: "🏆 PLAYOFFS" }].map(tb => (
+            {[{ id: "rounds", label: "⚡ ROUNDS" }, { id: "standings", label: "📊 TABLE" }, { id: "playoffs", label: "🏆 PLAYOFFS" }, { id: "analytics", label: "📈 ANALYTICS" }].map(tb => (
               <button key={tb.id} className={`tab-btn ${tab === tb.id ? "on" : "off"}`} onClick={() => setTab(tb.id)} style={{ flex: 1 }}>{tb.label}</button>
             ))}
           </div>
@@ -402,6 +402,156 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
             )}
           </div>
         )}
+        {tab === "analytics" && (() => {
+          const allMatches = rounds.flatMap(r => r.filter(m => m.played));
+          const totalMatches = allMatches.length;
+
+          // ── Match Duration Stats ──────────────────────────────────────────
+          const withDuration = allMatches.filter(m => m.duration > 0);
+          const avgDuration = withDuration.length > 0
+            ? Math.round(withDuration.reduce((s, m) => s + m.duration, 0) / withDuration.length)
+            : null;
+          const longest = withDuration.length > 0 ? withDuration.reduce((b, m) => m.duration > b.duration ? m : b) : null;
+          const shortest = withDuration.length > 0 ? withDuration.reduce((b, m) => m.duration < b.duration ? m : b) : null;
+          const fmtD = s => s ? `${Math.floor(s/60)}m ${s%60}s` : "—";
+
+          // ── Score Distribution ────────────────────────────────────────────
+          const scoreBuckets = { "11-0 to 11-3": 0, "11-4 to 11-7": 0, "11-8 to 11-9": 0, "12-10+": 0 };
+          allMatches.forEach(m => {
+            const hi = Math.max(Number(m.scoreA), Number(m.scoreB));
+            const lo = Math.min(Number(m.scoreA), Number(m.scoreB));
+            if (hi === 11 && lo <= 3) scoreBuckets["11-0 to 11-3"]++;
+            else if (hi === 11 && lo <= 7) scoreBuckets["11-4 to 11-7"]++;
+            else if (hi === 11 && lo <= 9) scoreBuckets["11-8 to 11-9"]++;
+            else scoreBuckets["12-10+"]++;
+          });
+          const maxBucket = Math.max(...Object.values(scoreBuckets));
+
+          // ── Attendance ───────────────────────────────────────────────────
+          const allHistory = loadH().filter(ht => ht.rounds?.length > 0);
+          const playerTournamentCount = {};
+          allHistory.forEach(ht => {
+            (ht.players || []).forEach(p => {
+              playerTournamentCount[p] = (playerTournamentCount[p] || 0) + 1;
+            });
+          });
+          const tournamentPlayers = t.players || [];
+          const attendance = tournamentPlayers.map(p => ({
+            name: p, count: playerTournamentCount[p] || 1, total: allHistory.length
+          })).sort((a, b) => b.count - a.count);
+
+          // ── Heatmap: day of week ─────────────────────────────────────────
+          const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+          const dayCount = Array(7).fill(0);
+          allHistory.forEach(ht => {
+            if (ht.date) dayCount[new Date(ht.date).getDay()]++;
+          });
+          const maxDay = Math.max(...dayCount);
+
+          return (
+            <div className="fu" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Match Duration */}
+              <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem" }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, color: muted, marginBottom: 12, fontWeight: 600 }}>⏱ MATCH DURATION</div>
+                {withDuration.length === 0 ? (
+                  <div style={{ fontSize: 13, color: muted }}>No duration data — timers weren't used in this tournament.</div>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+                      {[
+                        { l: "AVG DURATION", v: fmtD(avgDuration) },
+                        { l: "LONGEST", v: fmtD(longest?.duration) },
+                        { l: "SHORTEST", v: fmtD(shortest?.duration) },
+                      ].map(({ l, v }) => (
+                        <div key={l} style={{ textAlign: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 6px" }}>
+                          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: lime, lineHeight: 1 }}>{v}</div>
+                          <div style={{ fontSize: 8, color: muted, letterSpacing: 1, marginTop: 4 }}>{l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {longest && <div style={{ fontSize: 11, color: muted }}>Longest: {longest.teamA?.join(" & ")} vs {longest.teamB?.join(" & ")}</div>}
+                  </>
+                )}
+              </div>
+
+              {/* Score Distribution */}
+              <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem" }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, color: muted, marginBottom: 12, fontWeight: 600 }}>🎯 SCORE DISTRIBUTION</div>
+                {totalMatches === 0 ? <div style={{ fontSize: 13, color: muted }}>No matches played.</div> : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {Object.entries(scoreBuckets).map(([label, count]) => {
+                      const pct = maxBucket > 0 ? Math.round((count / maxBucket) * 100) : 0;
+                      const colorMap = { "11-0 to 11-3": "#ef4444", "11-4 to 11-7": "#f97316", "11-8 to 11-9": "#eab308", "12-10+": "#10d48e" };
+                      return (
+                        <div key={label}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, color: text }}>{label}</span>
+                            <span style={{ fontSize: 12, color: muted }}>{count} match{count !== 1 ? "es" : ""} · {totalMatches > 0 ? Math.round((count/totalMatches)*100) : 0}%</span>
+                          </div>
+                          <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: colorMap[label], borderRadius: 4, transition: "width 0.5s" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>
+                      {scoreBuckets["11-8 to 11-9"] + scoreBuckets["12-10+"] > totalMatches / 2
+                        ? "🔥 Very competitive tournament — most matches were close"
+                        : scoreBuckets["11-0 to 11-3"] > totalMatches / 3
+                        ? "⚡ Dominant performances — several blowouts"
+                        : "⚖️ Balanced tournament — good mix of scores"}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Attendance */}
+              <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem" }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, color: muted, marginBottom: 12, fontWeight: 600 }}>👥 PLAYER ATTENDANCE</div>
+                <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>How many of your {allHistory.length} recorded tournaments each player has appeared in</div>
+                {attendance.map(({ name, count, total }) => {
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 100;
+                  return (
+                    <div key={name} style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                        <span style={{ fontSize: 13, color: text, fontWeight: 500 }}>{name}</span>
+                        <span style={{ fontSize: 11, color: muted }}>{count}/{total} tournaments</span>
+                      </div>
+                      <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: pct >= 80 ? lime : pct >= 50 ? "var(--color-gold)" : "var(--color-danger)", borderRadius: 3, transition: "width 0.5s" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Tournament Heatmap */}
+              <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem" }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, color: muted, marginBottom: 12, fontWeight: 600 }}>📅 TOURNAMENT DAY HEATMAP</div>
+                <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>Which days you host tournaments most</div>
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                  {days.map((day, i) => {
+                    const count = dayCount[i];
+                    const h = maxDay > 0 ? Math.max(Math.round((count / maxDay) * 60), count > 0 ? 8 : 4) : 4;
+                    return (
+                      <div key={day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div style={{ fontSize: 10, color: count > 0 ? lime : muted, fontWeight: count > 0 ? 700 : 400 }}>{count || ""}</div>
+                        <div style={{ width: "100%", height: `${h}px`, background: count > 0 ? (count === maxDay ? lime : "rgba(16,212,142,0.4)") : "rgba(255,255,255,0.06)", borderRadius: "3px 3px 0 0", transition: "height 0.4s" }} />
+                        <div style={{ fontSize: 10, color: muted }}>{day}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {maxDay > 0 && (() => {
+                  const peakDay = days[dayCount.indexOf(maxDay)];
+                  return <div style={{ marginTop: 10, fontSize: 12, color: muted }}>Most active day: <span style={{ color: lime, fontWeight: 600 }}>{peakDay}</span></div>;
+                })()}
+              </div>
+
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
