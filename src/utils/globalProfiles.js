@@ -13,6 +13,18 @@ export function saveGlobalProfiles(profiles) {
   try { localStorage.setItem(KEY, JSON.stringify(profiles)); } catch {}
 }
 
+// Remove organizer-set profiles that were set inside tournaments (not from real accounts)
+// Real account profiles have a photoURL from Google or were set via AccountScreen
+export function clearOrganizerSetProfiles() {
+  const current = getGlobalProfiles();
+  const cleaned = {};
+  Object.entries(current).forEach(([name, profile]) => {
+    // Keep only profiles that came from a real account (have photoURL or were claimed)
+    if (profile?.photoURL || profile?.fromAccount) cleaned[name] = profile;
+  });
+  saveGlobalProfiles(cleaned);
+}
+
 // Merge tournament profiles into the global store
 // Only updates if the incoming profile has actual data (photo or color)
 export function mergeIntoGlobal(tournamentProfiles) {

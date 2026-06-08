@@ -10,8 +10,12 @@ export function ClaimBanner({ code, players, currentUser, existingClaims, profil
   const [claiming, setClaiming] = useState(false);
 
   // Only show for spectators (readOnly = true) who are logged in
-  const dismissed = localStorage.getItem(`pkl_claimed_${code}`);
-  const displayName = currentUser?.displayName || "";
+  // "dismissed" means explicitly closed with X — don't re-show
+  // "claimed" means already successfully claimed — skip
+  const savedState = localStorage.getItem(`pkl_claimed_${code}`);
+  const alreadyClaimed = savedState && savedState !== "__dismissed__";
+  const dismissed = savedState === "__dismissed__";
+  const displayName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "";
 
   // Find unclaimed player slots that fuzzy-match this user
   const matches = useMemo(() => {
@@ -24,7 +28,7 @@ export function ClaimBanner({ code, players, currentUser, existingClaims, profil
     return findBestMatches(unclaimed, displayName, 0.6);
   }, [players, displayName, existingClaims]);
 
-  if (!readOnly || !currentUser || dismissed || claimed || matches.length === 0) return null;
+  if (!readOnly || !currentUser || dismissed || alreadyClaimed || claimed || matches.length === 0) return null;
 
   const handleClaim = async (playerName) => {
     setClaiming(true);

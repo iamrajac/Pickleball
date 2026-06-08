@@ -11,7 +11,7 @@ import { generateScorerPin, saveScorerPin, getScorerPin } from "../components/Sc
 import { playAudio } from "../utils/audio";
 import { useToast } from "../components/Toast";
 import { normalizePlayerName } from "../utils/players";
-import { mergeIntoGlobal, profilesForPlayers, syncGlobalProfilesToFirestore, loadGlobalProfilesFromFirestore } from "../utils/globalProfiles";
+import { mergeIntoGlobal, profilesForPlayers, syncGlobalProfilesToFirestore, loadGlobalProfilesFromFirestore, clearOrganizerSetProfiles } from "../utils/globalProfiles";
 
 // ── Helpers (must come before saveFullTournament) ─────────────────────────
 
@@ -244,6 +244,15 @@ export function useTournament() {
 
   // ── H2H init ──────────────────────────────────────────────────────────────
   useEffect(() => { setH2hMatrix(computeH2HMatrix()); }, []);
+
+  // ── Clean up organizer-set profiles on first load ─────────────────────────
+  useEffect(() => {
+    const CLEAN_KEY = 'pkl_profiles_cleaned_v2';
+    if (!localStorage.getItem(CLEAN_KEY)) {
+      clearOrganizerSetProfiles();
+      localStorage.setItem(CLEAN_KEY, '1');
+    }
+  }, []);
 
   // ── Spectator session restore on refresh ──────────────────────────────────
   useEffect(() => {
@@ -669,11 +678,12 @@ export function useTournament() {
     setRounds(data.rounds ? data.rounds.map((r) => (r ? Object.values(r) : [])) : []);
     setPlayoffs(safePlayoffs(data.playoffs));
     setChampion(data.champion || null);
-    // Merge tournament profiles with global — so joining device gets all known avatars
+    // Only use profiles that players set themselves (from their own Account page via claims)
+    // Don't merge organizer-set profiles into global — those are stale
     const joinProfiles = data.profiles || {};
-    mergeIntoGlobal(joinProfiles);
     const globalFilled = profilesForPlayers(data.players || []);
-    setProfiles({ ...globalFilled, ...joinProfiles });
+    // globalFilled (from Account) takes priority over old tournament profiles
+    setProfiles({ ...joinProfiles, ...globalFilled });
     setThemeColor(data.themeColor || "#10d48e");
     setTournamentName(data.name || "");
     setIsPublic(data.isPublic !== false);
