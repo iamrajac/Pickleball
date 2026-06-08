@@ -24,7 +24,6 @@ function usePublicTournament(code) {
       setLoading(false);
       if (!snap.exists() || !snap.val()) { setNotFound(true); return; }
       const v = snap.val();
-      if (v.isPublic === false) { setNotFound(true); return; }
       const rounds = v.rounds ? v.rounds.map(r => r ? Object.values(r) : []) : [];
       setData({ ...v, rounds, playoffs: safePlayoffs(v.playoffs) });
     }, () => { setLoading(false); setNotFound(true); });
