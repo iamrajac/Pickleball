@@ -39,7 +39,7 @@ function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   );
 }
 
-export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {}, onLiveScore }) {
+export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {}, onLiveScore, liveScore }) {
   const matchKey = match ? `${match.label}-${(match.teamA||[]).join("-")}` : "none";
 
   const [sA, setSA] = useState(() => scoreBuffer[matchKey]?.sA ?? match?.scoreA ?? "");
@@ -50,6 +50,12 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   const [storyMoments, setStoryMoments] = useState([]);
   const notesEditedRef = useRef(false);
   const timer = useTimer();
+  const [, setLiveTick] = useState(0);
+  useEffect(() => {
+    if (!liveScore?.startedAt || match?.played) return;
+    const id = setInterval(() => setLiveTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [liveScore?.startedAt, match?.played]);
   const timerKey = `pkl_playoff_timer_${matchKey}`;
 
   // Restore timer on mount
@@ -219,6 +225,20 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
 
       {match.played && match.duration && (
         <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "right", marginTop: 8 }}>⏱ {fmtDur(match.duration)}</div>
+      )}
+
+      {/* Live score display for spectators */}
+      {!match.played && readOnly && liveScore && (liveScore.a !== undefined || liveScore.b !== undefined) && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 8 }}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 36, color: "var(--accent)", letterSpacing: 4 }}>
+            {liveScore.a ?? 0} – {liveScore.b ?? 0}
+          </span>
+          {liveScore.startedAt && (
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 13, color: "var(--color-cyan, #38bdf8)", letterSpacing: 1 }}>
+              ⏱ {(() => { const s = Math.floor((Date.now() - liveScore.startedAt) / 1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; })()}
+            </span>
+          )}
+        </div>
       )}
 
       {!match.played && !readOnly && (

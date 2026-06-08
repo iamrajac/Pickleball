@@ -134,11 +134,8 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   // ── Sync live score from Firebase when local hasn't been touched ──────────
   useEffect(() => {
     if (match.played || localTouched || !liveScore) return;
-    // Update display to show what scorer device has
-    if (liveScore.a > 0 || liveScore.b > 0) {
-      setSA(String(liveScore.a));
-      setSB(String(liveScore.b));
-    }
+    if (liveScore.a !== undefined) setSA(String(liveScore.a));
+    if (liveScore.b !== undefined) setSB(String(liveScore.b));
     if (liveScore.note) setMatchNotes(liveScore.note);
   }, [liveScore?.a, liveScore?.b, liveScore?.note, localTouched, match.played]);
 
@@ -409,7 +406,20 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
             </button>
           </div>
         ) : readOnly ? (
-          <div style={{ textAlign: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-muted)', letterSpacing: 2 }}>VS</div>
+          <div style={{ textAlign: "center", minWidth: 72 }}>
+            {(sA !== "" || sB !== "") ? (
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--color-lime)', letterSpacing: 3, lineHeight: 1 }}>
+                {sA !== "" ? sA : "0"}–{sB !== "" ? sB : "0"}
+              </div>
+            ) : (
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--color-muted)', letterSpacing: 2 }}>VS</div>
+            )}
+            {liveTimerElapsed !== null && (
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, color: 'var(--color-cyan)', letterSpacing: 1, marginTop: 4 }}>
+                ⏱ {localTimer.fmt(liveTimerElapsed)}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="match-score-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 120, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
