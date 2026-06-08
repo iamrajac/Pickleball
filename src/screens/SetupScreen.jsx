@@ -66,8 +66,11 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
   const [editingAvatar, setEditingAvatar] = useState(null);
   const [focus, setFocus] = useState(null);
 
-  // Join state
-  const [joinCode, setJoinCode] = useState("");
+  // Join state — pre-fill from ?join= URL param (coming from public tournament JOIN button)
+  const [joinCode, setJoinCode] = useState(() => {
+    const p = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    return p.get("join") || "";
+  });
   const [joining, setJoining] = useState(false);
   const [joinErr, setJoinErr] = useState("");
 
