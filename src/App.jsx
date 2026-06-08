@@ -92,6 +92,7 @@ function EliminatedBanner({ names }) {
 
 // ── Tournament view (shown over routes when code is active) ────────────────
 function TournamentView({ t, theme, toggleTheme }) {
+  const navigate = useNavigate();
   const {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
@@ -99,6 +100,8 @@ function TournamentView({ t, theme, toggleTheme }) {
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
     liveScores, pushLiveScore, scheduledAt,
   } = t;
+
+  const leaveAndGoHome = () => { executeEnd(); navigate("/"); };
 
   // Countdown for scheduled tournaments
   const [countdown, setCountdown] = useState("");
@@ -252,13 +255,13 @@ function TournamentView({ t, theme, toggleTheme }) {
                 CANCEL — STAY
               </button>
               {!readOnly && (
-                <button className="pb" onClick={executeEnd}
+                <button className="pb" onClick={leaveAndGoHome}
                   style={{ padding: "12px", background: "rgba(245,158,11,0.15)", border: "1px solid var(--color-gold)", borderRadius: "var(--radius-sm)", color: "var(--color-gold)", fontWeight: 600, cursor: "pointer" }}>
                   END & SAVE TO HISTORY
                 </button>
               )}
               {readOnly && (
-                <button className="pb" onClick={executeEnd}
+                <button className="pb" onClick={leaveAndGoHome}
                   style={{ padding: "12px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontWeight: 600, cursor: "pointer" }}>
                   LEAVE
                 </button>
@@ -288,7 +291,7 @@ function TournamentView({ t, theme, toggleTheme }) {
                 style={{ flex: 1, padding: "12px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontWeight: 600, cursor: "pointer" }}>
                 CANCEL
               </button>
-              <button className="pb" onClick={() => { setShowConfirmDelete(false); deleteTournament(); }}
+              <button className="pb" onClick={() => { setShowConfirmDelete(false); deleteTournament(); navigate("/"); }}
                 style={{ flex: 1, padding: "12px", background: "var(--color-danger)", border: "none", borderRadius: "var(--radius-sm)", color: "white", fontWeight: 600, cursor: "pointer" }}>
                 YES, DELETE
               </button>
@@ -692,6 +695,7 @@ function AppInner() {
             user={user} isGuest={isGuest}
             theme={theme} onToggleTheme={toggleTheme}
             onCreateTournament={() => navigate("/create")}
+            onJoin={t.handleJoin}
             onOpenTournament={async (tournament) => {
               if (!tournament.code) return;
 

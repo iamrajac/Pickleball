@@ -2,11 +2,46 @@ import { useState, useEffect } from "react";
 import { TournamentCardSkeleton } from "../components/Skeleton";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { collection, query, where, limit, getDocs, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
-import { firestore } from "../firebase";
+import { ref, get } from "firebase/database";
+import { firestore, db } from "../firebase";
 import { loadH, saveH } from "../utils/history";
 import { fetchUserTournaments, fromFirestoreDoc, saveFullTournament } from "../hooks/useTournament";
 import { requestPermission, scheduleUpcomingNotifications, notify } from "../utils/notifications";
 import { getPlayerByUid } from "../utils/playerProfile";
+
+function JoinBox({ onJoin }) {
+  const [code, setCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleJoin = async () => {
+    const upper = code.trim().toUpperCase();
+    if (!upper) return;
+    setJoining(true); setErr("");
+    try {
+      const snap = await get(ref(db, `tournaments/${upper}`));
+      if (snap.exists() && snap.val()) { onJoin(upper, snap.val()); return; }
+      setErr("Tournament not found.");
+    } catch { setErr("Connection error. Try again."); }
+    setJoining(false);
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+      <input
+        value={code} onChange={e => { setCode(e.target.value.toUpperCase()); setErr(""); }}
+        onKeyDown={e => e.key === "Enter" && handleJoin()}
+        placeholder="Enter code to join"
+        style={{ flex: 1, padding: "14px 16px", borderRadius: "var(--radius-md)", background: "var(--card)", border: err ? "1px solid var(--danger)" : "1px solid var(--border)", color: "var(--text)", fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 2, outline: "none" }}
+      />
+      <button onClick={handleJoin} disabled={joining || !code.trim()}
+        style={{ padding: "14px 20px", borderRadius: "var(--radius-md)", background: "var(--accent)", border: "none", color: "#fff", fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 1, cursor: joining ? "wait" : "pointer", opacity: !code.trim() ? 0.5 : 1 }}>
+        {joining ? "…" : "JOIN"}
+      </button>
+      {err && <div style={{ position: "absolute", marginTop: 52, fontSize: 12, color: "var(--danger)" }}>{err}</div>}
+    </div>
+  );
+}
 
 /* ── Time formatter ───────────────────────────────── */
 function fmtDateTime(ts) {
@@ -121,7 +156,7 @@ const OPTIMAL_ROUNDS = { 4:3, 5:5, 6:9, 7:7, 8:7, 9:9, 10:9, 11:11, 12:9, 13:9, 
 export const suggestRounds = (n) => OPTIMAL_ROUNDS[n] || Math.max(5, Math.round(n * 0.75));
 
 /* ── Main HubScreen ───────────────────────────────── */
-export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament, theme, onToggleTheme }) {
+export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament, onJoin, theme, onToggleTheme }) {
   const [publicLive, setPublicLive] = useState([]);
   const [publicUpcoming, setPublicUpcoming] = useState([]);
   const [loadingPublic, setLoadingPublic] = useState(true);
@@ -132,6 +167,20 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   useEffect(() => {
     if (user?.uid) getPlayerByUid(user.uid).then(p => { if (p) setPlayerProfile(p); });
   }, [user?.uid]);
+
+  // Auto-join if navigated here with ?join=CODE (from public tournament JOIN button)
+  useEffect(() => {
+    if (!onJoin) return;
+    const p = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    const code = p.get("join");
+    if (!code) return;
+    // Clear param from URL
+    window.history.replaceState({}, "", window.location.pathname + window.location.hash.split("?")[0]);
+    get(ref(db, `tournaments/${code.toUpperCase()}`))
+      .then(snap => { if (snap.exists() && snap.val()) onJoin(code.toUpperCase(), snap.val()); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = async (t) => {
     const c = t.code;
@@ -302,12 +351,12 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
 
           {/* Create button */}
           <button className="pb" onClick={onCreateTournament}
-            style={{ width: "100%", padding: "18px", borderRadius: "var(--radius-lg)", background: "var(--accent)", border: "none", fontFamily: "var(--font-display)", fontSize: 20, letterSpacing: 3, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 20px var(--accent-dim)", marginBottom: 8 }}>
+            style={{ width: "100%", padding: "18px", borderRadius: "var(--radius-lg)", background: "var(--accent)", border: "none", fontFamily: "var(--font-display)", fontSize: 20, letterSpacing: 3, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 20px var(--accent-dim)", marginBottom: 12 }}>
             + CREATE TOURNAMENT
           </button>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", marginBottom: 4 }}>
-            or join an existing one below
-          </div>
+
+          {/* Join by code */}
+          <JoinBox onJoin={onJoin} />
         </div>
       </div>
 
