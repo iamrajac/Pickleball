@@ -5,7 +5,7 @@ import { findBestMatches } from "../utils/nameMatcher";
 import { saveFullTournament } from "../hooks/useTournament";
 import { loadH } from "../utils/history";
 
-export function ClaimBanner({ code, players, currentUser, existingClaims, profiles, onClaimed, readOnly }) {
+export function ClaimBanner({ code, players, currentUser, existingClaims, profiles, onClaimed, readOnly, displayNameOverride }) {
   const [claimed, setClaimed] = useState(null);
   const [claiming, setClaiming] = useState(false);
 
@@ -15,7 +15,7 @@ export function ClaimBanner({ code, players, currentUser, existingClaims, profil
   const savedState = localStorage.getItem(`pkl_claimed_${code}`);
   const alreadyClaimed = savedState && savedState !== "__dismissed__";
   const dismissed = savedState === "__dismissed__";
-  const displayName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "";
+  const displayName = displayNameOverride || currentUser?.displayName || currentUser?.email?.split("@")[0] || "";
 
   // Show all unclaimed players — let the user pick their own name
   // Also try fuzzy match to highlight the most likely one first

@@ -315,7 +315,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     return "Good evening";
   };
 
-  const displayName = user?.displayName?.split(" ")[0] || (isGuest ? "Guest" : "");
+  const displayName = (playerProfile?.displayName || user?.displayName)?.split(" ")[0] || (isGuest ? "Guest" : "");
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", paddingBottom: 90 }}>

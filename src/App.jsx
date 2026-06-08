@@ -95,7 +95,7 @@ function EliminatedBanner({ names }) {
 }
 
 // ── Tournament view (shown over routes when code is active) ────────────────
-function TournamentView({ t, theme, toggleTheme, user }) {
+function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
   const navigate = useNavigate();
   const {
     players, rounds, playoffs, champion, code, tab, setTab,
@@ -350,7 +350,7 @@ function TournamentView({ t, theme, toggleTheme, user }) {
       {/* Announcements panel */}
       <div style={{ padding: "8px 1rem 0" }}>
         <Announcements code={code} readOnly={readOnly} scorerName="Organizer" />
-        {readOnly && <ClaimBanner code={code} players={players} currentUser={user} existingClaims={claims} profiles={profiles} readOnly={readOnly} onClaimed={() => {}} />}
+        {readOnly && <ClaimBanner code={code} players={players} currentUser={user} existingClaims={claims} profiles={profiles} readOnly={readOnly} onClaimed={() => {}} displayNameOverride={playerDisplayName} />}
       </div>
 
       {/* Scheduled lock banner */}
@@ -606,8 +606,17 @@ function AppInner() {
   const location = useLocation();
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [localCount, setLocalCount] = useState(0);
+  const [playerDisplayName, setPlayerDisplayName] = useState("");
   const { showOnboarding, markDone } = useOnboarding();
   const { addToast } = useToast();
+
+  // Load Firestore display name (may differ from Firebase Auth name)
+  useEffect(() => {
+    if (!user?.uid) return;
+    import("./utils/playerProfile").then(({ getPlayerByUid }) => {
+      getPlayerByUid(user.uid).then(p => { if (p?.displayName) setPlayerDisplayName(p.displayName); });
+    });
+  }, [user?.uid]);
 
   // Show toast when Firebase Realtime DB write is blocked (rules issue)
   useEffect(() => {
@@ -739,7 +748,7 @@ function AppInner() {
   );
 
   // Active tournament overrides all routes
-  if (t.code) return <TournamentView t={t} theme={theme} toggleTheme={toggleTheme} user={user} />;
+  if (t.code) return <TournamentView t={t} theme={theme} toggleTheme={toggleTheme} user={user} playerDisplayName={playerDisplayName} />;
 
   return (
     <>

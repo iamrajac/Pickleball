@@ -8,7 +8,8 @@ import {
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { mergeIntoGlobal, syncGlobalProfilesToFirestore } from "../utils/globalProfiles";
 import { normalizePlayerName } from "../utils/players";
-import { firestore } from "../firebase";
+import { firestore, auth } from "../firebase";
+import { updateProfile } from "firebase/auth";
 import { ACOLORS } from "../utils/theme";
 
 const POPULAR_EMOJIS = [
@@ -323,6 +324,10 @@ export function AccountScreen() {
 
   const handleSave = async ({ displayName, bio, avatar }) => {
     await savePlayerProfile(user.uid, { displayName, bio, avatar });
+    // Also update Firebase Auth display name so it shows everywhere immediately
+    if (auth.currentUser && displayName !== auth.currentUser.displayName) {
+      try { await updateProfile(auth.currentUser, { displayName }); } catch {}
+    }
     if (avatar) {
       mergeIntoGlobal({ [normalizePlayerName(displayName)]: avatar });
       await syncGlobalProfilesToFirestore(user.uid, firestore);
