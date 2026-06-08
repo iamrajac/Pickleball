@@ -472,11 +472,14 @@ export function useTournament() {
   useEffect(() => {
     if (!champion || !code || !players.length) return;
     const uid = getAuth().currentUser?.uid;
+    console.log("[ELO] champion effect fired, uid:", uid, "claims:", claims, "players:", players);
     if (!uid) return;
     // Find if this user has a claimed player in this tournament
     const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
+    console.log("[ELO] claimedKey:", claimedKey);
     if (!claimedKey) return;
     const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
+    console.log("[ELO] playerName:", playerName);
     if (!playerName) return;
     // Save only this user's own ELO to their own Firestore profile
     const elosAfter = computeElo(players, rounds, initialElos);

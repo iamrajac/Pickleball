@@ -37,6 +37,7 @@ export async function saveClaimedElos(claims, players, elosBefore, elosAfter, to
       if (ratingAfter === undefined) return;
       const ratingBefore = elosBefore[playerName] ?? 1200;
       try {
+        console.log("[ELO] saving for", playerName, "uid:", claim.uid, "rating:", ratingAfter);
         await updateDoc(doc(firestore, "users", claim.uid), {
           eloRating: ratingAfter,
           eloHistory: arrayUnion({
@@ -48,7 +49,10 @@ export async function saveClaimedElos(claims, players, elosBefore, elosAfter, to
             date: new Date().toISOString(),
           }),
         });
-      } catch {}
+        console.log("[ELO] saved OK for", playerName);
+      } catch (e) {
+        console.error("[ELO] save failed for", playerName, e.code, e.message);
+      }
     })
   );
 }
