@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ref, onValue, set, onDisconnect, get } from "firebase/database";
-import { doc, setDoc, deleteDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db, firestore } from "../firebase";
 import confetti from "canvas-confetti";
@@ -433,13 +433,23 @@ export function useTournament() {
     return () => unsubClaims();
   }, [code]);
 
-  // Re-load initial ELOs whenever claims or players change (catches late-loading claims)
+  // Pre-load current user's own ELO immediately when tournament loads
+  // This ensures the standings show correct ELO even before claims fully sync
   useEffect(() => {
-    if (!Object.keys(claims).length || !players.length) return;
-    loadClaimedElos(claims, players).then(elos => {
-      if (Object.keys(elos).length > 0) setInitialElos(elos);
+    if (!code || !players.length) return;
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    getDoc(doc(firestore, "users", uid)).then(snap => {
+      if (!snap.exists()) return;
+      const storedElo = snap.data().eloRating;
+      if (!storedElo) return;
+      // Find which player this user is (check claims)
+      const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
+      if (!claimedKey) return;
+      const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
+      if (playerName) setInitialElos(prev => ({ ...prev, [playerName]: storedElo }));
     });
-  }, [claims, players]);
+  }, [code, claims, players]);
 
   // ── Reconnect: flush any pending offline write ────────────────────────────
   useEffect(() => {
@@ -945,6 +955,23 @@ export function useTournament() {
     // 4. Remove from Firestore — user collection AND public collection
     if (uid) {
       try { await deleteDoc(doc(firestore, "users", uid, "tournaments", c)); } catch {}
+      // Revert ELO if this tournament is in the user's eloHistory
+      try {
+        const userSnap = await getDoc(doc(firestore, "users", uid));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          const history = data.eloHistory || [];
+          const entry = history.find(h => h.tournamentCode === c);
+          if (entry) {
+            const newHistory = history.filter(h => h.tournamentCode !== c);
+            // Revert to ratingBefore for this tournament
+            await updateDoc(doc(firestore, "users", uid), {
+              eloRating: entry.ratingBefore,
+              eloHistory: newHistory,
+            });
+          }
+        }
+      } catch {}
     }
     try { await deleteDoc(doc(firestore, "tournaments", c)); } catch {}
   };
