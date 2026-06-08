@@ -547,6 +547,16 @@ function AppInner() {
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [localCount, setLocalCount] = useState(0);
   const { showOnboarding, markDone } = useOnboarding();
+  const { addToast } = useToast();
+
+  // Show toast when Firebase Realtime DB write is blocked (rules issue)
+  useEffect(() => {
+    const handler = (e) => {
+      addToast("Firebase write blocked — check Realtime DB rules in Firebase Console.", "error", 8000);
+    };
+    window.addEventListener("pkl_fb_error", handler);
+    return () => window.removeEventListener("pkl_fb_error", handler);
+  }, [addToast]);
 
   // Request notification permission once after login
   useEffect(() => {

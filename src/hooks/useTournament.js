@@ -173,8 +173,20 @@ export const safePlayoffs = (p) => {
   return { ...base, q1: safe(p.q1, "QUALIFIER 1", ""), elim: safe(p.elim, "ELIMINATOR", ""), q2: safe(p.q2, "QUALIFIER 2", ""), final: safe(p.final, "FINAL", "") };
 };
 
+let _fbWriteErrShown = false;
 async function fbSet(path, data) {
-  try { await set(ref(db, path), sanitizeForFirebase(data)); } catch (e) { console.error("FB write error", e); }
+  try {
+    await set(ref(db, path), sanitizeForFirebase(data));
+    _fbWriteErrShown = false;
+  } catch (e) {
+    console.error("FB write error", e);
+    if (!_fbWriteErrShown) {
+      _fbWriteErrShown = true;
+      // Dispatch a custom event so the UI can show a toast
+      window.dispatchEvent(new CustomEvent("pkl_fb_error", { detail: e?.code || e?.message }));
+    }
+    throw e;
+  }
 }
 
 function playScoreSound() {
