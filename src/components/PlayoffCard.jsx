@@ -50,6 +50,30 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   const [storyMoments, setStoryMoments] = useState([]);
   const notesEditedRef = useRef(false);
   const timer = useTimer();
+  const timerKey = `pkl_playoff_timer_${matchKey}`;
+
+  // Restore timer on mount
+  useEffect(() => {
+    if (match?.played) return;
+    // Try module-level buffer first (survives tab switches), then localStorage (survives refresh)
+    const buf = scoreBuffer[matchKey];
+    const saved = buf?.timer ?? JSON.parse(localStorage.getItem(timerKey) || "null");
+    if (saved) timer.restore(saved.elapsed, saved.running, saved.startedAt);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save timer state on every tick (scoreBuffer = survives tab switch; localStorage = survives refresh)
+  useEffect(() => {
+    if (match?.played) return;
+    const timerState = {
+      elapsed: timer.elapsed,
+      running: timer.running,
+      startedAt: timer.running ? Date.now() - timer.elapsed * 1000 : null,
+    };
+    if (!scoreBuffer[matchKey]) scoreBuffer[matchKey] = {};
+    scoreBuffer[matchKey].timer = timerState;
+    localStorage.setItem(timerKey, JSON.stringify(timerState));
+  }, [timer.elapsed, timer.running, timerKey, matchKey, match?.played]);
 
   const updatePlayoffScore = (newA, newB) => {
     const numA = newA === "" ? 0 : Number(newA);
@@ -128,6 +152,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     const dur = timer.running ? timer.stop() : timer.elapsed || null;
     timer.reset();
     delete scoreBuffer[matchKey];
+    localStorage.removeItem(timerKey);
     setIsActive(false);
     playAudio("pop");
     // Build narrative

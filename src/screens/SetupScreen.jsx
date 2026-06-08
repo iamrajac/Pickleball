@@ -100,16 +100,22 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
     const raw = joinCode.trim();
     if (!raw) return;
     setJoining(true); setJoinErr("");
+    const upper = raw.toUpperCase();
     try {
-      const upper = raw.toUpperCase();
       let snap = await get(ref(db, `tournaments/${upper}`));
       if (!snap.exists() && raw !== upper) snap = await get(ref(db, `tournaments/${raw}`));
       if (snap.exists() && snap.val()) {
         onJoin(upper, snap.val());
-      } else {
-        setJoinErr(`Tournament "${upper}" not found.`);
+        setJoining(false);
+        return;
       }
-    } catch { setJoinErr("Connection error. Check your internet."); }
+      setJoinErr(`Tournament "${upper}" not found.`);
+    } catch (e) {
+      const isPermission = e?.code === "PERMISSION_DENIED" || e?.message?.includes("permission");
+      setJoinErr(isPermission
+        ? `Cannot access tournament. Ask the organizer to share the code again.`
+        : "Connection error. Check your internet and try again.");
+    }
     setJoining(false);
   };
 
@@ -198,8 +204,8 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             )}
 
             <button className="pb btn btn-primary" style={{ width: "100%", fontSize: 20, padding: "18px", borderRadius: "var(--radius-lg)", opacity: canStart ? 1 : 0.4, cursor: canStart ? "pointer" : "not-allowed" }}
-              onClick={() => canStart && setStep("seeding")}>
-              NEXT — SET SEEDING →
+              onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null })}>
+              START TOURNAMENT →
             </button>
           </div>
         </div>

@@ -343,7 +343,8 @@ function TournamentView({ t, theme, toggleTheme }) {
                             onTimerStart={() => t.startMatchTimer(tk)}
                             onTimerStop={() => t.stopMatchTimer(tk)}
                             onTimerReset={() => t.resetMatchTimer(tk)}
-                            onLiveScore={(a, b, note, startedAt) => pushLiveScore(tk, a, b, note, startedAt)} />
+                            onLiveScore={(a, b, note, startedAt) => pushLiveScore(tk, a, b, note, startedAt)}
+                            liveScore={liveScores[tk]} />
                         </div>
                       );
                     })}

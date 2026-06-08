@@ -43,7 +43,10 @@ function TabBtn({ active, onClick, children }) {
 }
 
 export function PublicTournamentScreen() {
-  const { code } = useParams();
+  const params = useParams();
+  // When rendered outside <Routes> (unauthenticated path), useParams returns {}.
+  // Fall back to parsing the code from the URL hash directly.
+  const code = params.code || window.location.hash.match(/\/tournament\/([^/?#]+)/)?.[1];
   const navigate = useNavigate();
   const { data, loading, notFound } = usePublicTournament(code?.toUpperCase());
   const [tab, setTab] = useState("rounds");
@@ -152,8 +155,15 @@ export function PublicTournamentScreen() {
       {/* Content */}
       <div style={{ padding: "1.25rem 1rem 80px", maxWidth: 800, margin: "0 auto" }}>
 
+        {tab === "rounds" && rounds.length === 0 && (
+          <div style={{ textAlign: "center", padding: "4rem 1rem", color: "var(--text-muted)", fontSize: 13 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🏓</div>
+            Waiting for tournament to start…
+          </div>
+        )}
         {tab === "rounds" && rounds.map((round, ri) => {
           const done = round.every(m => m.played);
+          const byeNames = round[0]?.bye;
           return (
             <div key={ri} className="fu" style={{ marginBottom: 24, animationDelay: `${ri * 0.03}s` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -161,6 +171,12 @@ export function PublicTournamentScreen() {
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
                 <div style={{ fontSize: 11, letterSpacing: 1, color: done ? "var(--accent)" : "var(--text-muted)", fontWeight: 600 }}>{done ? "✓ DONE" : `${round.filter(m => m.played).length}/${round.length}`}</div>
               </div>
+              {byeNames?.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", marginBottom: 8, borderRadius: 8, background: "rgba(241,200,53,0.08)", border: "1px solid rgba(241,200,53,0.2)" }}>
+                  <span style={{ fontSize: 13 }}>☕</span>
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Sitting out: <strong>{byeNames.join(", ")}</strong></span>
+                </div>
+              )}
               {round.map((m, mi) => (
                 <MatchCard key={mi} match={m} delay={mi * 0.03} readOnly profiles={profiles}
                   onSave={() => {}} h2hMatrix={{}} timerState={null}

@@ -375,14 +375,19 @@ export function useTournament() {
     const flush = () => {
       if (!pendingSync.current || !code || !canEditRef.current) return;
       const { rounds: r, playoffs: p, champion: c, profiles: pr } = pendingSync.current;
+      const uid = getAuth().currentUser?.uid;
       fbSet(`tournaments/${code}`, {
-        players, rounds: r, playoffs: p, champion: c, profiles: pr, themeColor, name: tournamentName, ts: Date.now()
+        players, rounds: r, playoffs: p, champion: c, profiles: pr, themeColor, name: tournamentName,
+        isPublic, scheduledAt: scheduledAt || null,
+        scorerPin: scorerPin ? String(scorerPin) : null,
+        creatorUid: uid || null,
+        ts: Date.now()
       });
       pendingSync.current = null;
     };
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);
-  }, [code, players, themeColor, tournamentName]);
+  }, [code, players, themeColor, tournamentName, isPublic, scheduledAt, scorerPin]);
 
   // ── Champion celebration ──────────────────────────────────────────────────
   useEffect(() => {
@@ -407,9 +412,14 @@ export function useTournament() {
     const prof = currentProfiles ?? profiles;
     isWriting.current = true;
     try {
+      const uid = getAuth().currentUser?.uid;
       await fbSet(`tournaments/${code}`, {
         players, rounds: newRounds, playoffs: newPlayoffs, champion: newChamp,
-        profiles: prof, themeColor, name: tournamentName, ts: Date.now()
+        profiles: prof, themeColor, name: tournamentName,
+        isPublic, scheduledAt: scheduledAt || null,
+        scorerPin: scorerPin ? String(scorerPin) : null,
+        creatorUid: uid || null,
+        ts: Date.now()
       });
       pendingSync.current = null;
     } catch {

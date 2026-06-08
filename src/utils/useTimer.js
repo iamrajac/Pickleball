@@ -48,5 +48,20 @@ export function useTimer() {
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  return { elapsed, running, start, stop, reset, fmt };
+  const restore = (savedElapsed, wasRunning, savedStartedAt) => {
+    clearInterval(intervalRef.current);
+    if (wasRunning && savedStartedAt) {
+      startTsRef.current = savedStartedAt;
+      const nowElapsed = Math.floor((Date.now() - savedStartedAt) / 1000);
+      setElapsed(nowElapsed);
+      setRunning(true);
+      intervalRef.current = setInterval(tick, 1000);
+    } else {
+      startTsRef.current = null;
+      setElapsed(savedElapsed || 0);
+      setRunning(false);
+    }
+  };
+
+  return { elapsed, running, start, stop, reset, fmt, restore };
 }
