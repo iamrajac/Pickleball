@@ -463,11 +463,27 @@ export function useTournament() {
     }());
     _upsertHist(rounds, playoffs, champion);
     setSavedToHist(true);
-    // Save updated ELO ratings for all claimed players
-    const elosAfter = computeElo(players, rounds, initialElos);
-    saveClaimedElos(claims, players, initialElos, elosAfter, code, tournamentName);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, savedToHist, readOnly]);
+
+  // ── Save ELO for the currently logged-in user when champion is declared ───
+  // Runs for ALL users (organizer + spectators) on their own device
+  // Each user saves only their own ELO — avoids Firestore permission issues
+  useEffect(() => {
+    if (!champion || !code || !players.length) return;
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    // Find if this user has a claimed player in this tournament
+    const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
+    if (!claimedKey) return;
+    const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
+    if (!playerName) return;
+    // Save only this user's own ELO to their own Firestore profile
+    const elosAfter = computeElo(players, rounds, initialElos);
+    const singleClaim = { [claimedKey]: claims[claimedKey] };
+    saveClaimedElos(singleClaim, players, initialElos, elosAfter, code, tournamentName);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [champion, code]);
 
   // ── Internal: push to Firebase ────────────────────────────────────────────
   const pushToFirebase = useCallback(async (newRounds, newPlayoffs, newChamp, currentProfiles) => {
