@@ -453,7 +453,7 @@ function TournamentView({ t, theme, toggleTheme, user }) {
             ) : (playoffs.q1 || playoffs.final || playoffs.sf1) ? (
               <PlayoffSection playoffs={playoffs} champion={champion} players={players} profiles={profiles}
                 savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
-                copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} />
+                copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} />
             ) : (
               <div className="glass-card" style={{ textAlign: "center", padding: "4rem", borderRadius: "var(--radius-lg)" }}>
                 <RefreshCw className="spin text-muted" size={32} style={{ margin: "0 auto 16px" }} />
@@ -468,13 +468,13 @@ function TournamentView({ t, theme, toggleTheme, user }) {
 }
 
 // ── Playoff section with bracket/scores toggle ────────────────────────────────
-function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds }) {
+function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds, pushLiveScore }) {
   const [view, setView] = useState("bracket");
   const mode = playoffs.mode || "ipl8";
   const labels = { final_only: "GRAND FINAL", elim_to_sf: "TOP 4 BRACKET", ipl6: "6-TEAM IPL BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
   const desc = { final_only: "Single match final", elim_to_sf: "Semi Final + Final", ipl6: "Q1 · Eliminator · Final", ipl8: "Q1 · Eliminator · Q2 · Final", top8: "QF · SF · Final", top8_ipl: "Q1 · Q2 · Elim · SF · Final" };
   const elim = playoffs.eliminated || [];
-  const PC = ({ stage, match, accent }) => match ? <PlayoffCard match={match} onSave={(a, b, d, n) => savePlayoff(stage, a, b, d, n)} accent={accent || "var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} onLiveScore={(a, b, note, startedAt) => pushLiveScore(`playoff-${stage}`, a, b, note, startedAt)} /> : null;
+  const PC = ({ stage, match, accent }) => match ? <PlayoffCard match={match} onSave={(a, b, d, n) => savePlayoff(stage, a, b, d, n)} accent={accent || "var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} onLiveScore={pushLiveScore ? (a, b, note, startedAt) => pushLiveScore(`playoff-${stage}`, a, b, note, startedAt) : undefined} /> : null;
   const Grid = ({ children }) => <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>{children}</div>;
 
   return (
