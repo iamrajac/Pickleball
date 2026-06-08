@@ -112,7 +112,7 @@ export function PublicTournamentScreen() {
               <button onClick={() => setShowQR(v => !v)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "6px", display: "flex", color: "var(--text-secondary)", cursor: "pointer" }}>
                 <Share2 size={15} />
               </button>
-              <button onClick={() => navigate(`/create?join=${code?.toUpperCase()}`)} style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontFamily: "var(--font-display)", fontSize: 11, letterSpacing: 1, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+              <button onClick={() => navigate(`/?join=${code?.toUpperCase()}`)} style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontFamily: "var(--font-display)", fontSize: 11, letterSpacing: 1, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                 <ExternalLink size={11} /> JOIN
               </button>
             </div>
