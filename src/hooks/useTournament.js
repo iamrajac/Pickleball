@@ -470,17 +470,17 @@ export function useTournament() {
   // Runs for ALL users (organizer + spectators) on their own device
   // Each user saves only their own ELO when champion is set and claims are loaded
   // Runs when champion is declared live OR when opening an already-finished tournament
-  const eloSavedRef = useRef(false);
+  const eloSavedRef = useRef(null); // stores the code it already saved for
   useEffect(() => {
     if (!champion || !code || !players.length || !Object.keys(claims).length) return;
-    if (eloSavedRef.current) return; // only save once per session
+    if (eloSavedRef.current === code) return; // already saved for this tournament
     const uid = getAuth().currentUser?.uid;
     if (!uid) return;
     const claimedKey = Object.keys(claims).find(k => claims[k]?.uid === uid);
     if (!claimedKey) return;
     const playerName = players.find(p => p.replace(/\s+/g, "_").toLowerCase() === claimedKey);
     if (!playerName) return;
-    eloSavedRef.current = true;
+    eloSavedRef.current = code;
     const elosAfter = computeElo(players, rounds, initialElos);
     const singleClaim = { [claimedKey]: claims[claimedKey] };
     console.log("[ELO] saving for", playerName, "→", elosAfter[playerName]);
