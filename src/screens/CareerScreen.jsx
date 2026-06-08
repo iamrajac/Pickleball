@@ -95,12 +95,98 @@ function PlayerCard({ player, rank, onClick, isSelected, G }) {
   );
 }
 
-function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
+// ── AI-style insight generator ────────────────────────────────────────────
+function computeInsights(player, eloHistory = []) {
+  const insights = [];
+  if (!player) return insights;
+
+  // Streak
+  if (player.currentStreak >= 3 && player.streakType === "W")
+    insights.push({ emoji: "🔥", text: `${player.currentStreak}-match winning streak — you're on fire!`, color: "#f97316" });
+  else if (player.currentStreak >= 3 && player.streakType === "L")
+    insights.push({ emoji: "😤", text: `${player.currentStreak}-match losing streak — time to bounce back`, color: "#ef4444" });
+
+  // Nemesis
+  if (player.nemesis && player.nemesis.matches >= 2)
+    insights.push({ emoji: "😱", text: `${player.nemesis.name} beats you ${player.nemesis.theirWins}/${player.nemesis.matches} times — your kryptonite`, color: "#ef4444" });
+
+  // Best partner
+  if (player.bestPartner)
+    insights.push({ emoji: "🤝", text: `Best with ${player.bestPartner.name} — ${player.bestPartner.winRate}% win rate together`, color: "var(--color-lime)" });
+
+  // Win rate trend
+  if (player.tournamentsPlayed?.length >= 4) {
+    const recent = player.tournamentsPlayed.slice(-3);
+    const older = player.tournamentsPlayed.slice(-6, -3);
+    const recentAvg = recent.reduce((s, t) => s + t.winRate, 0) / recent.length;
+    const olderAvg = older.reduce((s, t) => s + t.winRate, 0) / older.length;
+    const delta = Math.round(recentAvg - olderAvg);
+    if (delta >= 10) insights.push({ emoji: "📈", text: `Win rate up ${delta}% over last 3 tournaments — improving!`, color: "var(--color-lime)" });
+    else if (delta <= -10) insights.push({ emoji: "📉", text: `Win rate down ${Math.abs(delta)}% recently — keep grinding`, color: "#eab308" });
+  }
+
+  // Best round
+  const roundEntries = Object.entries(player.roundStats || {});
+  if (roundEntries.length >= 2) {
+    const best = roundEntries.reduce((b, r) => {
+      const wr = r[1].wins / (r[1].wins + r[1].losses);
+      return wr > (b[1].wins / (b[1].wins + b[1].losses)) ? r : b;
+    });
+    const wr = Math.round(best[1].wins / (best[1].wins + best[1].losses) * 100);
+    if (wr >= 60) insights.push({ emoji: "🎯", text: `Strongest in Round ${Number(best[0]) + 1} — ${wr}% win rate`, color: "var(--color-cyan)" });
+  }
+
+  // ELO growth
+  if (eloHistory.length >= 2) {
+    const oldest = eloHistory[0];
+    const newest = eloHistory[eloHistory.length - 1];
+    const delta = newest.ratingAfter - oldest.ratingBefore;
+    if (delta > 0) insights.push({ emoji: "⚡", text: `ELO grown +${delta} since you started — ${newest.ratingAfter} rating`, color: "var(--color-gold)" });
+    else if (delta < 0) insights.push({ emoji: "💪", text: `ELO at ${newest.ratingAfter} — ${Math.abs(delta)} points to recover`, color: "#eab308" });
+  }
+
+  // Titles
+  if (player.titles >= 2) insights.push({ emoji: "🏆", text: `${player.titles} tournament titles — champion mentality!`, color: "var(--color-gold)" });
+  else if (player.titles === 1) insights.push({ emoji: "🥇", text: `Tournament champion! Now defend that title`, color: "var(--color-gold)" });
+
+  // Best tournament
+  if (player.tournamentsPlayed?.length > 0) {
+    const best = [...player.tournamentsPlayed].sort((a, b) => b.winRate - a.winRate || b.wins - a.wins)[0];
+    if (best.winRate === 100 && best.wins >= 2) insights.push({ emoji: "💥", text: `Perfect tournament: ${best.name || "unnamed"} — ${best.wins}W 0L`, color: "var(--color-lime)" });
+  }
+
+  // Win rate label
+  if (player.winRate >= 75) insights.push({ emoji: "👑", text: `${player.winRate}% overall win rate — elite level`, color: "var(--color-gold)" });
+  else if (player.winRate >= 50) insights.push({ emoji: "💪", text: `${player.winRate}% win rate — more wins than losses, solid`, color: "var(--color-lime)" });
+  else if (player.matches >= 5) insights.push({ emoji: "🏋️", text: `${player.winRate}% win rate — room to grow, keep competing`, color: "#eab308" });
+
+  return insights;
+}
+
+function InsightStrip({ insights, G }) {
+  if (!insights.length) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 8, fontWeight: 600 }}>💡 INSIGHTS</div>
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
+        {insights.map((ins, i) => (
+          <div key={i} style={{ flexShrink: 0, maxWidth: 220, background: "rgba(255,255,255,0.04)", border: `1px solid ${ins.color}33`, borderRadius: 12, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>{ins.emoji}</span>
+            <span style={{ fontSize: 12, color: G.text, lineHeight: 1.4 }}>{ins.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlayerDetail({ player, allPlayers, h2h, eloHistory = [], onClose, theme = 'dark' }) {
   const G = getG(theme);
   const [h2hTarget, setH2hTarget] = useState(null);
   const otherPlayers = allPlayers.filter(p => p.name !== player.name);
   const winRate = player.winRate;
   const diff = player.scored - player.conceded;
+  const insights = computeInsights(player, eloHistory);
 
   return (
     <div className="fu" style={{ minHeight: "100vh", background: "var(--bg)", overflowY: "auto", padding: "1rem 1rem 90px" }}>
@@ -140,6 +226,9 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
             </div>
           ))}
         </div>
+
+        {/* Insights */}
+        <InsightStrip insights={insights} G={G} />
 
         {/* Streak */}
         <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem", marginBottom: 16 }}>
@@ -322,15 +411,26 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
 }
 
 export function CareerScreen({ onBack, theme = 'dark' }) {
-  // Start with localStorage immediately so stats show without waiting for network
   const [history, setHistory] = useState(() => loadH());
+  const [eloHistory, setEloHistory] = useState([]);
+  const [currentUserName, setCurrentUserName] = useState(null);
 
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
-    if (!uid) return; // Guests: localStorage already loaded
-    // Google users: try Firestore — update if it has data
+    if (!uid) return;
     fetchUserTournaments(uid).then(list => {
       if (list && list.length > 0) setHistory(list);
+    });
+    // Load ELO history + display name for current user
+    import("firebase/firestore").then(({ doc, getDoc }) => {
+      import("../firebase").then(({ firestore }) => {
+        getDoc(doc(firestore, "users", uid)).then(snap => {
+          if (snap.exists()) {
+            setEloHistory(snap.data().eloHistory || []);
+            setCurrentUserName(snap.data().name || null);
+          }
+        });
+      });
     });
   }, []);
 
@@ -340,7 +440,8 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
   const G = getG(theme);
 
   if (selectedPlayer) {
-    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players || []} h2h={stats.h2h || {}} onClose={() => setSelectedPlayer(null)} theme={theme} />;
+    const isCurrentUser = currentUserName && normalizePlayerName(selectedPlayer.name) === normalizePlayerName(currentUserName);
+    return <PlayerDetail player={selectedPlayer} allPlayers={stats.players || []} h2h={stats.h2h || {}} eloHistory={isCurrentUser ? eloHistory : []} onClose={() => setSelectedPlayer(null)} theme={theme} />;
   }
 
   const { players = [], partnerships = [], records = {}, totalTournaments = 0, totalMatches = 0 } = stats;
@@ -393,6 +494,27 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
                 ))}
               </div>
             </div>
+
+            {/* Personal insight strip for current user */}
+            {(() => {
+              const me = currentUserName && stats.players?.find(p => normalizePlayerName(p.name) === normalizePlayerName(currentUserName));
+              if (!me) return null;
+              const ins = computeInsights(me, eloHistory);
+              if (!ins.length) return null;
+              return (
+                <div className="fu" style={{ animationDelay: ".06s", marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 8, fontWeight: 600 }}>💡 YOUR INSIGHTS</div>
+                  <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
+                    {ins.map((insight, i) => (
+                      <div key={i} style={{ flexShrink: 0, maxWidth: 200, background: "rgba(255,255,255,0.04)", border: `1px solid ${insight.color}33`, borderRadius: 12, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>{insight.emoji}</span>
+                        <span style={{ fontSize: 12, color: G.text, lineHeight: 1.4 }}>{insight.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Records */}
             {records.highestScoringMatch && (
