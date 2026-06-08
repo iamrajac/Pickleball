@@ -1,19 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 
-export function TVMode({ code, rounds, liveScores, profiles, tournamentName, onClose }) {
+export function TVMode({ code, rounds, liveScores, profiles, tournamentName, playoffs, onClose }) {
   const [focusIdx, setFocusIdx] = useState(0);
   const [tick, setTick] = useState(0);
 
   // Flatten all matches with round info
-  const allMatches = rounds.flatMap((round, ri) =>
+  const allMatches = useMemo(() => rounds.flatMap((round, ri) =>
     round.map((m, mi) => ({ ...m, ri, mi, tk: `${ri}-${mi}` }))
-  );
-  const totalMatches = allMatches.length;
-  const completedMatches = allMatches.filter(m => m.played).length;
+  ), [rounds]);
 
-  // Active (in-progress with live score or not played)
-  const activeMatches = allMatches.filter(m => !m.played);
+  const totalMatches = allMatches.length;
+  const completedMatches = useMemo(() => allMatches.filter(m => m.played), [allMatches]);
+  const activeMatches = useMemo(() => allMatches.filter(m => !m.played), [allMatches]);
+
+  // Playoff matches list for display
+  const playoffMatches = useMemo(() => {
+    if (!playoffs) return [];
+    const stageOrder = ["q1", "elim", "sf1", "q2", "qf1", "qf2", "sf2", "q2_b", "sf", "final"];
+    return stageOrder
+      .filter(s => playoffs[s])
+      .map(s => ({ ...playoffs[s], stage: s, label: playoffs[s].label || s.toUpperCase() }));
+  }, [playoffs]);
 
   // Auto-rotate focus every 5 seconds
   useEffect(() => {
@@ -24,7 +32,7 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, onC
     return () => clearInterval(id);
   }, [activeMatches.length]);
 
-  // Tick for live timers
+  // Single tick for all timers — no per-match re-render storms
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(id);
@@ -36,6 +44,12 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, onC
     return `${m}:${String(sec).padStart(2, "0")}`;
   };
 
+  // Compute elapsed time from startedAt snapshot (stable, updated by tick)
+  const getElapsed = (ls) => {
+    if (!ls?.startedAt) return null;
+    return Math.floor((Date.now() - ls.startedAt) / 1000);
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "#070c11", color: "#fff", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
@@ -43,7 +57,7 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, onC
         <div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: "#c8f135", letterSpacing: 4, lineHeight: 1 }}>{tournamentName || "PICKLEBALL"}</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-            {completedMatches}/{totalMatches} matches complete · {activeMatches.length} remaining
+            {completedMatches.length}/{totalMatches} matches complete · {activeMatches.length} remaining
           </div>
         </div>
         <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, color: "#fff", padding: "10px 16px", cursor: "pointer", fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 2 }}>
@@ -51,62 +65,129 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, onC
         </button>
       </div>
 
-      {/* Match grid */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, alignContent: "start" }}>
-        {activeMatches.length === 0 ? (
-          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "4rem 0" }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: "#c8f135", letterSpacing: 4 }}>ALL DONE!</div>
-            <div style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>All {totalMatches} matches completed</div>
-          </div>
-        ) : activeMatches.map((m, idx) => {
-          const ls = liveScores?.[m.tk];
-          const isFocused = idx === (focusIdx % activeMatches.length);
-          const teamA = m.teamA?.join(" & ") || "TBD";
-          const teamB = m.teamB?.join(" & ") || "TBD";
-          const scoreA = ls?.a ?? 0;
-          const scoreB = ls?.b ?? 0;
-          const liveElapsed = ls?.startedAt ? Math.floor((Date.now() - ls.startedAt) / 1000) : null;
+      {/* Main scrollable area */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
 
-          return (
-            <div key={m.tk} style={{
-              background: isFocused ? "rgba(200,241,53,0.06)" : "rgba(255,255,255,0.03)",
-              border: `2px solid ${isFocused ? "#c8f135" : "rgba(255,255,255,0.08)"}`,
-              borderRadius: 16,
-              padding: "20px",
-              transition: "all 0.4s ease",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, color: isFocused ? "#c8f135" : "rgba(255,255,255,0.4)", letterSpacing: 2 }}>
-                  ROUND {m.ri + 1}
-                </span>
-                {liveElapsed !== null && (
-                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "#38bdf8", letterSpacing: 2 }}>
-                    ⏱ {fmtTime(liveElapsed)}
-                  </span>
-                )}
-                {ls && (ls.a > 0 || ls.b > 0) && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#c8f135", fontWeight: 700, letterSpacing: 1 }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#c8f135", animation: "tvPulse 1.5s infinite" }} />
-                    LIVE
-                  </div>
-                )}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
-                <div>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 1, lineHeight: 1.2 }}>{teamA}</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: (ls && (ls.a > 0 || ls.b > 0)) ? "#c8f135" : "rgba(255,255,255,0.2)", letterSpacing: 4, lineHeight: 1 }}>
-                    {scoreA}–{scoreB}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 1, lineHeight: 1.2 }}>{teamB}</div>
-                </div>
-              </div>
+        {/* Active matches */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, alignContent: "start", marginBottom: activeMatches.length > 0 ? 32 : 0 }}>
+          {activeMatches.length === 0 ? (
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem 0" }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: "#c8f135", letterSpacing: 4 }}>ALL DONE!</div>
+              <div style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>All {totalMatches} matches completed</div>
             </div>
-          );
-        })}
+          ) : activeMatches.map((m, idx) => {
+            const ls = liveScores?.[m.tk];
+            const isFocused = idx === (focusIdx % activeMatches.length);
+            const teamA = m.teamA?.join(" & ") || "TBD";
+            const teamB = m.teamB?.join(" & ") || "TBD";
+            const scoreA = ls?.a ?? 0;
+            const scoreB = ls?.b ?? 0;
+            const liveElapsed = getElapsed(ls);
+
+            return (
+              <div key={m.tk} style={{
+                background: isFocused ? "rgba(200,241,53,0.06)" : "rgba(255,255,255,0.03)",
+                border: `2px solid ${isFocused ? "#c8f135" : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 16,
+                padding: "20px",
+                transition: "all 0.4s ease",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, color: isFocused ? "#c8f135" : "rgba(255,255,255,0.4)", letterSpacing: 2 }}>
+                    ROUND {m.ri + 1}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {liveElapsed !== null && (
+                      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: "#38bdf8", letterSpacing: 2 }}>
+                        ⏱ {fmtTime(liveElapsed)}
+                      </span>
+                    )}
+                    {ls && (ls.a > 0 || ls.b > 0) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#c8f135", fontWeight: 700, letterSpacing: 1 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#c8f135", animation: "tvPulse 1.5s infinite" }} />
+                        LIVE
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 1, lineHeight: 1.2 }}>{teamA}</div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: (ls && (ls.a > 0 || ls.b > 0)) ? "#c8f135" : "rgba(255,255,255,0.2)", letterSpacing: 4, lineHeight: 1 }}>
+                      {scoreA}–{scoreB}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 1, lineHeight: 1.2 }}>{teamB}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Playoffs section */}
+        {playoffMatches.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "#f59e0b", letterSpacing: 3, marginBottom: 16, paddingBottom: 8, borderBottom: "1px solid rgba(245,158,11,0.2)" }}>
+              🏆 PLAYOFFS
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+              {playoffMatches.map((m) => {
+                const teamA = m.teamA?.join(" & ") || "TBD";
+                const teamB = m.teamB?.join(" & ") || "TBD";
+                const winA = m.played && Number(m.scoreA) > Number(m.scoreB);
+                const winB = m.played && Number(m.scoreB) > Number(m.scoreA);
+                return (
+                  <div key={m.stage} style={{
+                    background: m.played ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.03)",
+                    border: `2px solid ${m.played ? "#f59e0b" : "rgba(255,255,255,0.08)"}`,
+                    borderRadius: 16, padding: "16px",
+                  }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, color: "#f59e0b", letterSpacing: 2, marginBottom: 10 }}>
+                      {m.label} {m.played && "· DONE"}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: winA ? "#c8f135" : "#fff", letterSpacing: 1, lineHeight: 1.3 }}>{teamA}</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: m.played ? "#c8f135" : "rgba(255,255,255,0.2)", letterSpacing: 3, textAlign: "center" }}>
+                        {m.played ? `${m.scoreA}–${m.scoreB}` : "–"}
+                      </div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: winB ? "#c8f135" : "#fff", letterSpacing: 1, lineHeight: 1.3, textAlign: "right" }}>{teamB}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Completed group matches */}
+        {completedMatches.length > 0 && (
+          <div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "rgba(255,255,255,0.4)", letterSpacing: 3, marginBottom: 16, paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              ✓ COMPLETED ({completedMatches.length})
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+              {completedMatches.map((m) => {
+                const winA = Number(m.scoreA) > Number(m.scoreB);
+                return (
+                  <div key={m.tk} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px" }}>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Bebas Neue', sans-serif" }}>
+                      ROUND {m.ri + 1}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 6, alignItems: "center" }}>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, color: winA ? "#c8f135" : "rgba(255,255,255,0.5)", letterSpacing: 0.5 }}>{m.teamA?.join(" & ")}</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: "rgba(200,241,53,0.7)", letterSpacing: 3, textAlign: "center" }}>{m.scoreA}–{m.scoreB}</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, color: !winA ? "#c8f135" : "rgba(255,255,255,0.5)", letterSpacing: 0.5, textAlign: "right" }}>{m.teamB?.join(" & ")}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`

@@ -229,6 +229,7 @@ export function useTournament() {
   const [tournamentName, setTournamentName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState(null); // ms timestamp or null
+  const [claims, setClaims] = useState({});
 
   // Refs that must not trigger re-renders
   const isWriting = useRef(false);
@@ -243,6 +244,21 @@ export function useTournament() {
 
   // ── H2H init ──────────────────────────────────────────────────────────────
   useEffect(() => { setH2hMatrix(computeH2HMatrix()); }, []);
+
+  // ── Spectator session restore on refresh ──────────────────────────────────
+  useEffect(() => {
+    const saved = sessionStorage.getItem('pkl_session');
+    if (!saved) return;
+    try {
+      const { code: savedCode } = JSON.parse(saved);
+      if (!savedCode) return;
+      get(ref(db, `tournaments/${savedCode}`)).then(snap => {
+        if (snap.exists() && snap.val()) handleJoin(savedCode, snap.val());
+        else sessionStorage.removeItem('pkl_session');
+      }).catch(() => {});
+    } catch { sessionStorage.removeItem('pkl_session'); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Restore timers when code is set (must run before save effect) ───────────
   useEffect(() => {
@@ -323,6 +339,7 @@ export function useTournament() {
         if (v.profiles) setProfiles(v.profiles);
         if (v.themeColor) setThemeColor(v.themeColor);
         if (v.name !== undefined) setTournamentName(v.name || "");
+        if (v.isPublic !== undefined) setIsPublic(v.isPublic !== false);
         if (v.scheduledAt !== undefined) setScheduledAt(v.scheduledAt || null);
         if (joinCompleteRef.current) {
           // Respect scheduled lock even on updates
@@ -380,6 +397,15 @@ export function useTournament() {
       setLiveScores(snap.exists() ? snap.val() : {});
     });
     return () => unsubLive();
+  }, [code]);
+
+  // ── Claims listener ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!code) return;
+    const unsubClaims = onValue(ref(db, `tournaments/${code}/claims`), snap => {
+      setClaims(snap.exists() ? snap.val() : {});
+    });
+    return () => unsubClaims();
   }, [code]);
 
   // ── Reconnect: flush any pending offline write ────────────────────────────
@@ -647,6 +673,7 @@ export function useTournament() {
     setProfiles({ ...globalFilled, ...joinProfiles });
     setThemeColor(data.themeColor || "#10d48e");
     setTournamentName(data.name || "");
+    setIsPublic(data.isPublic !== false);
     setCode(c);
     setTab("rounds");
     // Lock if scheduled time is in the future (overrides canEdit)
@@ -654,6 +681,11 @@ export function useTournament() {
     const joinLocked = joinSAt && joinSAt > Date.now();
     setScheduledAt(joinSAt || null);
     setReadOnly(!canEdit || !!joinLocked);
+
+    // Save join code to sessionStorage so spectators can rejoin on refresh
+    if (!canEdit) {
+      try { sessionStorage.setItem('pkl_session', JSON.stringify({ code: c })); } catch {}
+    }
 
     if (isUidCreator) {
       if (data.scorerPin) { saveScorerPin(c, String(data.scorerPin)); setScorerPin(String(data.scorerPin)); }
@@ -803,6 +835,7 @@ export function useTournament() {
 
   const executeEnd = () => {
     if (code) localStorage.removeItem(`pkl_timers_${code}`);
+    sessionStorage.removeItem('pkl_session');
     canEditRef.current = false;
     joinCompleteRef.current = false;
     pendingSync.current = null;
@@ -872,7 +905,7 @@ export function useTournament() {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin,
     profiles, themeColor, h2hMatrix, savedToHist,
-    tournamentName, isPublic, scheduledAt,
+    tournamentName, isPublic, scheduledAt, claims,
     // Timer helpers
     startMatchTimer, stopMatchTimer, resetMatchTimer, getMatchTimer,
     // Live score helpers

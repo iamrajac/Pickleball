@@ -482,6 +482,14 @@ body.modal-open { overflow: hidden; touch-action: none; }
   .topbar-btn { min-width: 44px !important; min-height: 44px !important; }
 }
 
+/* Topbar responsive classes */
+.topbar-mobile-only { display: none; }
+.topbar-desktop-only { display: flex; align-items: center; gap: 5px; }
+@media (max-width: 500px) {
+  .topbar-mobile-only { display: block; }
+  .topbar-desktop-only { display: none; }
+}
+
 /* Disable sticky hover on touch screens */
 @media (hover: none) {
   .mc:hover    { transform: none !important; box-shadow: var(--shadow-sm) !important; }

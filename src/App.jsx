@@ -36,6 +36,7 @@ import { BracketTree } from "./components/BracketTree";
 import { Announcements } from "./components/Announcements";
 import { TVMode } from "./components/TVMode";
 import { TournamentChat } from "./components/TournamentChat";
+import { ClaimBanner } from "./components/ClaimBanner";
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 function useTheme() {
@@ -94,14 +95,14 @@ function EliminatedBanner({ names }) {
 }
 
 // ── Tournament view (shown over routes when code is active) ────────────────
-function TournamentView({ t, theme, toggleTheme }) {
+function TournamentView({ t, theme, toggleTheme, user }) {
   const navigate = useNavigate();
   const {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
     saveResult, savePlayoff, executeEnd, deleteTournament, handleScorerPinEntered,
     copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
-    liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic,
+    liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic, claims,
   } = t;
 
   const leaveAndGoHome = () => { executeEnd(); navigate("/"); };
@@ -134,6 +135,7 @@ function TournamentView({ t, theme, toggleTheme }) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showTVMode, setShowTVMode] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showOverflow, setShowOverflow] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const swipeTargetRef = useRef(null);
@@ -212,22 +214,47 @@ function TournamentView({ t, theme, toggleTheme }) {
                   <Lock size={13} /> PIN
                 </button>
               ) : null}
-              <button className="pb topbar-btn" onClick={() => setShowTVMode(true)}
-                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer" }}>
-                <Tv size={16} />
-              </button>
-              <button className="pb topbar-btn" onClick={() => setShowChat(true)}
-                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#34d399", cursor: "pointer", position: "relative" }}>
-                <MessageCircle size={16} />
-              </button>
+              {/* Share button — always visible */}
               <button className="pb topbar-btn" onClick={() => setShowShare(true)}
                 style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#93c5fd", cursor: "pointer" }}>
                 <Share2 size={16} />
               </button>
-              <button className="pb topbar-btn" onClick={toggleTheme}
-                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>
-                {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-              </button>
+              {/* Desktop: show TV, Chat, Theme inline. Mobile: collapse into ⋯ */}
+              <div className="topbar-desktop-only" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <button className="pb topbar-btn" onClick={() => setShowTVMode(true)}
+                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer" }}>
+                  <Tv size={16} />
+                </button>
+                <button className="pb topbar-btn" onClick={() => setShowChat(true)}
+                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#34d399", cursor: "pointer" }}>
+                  <MessageCircle size={16} />
+                </button>
+                <button className="pb topbar-btn" onClick={toggleTheme}
+                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>
+                  {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                </button>
+              </div>
+              {/* Mobile overflow menu */}
+              <div className="topbar-mobile-only" style={{ position: "relative" }}>
+                <button className="pb topbar-btn" onClick={() => setShowOverflow(v => !v)}
+                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px 8px", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 16, fontWeight: 700, letterSpacing: 1 }}>
+                  ⋯
+                </button>
+                {showOverflow && (
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "6px 0", zIndex: 200, minWidth: 160, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+                    onClick={() => setShowOverflow(false)}>
+                    <button className="pb" onClick={() => setShowTVMode(true)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", color: "#a78bfa", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                      <Tv size={15} /> TV MODE
+                    </button>
+                    <button className="pb" onClick={() => setShowChat(true)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", color: "#34d399", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                      <MessageCircle size={15} /> CHAT
+                    </button>
+                    <button className="pb" onClick={toggleTheme} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                      {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />} {theme === "dark" ? "LIGHT" : "DARK"} MODE
+                    </button>
+                  </div>
+                )}
+              </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                 <div style={{ width: 40, height: 3, background: "var(--color-border)", borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: "100%", background: "var(--color-lime)", width: `${pct}%`, transition: "width 0.5s" }} />
@@ -314,7 +341,7 @@ function TournamentView({ t, theme, toggleTheme }) {
       )}
 
       {/* TVMode overlay */}
-      {showTVMode && <TVMode code={code} rounds={rounds} liveScores={liveScores} profiles={profiles} tournamentName={tournamentName} onClose={() => setShowTVMode(false)} />}
+      {showTVMode && <TVMode code={code} rounds={rounds} liveScores={liveScores} profiles={profiles} tournamentName={tournamentName} playoffs={playoffs} onClose={() => setShowTVMode(false)} />}
 
       {/* Chat bottom sheet */}
       {showChat && <TournamentChat code={code} readOnly={false} currentUserName={readOnly ? "Spectator" : "Organizer"} isOrganizer={!readOnly} onClose={() => setShowChat(false)} />}
@@ -322,6 +349,7 @@ function TournamentView({ t, theme, toggleTheme }) {
       {/* Announcements panel */}
       <div style={{ padding: "8px 1rem 0" }}>
         <Announcements code={code} readOnly={readOnly} scorerName="Organizer" />
+        {readOnly && <ClaimBanner code={code} players={players} currentUser={user} existingClaims={claims} profiles={profiles} readOnly={readOnly} onClaimed={() => {}} />}
       </div>
 
       {/* Scheduled lock banner */}
@@ -707,7 +735,7 @@ function AppInner() {
   );
 
   // Active tournament overrides all routes
-  if (t.code) return <TournamentView t={t} theme={theme} toggleTheme={toggleTheme} />;
+  if (t.code) return <TournamentView t={t} theme={theme} toggleTheme={toggleTheme} user={user} />;
 
   return (
     <>

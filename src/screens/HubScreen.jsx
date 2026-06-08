@@ -95,7 +95,7 @@ function TournamentCard({ t, onClick, onDelete }) {
           <span style={{ opacity: 0.7 }}>📅 {fmtDate(t.date || t.updatedAt)}</span>
         )}
         {t.champion && <span>🏆 {t.champion}</span>}
-        {t.isPublic === false || t.isPublic === undefined && t.code
+        {t.isPublic === false
           ? <span className="badge badge-private" style={{ fontSize: 9 }}>🔒 PRIVATE</span>
           : <span className="badge" style={{ fontSize: 9, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(16,212,142,0.25)" }}>🌐 PUBLIC</span>
         }

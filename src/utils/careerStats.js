@@ -55,12 +55,10 @@ export function computeCareerStats(history) {
       winners.forEach(p => { if (players[p] || getPlayer(p)) getPlayer(p).titles++; });
     }
 
-    // Process all matches
-    if (t.rounds && Array.isArray(t.rounds)) {
-      t.rounds.forEach(round => {
-        if (!round || !Array.isArray(round)) return;
-        round.forEach(m => {
-          if (!m.played) return;
+    // Helper to process a single match
+    const processMatch = (m) => {
+          if (!m || !m.played) return;
+          if (!m.teamA || !m.teamB) return;
           const sA = Number(m.scoreA), sB = Number(m.scoreB);
           const winA = sA > sB;
 
@@ -104,7 +102,21 @@ export function computeCareerStats(history) {
               else { if (aIsFirst) rec.bWins++; else rec.aWins++; }
             });
           });
-        });
+    };
+
+    // Process group stage matches
+    if (t.rounds && Array.isArray(t.rounds)) {
+      t.rounds.forEach(round => {
+        if (!round || !Array.isArray(round)) return;
+        round.forEach(m => processMatch(m));
+      });
+    }
+
+    // Process playoff matches
+    if (t.playoffs) {
+      const playoffStages = ["q1", "elim", "sf1", "q2", "qf1", "qf2", "sf2", "q2_b", "sf", "final"];
+      playoffStages.forEach(stage => {
+        if (t.playoffs[stage]) processMatch(t.playoffs[stage]);
       });
     }
   });
