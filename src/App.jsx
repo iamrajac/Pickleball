@@ -457,7 +457,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                 <PlayoffSection key={playoffs ? Object.keys(playoffs).filter(k => playoffs[k]?.teamA).sort().join(",") : "empty"}
                   playoffs={playoffs} champion={champion} players={players} profiles={profiles}
                   savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
-                  copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} liveScores={liveScores} />
+                  copyStandingsText={copyStandingsText} standings={standings} rounds={rounds} pushLiveScore={pushLiveScore} liveScores={liveScores} initialElos={initialElos} />
               </PlayoffBoundary>
             ) : (
               <div className="glass-card" style={{ textAlign: "center", padding: "4rem", borderRadius: "var(--radius-lg)" }}>
@@ -500,7 +500,7 @@ function PlayoffGrid({ children }) {
 }
 
 // ── Playoff section with bracket/scores toggle ────────────────────────────────
-function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds, pushLiveScore, liveScores }) {
+function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, readOnly, h2hMatrix, copyStandingsText, standings, rounds, pushLiveScore, liveScores, initialElos }) {
   const [view, setView] = useState("bracket");
   const mode = playoffs.mode || "ipl8";
   const labels = { final_only: "GRAND FINAL", elim_to_sf: "TOP 4 BRACKET", ipl6: "6-TEAM IPL BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
