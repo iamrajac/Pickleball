@@ -120,7 +120,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
     } catch (e) {
       const isPermission = e?.code === "PERMISSION_DENIED" || e?.message?.includes("permission");
       setJoinErr(isPermission
-        ? `Cannot access tournament. Ask the organizer to share the code again.`
+        ? `Sign in with Google to join this tournament.`
         : "Connection error. Check your internet and try again.");
     }
     setJoining(false);

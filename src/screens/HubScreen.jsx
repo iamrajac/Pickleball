@@ -22,7 +22,10 @@ function JoinBox({ onJoin }) {
       const snap = await get(ref(db, `tournaments/${upper}`));
       if (snap.exists() && snap.val()) { onJoin(upper, snap.val()); return; }
       setErr("Tournament not found.");
-    } catch { setErr("Connection error. Try again."); }
+    } catch (e) {
+      const isPermission = e?.code === "PERMISSION_DENIED" || e?.message?.includes("permission");
+      setErr(isPermission ? "Sign in with Google to join this tournament." : "Connection error. Try again.");
+    }
     setJoining(false);
   };
 
