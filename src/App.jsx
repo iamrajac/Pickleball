@@ -200,18 +200,19 @@ function TournamentView({ t, theme, toggleTheme, user }) {
                 <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Users size={9} /> {onlineCount}</span>
                 <span style={{ color: "#93c5fd", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1, fontSize: 11 }}>{code}</span>
                 <span>· {totalPlayed}/{allM.length}</span>
+                <span className="topbar-mobile-only" style={{ color: "var(--color-lime)", fontFamily: "'Bebas Neue', sans-serif", fontSize: 11 }}>{pct}%</span>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
               {readOnly ? (
                 <button className="pb" onClick={() => setShowScorerEntry(true)}
-                  style={{ background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.5)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "#fbbf24", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                  <Lock size={13} /> SCORER
+                  style={{ background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.5)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", gap: 4, color: "#fbbf24", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  <Lock size={13} /><span className="topbar-desktop-only">SCORER</span>
                 </button>
               ) : scorerPin ? (
                 <button className="pb" onClick={() => setShowScorerPin(true)}
-                  style={{ background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.5)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4, color: "#fbbf24", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                  <Lock size={13} /> PIN
+                  style={{ background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.5)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", gap: 4, color: "#fbbf24", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  <Lock size={13} /><span className="topbar-desktop-only">PIN</span>
                 </button>
               ) : null}
               {/* Share button — always visible */}
@@ -255,7 +256,7 @@ function TournamentView({ t, theme, toggleTheme, user }) {
                   </div>
                 )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+              <div className="topbar-desktop-only" style={{ flexDirection: "column", alignItems: "center", gap: 2 }}>
                 <div style={{ width: 40, height: 3, background: "var(--color-border)", borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: "100%", background: "var(--color-lime)", width: `${pct}%`, transition: "width 0.5s" }} />
                 </div>

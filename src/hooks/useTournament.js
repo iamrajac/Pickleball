@@ -247,16 +247,19 @@ export function useTournament() {
 
   // ── Spectator session restore on refresh ──────────────────────────────────
   useEffect(() => {
-    const saved = sessionStorage.getItem('pkl_session');
+    const saved = localStorage.getItem('pkl_session');
     if (!saved) return;
     try {
-      const { code: savedCode } = JSON.parse(saved);
-      if (!savedCode) return;
+      const { code: savedCode, ts } = JSON.parse(saved);
+      // Only restore if joined within last 12 hours
+      if (!savedCode || (ts && Date.now() - ts > 12 * 60 * 60 * 1000)) {
+        localStorage.removeItem('pkl_session'); return;
+      }
       get(ref(db, `tournaments/${savedCode}`)).then(snap => {
         if (snap.exists() && snap.val()) handleJoin(savedCode, snap.val());
-        else sessionStorage.removeItem('pkl_session');
+        else localStorage.removeItem('pkl_session');
       }).catch(() => {});
-    } catch { sessionStorage.removeItem('pkl_session'); }
+    } catch { localStorage.removeItem('pkl_session'); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -682,9 +685,9 @@ export function useTournament() {
     setScheduledAt(joinSAt || null);
     setReadOnly(!canEdit || !!joinLocked);
 
-    // Save join code to sessionStorage so spectators can rejoin on refresh
+    // Save join code to localStorage so spectators can rejoin on refresh/back
     if (!canEdit) {
-      try { sessionStorage.setItem('pkl_session', JSON.stringify({ code: c })); } catch {}
+      try { localStorage.setItem('pkl_session', JSON.stringify({ code: c, ts: Date.now() })); } catch {}
     }
 
     if (isUidCreator) {
@@ -835,7 +838,7 @@ export function useTournament() {
 
   const executeEnd = () => {
     if (code) localStorage.removeItem(`pkl_timers_${code}`);
-    sessionStorage.removeItem('pkl_session');
+    localStorage.removeItem('pkl_session');
     canEditRef.current = false;
     joinCompleteRef.current = false;
     pendingSync.current = null;

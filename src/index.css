@@ -483,11 +483,11 @@ body.modal-open { overflow: hidden; touch-action: none; }
 }
 
 /* Topbar responsive classes */
-.topbar-mobile-only { display: none; }
-.topbar-desktop-only { display: flex; align-items: center; gap: 5px; }
-@media (max-width: 500px) {
-  .topbar-mobile-only { display: block; }
-  .topbar-desktop-only { display: none; }
+.topbar-mobile-only { display: none !important; }
+.topbar-desktop-only { display: flex !important; align-items: center; gap: 5px; }
+@media (max-width: 540px) {
+  .topbar-mobile-only { display: inline !important; }
+  .topbar-desktop-only { display: none !important; }
 }
 
 /* Disable sticky hover on touch screens */

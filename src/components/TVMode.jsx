@@ -138,21 +138,32 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, pla
               {playoffMatches.map((m) => {
                 const teamA = m.teamA?.join(" & ") || "TBD";
                 const teamB = m.teamB?.join(" & ") || "TBD";
+                const lsKey = `playoff-${m.stage}`;
+                const ls = liveScores?.[lsKey];
+                const liveA = m.scoreA ?? ls?.a ?? null;
+                const liveB = m.scoreB ?? ls?.b ?? null;
+                const hasLive = (liveA !== null && liveB !== null);
                 const winA = m.played && Number(m.scoreA) > Number(m.scoreB);
                 const winB = m.played && Number(m.scoreB) > Number(m.scoreA);
+                const liveElapsed = getElapsed(ls);
                 return (
                   <div key={m.stage} style={{
-                    background: m.played ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.03)",
-                    border: `2px solid ${m.played ? "#f59e0b" : "rgba(255,255,255,0.08)"}`,
+                    background: m.played ? "rgba(245,158,11,0.06)" : hasLive ? "rgba(200,241,53,0.04)" : "rgba(255,255,255,0.03)",
+                    border: `2px solid ${m.played ? "#f59e0b" : hasLive ? "#c8f135" : "rgba(255,255,255,0.08)"}`,
                     borderRadius: 16, padding: "16px",
                   }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, color: "#f59e0b", letterSpacing: 2, marginBottom: 10 }}>
-                      {m.label} {m.played && "· DONE"}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, color: "#f59e0b", letterSpacing: 2 }}>
+                        {m.label} {m.played && "· DONE"}
+                      </div>
+                      {liveElapsed !== null && !m.played && (
+                        <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, color: "#38bdf8" }}>⏱ {fmtTime(liveElapsed)}</span>
+                      )}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
                       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: winA ? "#c8f135" : "#fff", letterSpacing: 1, lineHeight: 1.3 }}>{teamA}</div>
-                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: m.played ? "#c8f135" : "rgba(255,255,255,0.2)", letterSpacing: 3, textAlign: "center" }}>
-                        {m.played ? `${m.scoreA}–${m.scoreB}` : "–"}
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: (m.played || hasLive) ? "#c8f135" : "rgba(255,255,255,0.2)", letterSpacing: 3, textAlign: "center" }}>
+                        {(liveA !== null && liveB !== null) ? `${liveA}–${liveB}` : "–"}
                       </div>
                       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: winB ? "#c8f135" : "#fff", letterSpacing: 1, lineHeight: 1.3, textAlign: "right" }}>{teamB}</div>
                     </div>

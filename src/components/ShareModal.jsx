@@ -22,14 +22,14 @@ export function ShareModal({ code, isPublic = true, onClose, tournamentName, pla
     let msg;
     if (isPublic) {
       const top3 = (standings || []).slice(0, 3).map((s, i) => `${i + 1}. ${s.name} (${s.pts}pts)`).join("  ");
-      msg = `🏓 *${name}* is LIVE!`;
+      msg = `*${name}* is LIVE! 🏓`;
       if (playersRound) msg += `\n${playersRound}`;
-      if (top3) msg += `\n📊 Top 3: ${top3}`;
-      msg += `\n👀 Watch live: ${publicUrl}`;
+      if (top3) msg += `\nTop 3: ${top3}`;
+      msg += `\nWatch live: ${publicUrl}`;
     } else {
-      msg = `🏓 Join *${name}*!`;
+      msg = `Join *${name}*! 🏓`;
       if (playersRound) msg += `\n${playersRound}`;
-      msg += `\n🔑 Code: *${code}*\n📲 Open app & enter code to join`;
+      msg += `\nCode: *${code}*\nOpen the app and enter code to join: ${window.location.origin}`;
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
