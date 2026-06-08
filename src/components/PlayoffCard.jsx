@@ -39,7 +39,7 @@ function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   );
 }
 
-export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {} }) {
+export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {}, onLiveScore }) {
   const matchKey = match ? `${match.label}-${(match.teamA||[]).join("-")}` : "none";
 
   const [sA, setSA] = useState(() => scoreBuffer[matchKey]?.sA ?? match?.scoreA ?? "");
@@ -63,22 +63,24 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   }, []);
 
   // Save timer state on every tick (scoreBuffer = survives tab switch; localStorage = survives refresh)
+  // Also push to Firebase live so TV mode can show real-time timer
   useEffect(() => {
     if (match?.played) return;
-    const timerState = {
-      elapsed: timer.elapsed,
-      running: timer.running,
-      startedAt: timer.running ? Date.now() - timer.elapsed * 1000 : null,
-    };
+    const startedAt = timer.running ? Date.now() - timer.elapsed * 1000 : null;
+    const timerState = { elapsed: timer.elapsed, running: timer.running, startedAt };
     if (!scoreBuffer[matchKey]) scoreBuffer[matchKey] = {};
     scoreBuffer[matchKey].timer = timerState;
     localStorage.setItem(timerKey, JSON.stringify(timerState));
+    // Push to Firebase live node so TV mode sees the timer
+    if (onLiveScore) onLiveScore(Number(sA) || 0, Number(sB) || 0, "", startedAt);
   }, [timer.elapsed, timer.running, timerKey, matchKey, match?.played]);
 
   const updatePlayoffScore = (newA, newB) => {
     const numA = newA === "" ? 0 : Number(newA);
     const numB = newB === "" ? 0 : Number(newB);
     if (isNaN(numA) || isNaN(numB)) return;
+    const startedAt = timer.running ? Date.now() - timer.elapsed * 1000 : null;
+    if (onLiveScore) onLiveScore(numA, numB, "", startedAt);
     setScoreHistory(prev => {
       const last = prev[prev.length - 1];
       if (last && last.a === numA && last.b === numB) return prev;
