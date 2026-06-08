@@ -178,8 +178,11 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const liveTimerElapsed = liveScore?.startedAt && !localTouched
     ? Math.floor((Date.now() - liveScore.startedAt) / 1000) : null;
 
-  // Fair serve & side assignment algorithm (deterministic hash)
-  const hash = String((match.teamA || []).join("") + match.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // Deterministic serve/side from match id (r0_c0, r0_c1 …) so each round+court
+  // alternates who serves and which side, giving fair distribution over the tournament.
+  // Playoff matches use their label as id. Falls back to name hash if id is missing.
+  const _idStr = String(match.id ?? (match.teamA || []).join("") + (match.teamB || []).join(""));
+  const hash = _idStr.split('').reduce((h, c, i) => (h * 31 + c.charCodeAt(0) + i) >>> 0, 17);
   const serveTeamA = hash % 2 === 0;
   const sideLeftA = (hash >> 1) % 2 === 0;
   const servingTeam = serveTeamA ? match?.teamA?.join(" & ") : match?.teamB?.join(" & ");

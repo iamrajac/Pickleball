@@ -120,7 +120,8 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   };
   const ac = accent || "var(--accent)";
 
-  const hash = String((match.teamA || []).join("") + (match.label || "")).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const _idStr = String(match.label ?? "") + (match.teamA || []).join("") + (match.teamB || []).join("");
+  const hash = _idStr.split('').reduce((h, c, i) => (h * 31 + c.charCodeAt(0) + i) >>> 0, 17);
   const serveTeamA = hash % 2 === 0;
   const sideLeftA = (hash >> 1) % 2 === 0;
   const servingTeam = serveTeamA ? match?.teamA?.join(" & ") : match?.teamB?.join(" & ");

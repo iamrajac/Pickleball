@@ -73,12 +73,18 @@ export function generateSchedule(players, numRounds) {
     }
 
     const byeNames = [...byePlayers].map(i => players[i]);
-    rounds.push(rm.map(([[a1,a2],[b1,b2]]) => ({
-      teamA: [players[a1], players[a2]],
-      teamB: [players[b1], players[b2]],
-      scoreA: null, scoreB: null, played: false, duration: null,
-      bye: byeNames.length > 0 ? byeNames : null
-    })));
+    rounds.push(rm.map(([[a1,a2],[b1,b2]], ci) => {
+      // Alternate who is teamA/teamB each round+court so serve/side is balanced
+      const flip = (r + ci) % 2 === 1;
+      const tA = flip ? [players[b1], players[b2]] : [players[a1], players[a2]];
+      const tB = flip ? [players[a1], players[a2]] : [players[b1], players[b2]];
+      return {
+        id: `r${r}_c${ci}`,
+        teamA: tA, teamB: tB,
+        scoreA: null, scoreB: null, played: false, duration: null,
+        bye: byeNames.length > 0 ? byeNames : null
+      };
+    }));
   }
 
   return rounds;
