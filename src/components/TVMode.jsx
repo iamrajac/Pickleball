@@ -80,6 +80,7 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, pla
             const isFocused = idx === (focusIdx % activeMatches.length);
             const teamA = m.teamA?.join(" & ") || "TBD";
             const teamB = m.teamB?.join(" & ") || "TBD";
+            const hasScore = ls && (ls.a !== undefined || ls.b !== undefined);
             const scoreA = ls?.a ?? 0;
             const scoreB = ls?.b ?? 0;
             const liveElapsed = getElapsed(ls);
@@ -115,8 +116,8 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, pla
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 1, lineHeight: 1.2 }}>{teamA}</div>
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: (ls && (ls.a > 0 || ls.b > 0)) ? "#c8f135" : "rgba(255,255,255,0.2)", letterSpacing: 4, lineHeight: 1 }}>
-                      {scoreA}–{scoreB}
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: hasScore ? "#c8f135" : "rgba(255,255,255,0.2)", letterSpacing: 4, lineHeight: 1 }}>
+                      {hasScore ? `${scoreA}–${scoreB}` : "VS"}
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -183,10 +184,12 @@ export function TVMode({ code, rounds, liveScores, profiles, tournamentName, pla
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
               {completedMatches.map((m) => {
                 const winA = Number(m.scoreA) > Number(m.scoreB);
+                const dur = m.duration ? `${Math.floor(m.duration / 60)}m ${m.duration % 60}s` : null;
                 return (
                   <div key={m.tk} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px" }}>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Bebas Neue', sans-serif" }}>
-                      ROUND {m.ri + 1}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 1, fontFamily: "'Bebas Neue', sans-serif" }}>ROUND {m.ri + 1}</div>
+                      {dur && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Bebas Neue', sans-serif" }}>⏱ {dur}</div>}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 6, alignItems: "center" }}>
                       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, color: winA ? "#c8f135" : "rgba(255,255,255,0.5)", letterSpacing: 0.5 }}>{m.teamA?.join(" & ")}</div>

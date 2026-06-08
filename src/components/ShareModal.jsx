@@ -29,7 +29,7 @@ export function ShareModal({ code, isPublic = true, onClose, tournamentName, pla
     } else {
       msg = `Join *${name}*! 🏓`;
       if (playersRound) msg += `\n${playersRound}`;
-      msg += `\nCode: *${code}*\nOpen the app and enter code to join: ${window.location.origin}`;
+      msg += `\nCode: *${code}*\nJoin here: ${window.location.origin}${window.location.pathname}#/tournament/${code}`;
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };

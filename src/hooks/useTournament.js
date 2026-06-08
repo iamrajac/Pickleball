@@ -688,6 +688,22 @@ export function useTournament() {
     // Save join code to localStorage so spectators can rejoin on refresh/back
     if (!canEdit) {
       try { localStorage.setItem('pkl_session', JSON.stringify({ code: c, ts: Date.now() })); } catch {}
+      // Save spectated tournament to history so it appears on home screen
+      const all = loadH().filter(t => t.code);
+      const seen = new Map(); all.forEach(t => seen.set(t.code, t));
+      if (!seen.has(c)) {
+        const spectatedEntry = {
+          code: c, name: data.name || "", date: new Date().toISOString(),
+          status: data.champion ? "completed" : "live",
+          players: data.players || [], playerCount: (data.players || []).length,
+          rounds: data.rounds ? data.rounds.map(r => r ? Object.values(r) : []) : [],
+          playoffs: data.playoffs || null, champion: data.champion || null,
+          isPublic: data.isPublic !== false,
+          finalStandings: [], profiles: data.profiles || {}, themeColor: data.themeColor || "#10d48e",
+        };
+        seen.set(c, spectatedEntry);
+        saveH(Array.from(seen.values()));
+      }
     }
 
     if (isUidCreator) {
@@ -838,7 +854,8 @@ export function useTournament() {
 
   const executeEnd = () => {
     if (code) localStorage.removeItem(`pkl_timers_${code}`);
-    localStorage.removeItem('pkl_session');
+    // Only clear spectator session when tournament is complete; otherwise keep so they can rejoin
+    if (champion) localStorage.removeItem('pkl_session');
     canEditRef.current = false;
     joinCompleteRef.current = false;
     pendingSync.current = null;
