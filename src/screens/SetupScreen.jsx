@@ -151,7 +151,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
                   const normName = normalizePlayerName(names[i]);
                   return (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: focus === i ? "var(--accent-dim)" : "var(--surface)", border: `1.5px solid ${focus === i ? "var(--accent)" : profiles[normName]?.uid ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--radius-md)", padding: "10px 14px", transition: "all 0.15s", position: "relative" }}>
-                      <div onClick={() => setEditingAvatar(i)} style={{ cursor: "pointer", flexShrink: 0 }}>
+                      <div style={{ flexShrink: 0 }}>
                         <PlayerAvatar name={names[i]} profile={profiles[normName]} size={30} fallbackIndex={i} />
                       </div>
                       <PlayerSearchInput
@@ -212,10 +212,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             </button>
           </div>
         </div>
-        {editingAvatar !== null && (
-          <AvatarPickerModal name={names[editingAvatar]} currentProfile={profiles[normalizePlayerName(names[editingAvatar])]}
-            onSave={prof => { setProfiles(prev => ({ ...prev, [normalizePlayerName(names[editingAvatar])]: prof })); setEditingAvatar(null); }}
-            onClose={() => setEditingAvatar(null)} />
+        {false && (
         )}
       </div>
     );
