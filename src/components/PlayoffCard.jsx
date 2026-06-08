@@ -63,7 +63,8 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   }, []);
 
   // Save timer state on every tick (scoreBuffer = survives tab switch; localStorage = survives refresh)
-  // Also push to Firebase live so TV mode can show real-time timer
+  // Only push startedAt to Firebase when running state CHANGES (not every tick) to avoid stale score overwrites
+  const prevRunningRef = useRef(timer.running);
   useEffect(() => {
     if (match?.played) return;
     const startedAt = timer.running ? Date.now() - timer.elapsed * 1000 : null;
@@ -71,8 +72,11 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     if (!scoreBuffer[matchKey]) scoreBuffer[matchKey] = {};
     scoreBuffer[matchKey].timer = timerState;
     localStorage.setItem(timerKey, JSON.stringify(timerState));
-    // Push to Firebase live node so TV mode sees the timer
-    if (onLiveScore) onLiveScore(Number(sA) || 0, Number(sB) || 0, "", startedAt);
+    // Only push to Firebase when timer starts or stops (not every second tick)
+    if (onLiveScore && timer.running !== prevRunningRef.current) {
+      onLiveScore(Number(sA) || 0, Number(sB) || 0, "", startedAt);
+    }
+    prevRunningRef.current = timer.running;
   }, [timer.elapsed, timer.running, timerKey, matchKey, match?.played]);
 
   const updatePlayoffScore = (newA, newB) => {
