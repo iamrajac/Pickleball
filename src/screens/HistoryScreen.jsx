@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
 import { ref as fbRef, get } from "firebase/database";
 import { doc, deleteDoc, collection, getDocs, onSnapshot } from "firebase/firestore";
@@ -12,18 +12,37 @@ import { PlayoffCard } from "../components/PlayoffCard";
 import { Trophy, ArrowLeft, Calendar, Users, Trash2, ChevronRight, Share2, RotateCcw } from "lucide-react";
 import { StandingsShareModal } from "../components/StandingsShare";
 
-// Delete a single tournament from Firestore for a user
+// Delete a single tournament from Firestore for a user + club if applicable
 async function deleteFromFirestore(uid, code) {
   try {
     await deleteDoc(doc(firestore, "users", uid, "tournaments", code));
   } catch (e) { console.warn("Firestore delete failed", e); }
+  // Also remove from club if this tournament was created from one
+  try {
+    const clubId = localStorage.getItem(`pkl_club_${code}`);
+    if (clubId) {
+      await deleteDoc(doc(firestore, "clubs", clubId, "tournaments", code));
+      localStorage.removeItem(`pkl_club_${code}`);
+    }
+  } catch (e) { console.warn("Club tournament delete failed", e); }
 }
 
-// Delete all tournaments from Firestore for a user
+// Delete all tournaments from Firestore for a user + any linked clubs
 async function deleteAllFromFirestore(uid) {
   try {
     const snap = await getDocs(collection(firestore, "users", uid, "tournaments"));
-    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+    await Promise.all(snap.docs.map(async d => {
+      const code = d.id;
+      await deleteDoc(d.ref);
+      // Also remove from club if linked
+      try {
+        const clubId = localStorage.getItem(`pkl_club_${code}`);
+        if (clubId) {
+          await deleteDoc(doc(firestore, "clubs", clubId, "tournaments", code));
+          localStorage.removeItem(`pkl_club_${code}`);
+        }
+      } catch {}
+    }));
   } catch (e) { console.warn("Firestore clear failed", e); }
 }
 
@@ -40,14 +59,14 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   // Always load from localStorage first so data shows immediately
   const [hist, setHist] = useState(() => onlyCompleted(loadH()));
   const [histLoading, setHistLoading] = useState(() => {
-    // Only show loading if no local data exists (new device)
     return onlyCompleted(loadH()).length === 0 && !!getAuth().currentUser?.uid;
   });
+  const clearingRef = useRef(false); // ignore Firestore snapshots while clearing
+
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
-    if (!uid) { setHistLoading(false); return; } // Guests: localStorage already loaded in useState
+    if (!uid) { setHistLoading(false); return; }
 
-    // ONE-TIME MIGRATION: push localStorage data to Firestore (same as HubScreen)
     const MIGRATION_KEY = `pkl_migrated_${uid}`;
     if (!localStorage.getItem(MIGRATION_KEY)) {
       const local = loadH().filter(t => t.code);
@@ -55,11 +74,11 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
       localStorage.setItem(MIGRATION_KEY, '1');
     }
 
-    // Real-time listener — updates immediately when any device writes to Firestore
     const unsub = onSnapshot(
       collection(firestore, "users", uid, "tournaments"),
       (snap) => {
         setHistLoading(false);
+        if (clearingRef.current) return; // ignore intermediate snapshots during Clear All
         if (snap.empty) return; // no cloud data yet — keep local
         const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
         setHist(onlyCompleted(docs));
@@ -90,11 +109,12 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   };
 
   const clearAll = () => {
+    clearingRef.current = true;
     saveH([]);
     setHist([]);
     setConfirmClear(false);
     const uid = getAuth().currentUser?.uid;
-    if (uid) deleteAllFromFirestore(uid);
+    if (uid) deleteAllFromFirestore(uid).finally(() => { clearingRef.current = false; });
   };
 
   return (
