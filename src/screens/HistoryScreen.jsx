@@ -413,7 +413,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                 <RotateCcw size={13} /> REMATCH
               </button>
             )}
-            {t.code && isCreator(t.code) && (
+            {t.code && (isCreator(t.code) || !!getAuth().currentUser?.uid) && (
               <button className="pb" onClick={toggleVisibility} disabled={togglingVisibility}
                 title={isPublic ? "Make private" : "Make public"}
                 style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, border: `1px solid ${isPublic ? "rgba(16,212,142,0.4)" : "var(--color-border)"}`, background: isPublic ? "rgba(16,212,142,0.08)" : "none", color: isPublic ? "var(--color-lime)" : muted, fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 1, opacity: togglingVisibility ? 0.5 : 1 }}>
