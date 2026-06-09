@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
 import { ref as fbRef, get } from "firebase/database";
-import { doc, deleteDoc, collection, getDocs, onSnapshot } from "firebase/firestore";
+import { doc, deleteDoc, collection, getDocs, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, firestore } from "../firebase";
 import { loadH, saveH, isCreator } from "../utils/history";
 import { computeStandings } from "../utils/schedule";
@@ -296,6 +296,8 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("rounds");
   const [showShare, setShowShare] = useState(false);
+  const [isPublic, setIsPublic] = useState(tournament?.isPublic === true);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   // Always fetch full data from Realtime DB — it has rounds, players, profiles
   useEffect(() => {
@@ -354,6 +356,34 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
     );
   }
 
+  const toggleVisibility = async () => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid || !fullData?.code || togglingVisibility) return;
+    setTogglingVisibility(true);
+    const newPublic = !isPublic;
+    try {
+      await updateDoc(doc(firestore, "users", uid, "tournaments", fullData.code), { isPublic: newPublic });
+      if (newPublic) {
+        await setDoc(doc(firestore, "tournaments", fullData.code), {
+          code: fullData.code, name: fullData.name || "",
+          status: fullData.champion ? "completed" : "live",
+          playerCount: fullData.players?.length || 0,
+          champion: fullData.champion || null,
+          isPublic: true, createdBy: uid,
+          updatedAt: Date.now(),
+        }, { merge: true });
+      } else {
+        await deleteDoc(doc(firestore, "tournaments", fullData.code));
+      }
+      setIsPublic(newPublic);
+      // Update localStorage
+      const all = loadH();
+      const idx = all.findIndex(x => x.code === fullData.code);
+      if (idx >= 0) { all[idx] = { ...all[idx], isPublic: newPublic }; saveH(all); }
+    } catch (e) { console.warn("Visibility toggle failed", e); }
+    setTogglingVisibility(false);
+  };
+
   const t = fullData;
   const standings = t.finalStandings || [];
   const rounds = t.rounds || [];
@@ -381,6 +411,13 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                 title="Rematch — same players, new schedule"
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: muted, fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}>
                 <RotateCcw size={13} /> REMATCH
+              </button>
+            )}
+            {t.code && isCreator(t.code) && (
+              <button className="pb" onClick={toggleVisibility} disabled={togglingVisibility}
+                title={isPublic ? "Make private" : "Make public"}
+                style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, border: `1px solid ${isPublic ? "rgba(16,212,142,0.4)" : "var(--color-border)"}`, background: isPublic ? "rgba(16,212,142,0.08)" : "none", color: isPublic ? "var(--color-lime)" : muted, fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 1, opacity: togglingVisibility ? 0.5 : 1 }}>
+                {isPublic ? "🌐" : "🔒"}
               </button>
             )}
             <button className="pb" onClick={() => setShowShare(true)}
