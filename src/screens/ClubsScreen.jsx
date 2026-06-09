@@ -52,8 +52,8 @@ export function ClubsScreen() {
         <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>Create or join a club to track stats automatically</div>
       </div>
 
-      {/* Action buttons */}
-      {!mode && (
+      {/* Action buttons — only show when user has clubs already (empty state has its own buttons) */}
+      {!mode && clubs.length > 0 && (
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           <button className="pb" onClick={() => setMode("create")}
             style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "rgba(16,212,142,0.12)", border: "1px solid rgba(16,212,142,0.4)", borderRadius: 12, color: "var(--color-lime)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>

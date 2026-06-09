@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Copy, Plus, LogOut, Trash2 } from "lucide-react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, leaveClub, createSeason, endSeason } from "../hooks/useClub";
+import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
-import { firestore } from "../firebase";
+import { firestore, db } from "../firebase";
 import { getGlobalProfiles } from "../utils/globalProfiles";
 import { normalizePlayerName } from "../utils/players";
+import { ref, get } from "firebase/database";
 
 async function deleteClub(clubId, adminUid) {
   // Delete all subcollections
@@ -43,7 +44,7 @@ function MembersTab({ members, club, isAdmin, clubId, navigate }) {
       {members.map(m => {
         const pName = m.playerName || m.name;
         const globalProfile = getGlobalProfiles()[normalizePlayerName(pName)];
-        const avatarProfile = globalProfile || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+        const avatarProfile = globalProfile || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
         return (
         <div key={m.uid} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
           <PlayerAvatar name={pName} profile={avatarProfile} size={36} />
@@ -110,7 +111,7 @@ function LeaderboardTab({ members, tournaments }) {
   const stats = {};
   members.forEach(m => {
     const key = m.playerName || m.name;
-    stats[key] = { name: key, uid: m.uid, photoURL: m.photoURL, wins: 0, losses: 0, titles: 0, matches: 0 };
+    stats[key] = { name: key, uid: m.uid, photoURL: m.photoURL, avatar: m.avatar || null, wins: 0, losses: 0, titles: 0, matches: 0 };
   });
 
   tournaments.forEach(t => {
@@ -149,7 +150,7 @@ function LeaderboardTab({ members, tournaments }) {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i === 0 ? "var(--color-gold)" : i === 1 ? "var(--color-muted)" : "var(--color-muted)", width: 28, textAlign: "center" }}>
             {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
           </div>
-          <PlayerAvatar name={p.name} profile={p.photoURL ? { type: "image", value: p.photoURL } : null} size={32} />
+          <PlayerAvatar name={p.name} profile={p.avatar || (p.photoURL ? { type: "image", value: p.photoURL } : null)} size={32} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{p.name}</div>
           </div>
@@ -173,7 +174,22 @@ function LeaderboardTab({ members, tournaments }) {
   );
 }
 
-function TournamentsTab({ tournaments, navigate }) {
+function TournamentsTab({ tournaments, clubId, navigate, onOpenLive }) {
+  // Backfill playerStats for completed tournaments that don't have it yet
+  useEffect(() => {
+    tournaments.forEach(t => {
+      if (t.status === "completed" && !t.playerStats && t.code) {
+        get(ref(db, `tournaments/${t.code}`)).then(snap => {
+          if (!snap.exists()) return;
+          const fbData = snap.val();
+          const rounds = fbData.rounds ? fbData.rounds.map(r => r ? Object.values(r) : []) : [];
+          const entry = { ...t, rounds, playoffs: fbData.playoffs || null };
+          saveTournamentToClub(clubId, entry);
+        }).catch(() => {});
+      }
+    });
+  }, [tournaments, clubId]);
+
   if (tournaments.length === 0) return (
     <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>
       <div style={{ fontSize: 32, marginBottom: 8 }}>🏓</div>
@@ -184,7 +200,13 @@ function TournamentsTab({ tournaments, navigate }) {
     <div>
       {tournaments.map(t => (
         <div key={t.code} className="rh glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: "pointer" }}
-          onClick={() => navigate("/history/detail", { state: { tournament: t } })}>
+          onClick={() => {
+            if (t.status === "live" || t.status === "in-progress") {
+              onOpenLive(t.code);
+            } else {
+              navigate("/history/detail", { state: { tournament: t } });
+            }
+          }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{t.name || `#${t.code}`}</div>
@@ -333,7 +355,7 @@ export function ClubDashboardScreen() {
             </button>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: club.themeColor || "var(--color-lime)", letterSpacing: 2, lineHeight: 1 }}>{club.name}</div>
-              <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{members.length} members</div>
+              <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{members.length} member{members.length !== 1 ? "s" : ""}</div>
             </div>
             <button className="pb" onClick={copyCode}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: copied ? "var(--color-lime)" : "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
@@ -371,7 +393,7 @@ export function ClubDashboardScreen() {
 
         {tab === "members" && <MembersTab members={members} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} />}
         {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} />}
-        {tab === "tournaments" && <TournamentsTab tournaments={tournaments} navigate={navigate} />}
+        {tab === "tournaments" && <TournamentsTab tournaments={tournaments} clubId={clubId} navigate={navigate} onOpenLive={(code) => navigate(`/?join=${code}`)} />}
         {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}
       </div>
     </div>

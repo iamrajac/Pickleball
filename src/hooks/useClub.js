@@ -21,7 +21,8 @@ export async function createClub({ name, description = "", themeColor = "#10d48e
   // Use in-app display name from Firestore profile (set in Account), fall back to Google name
   const profileSnap = await getDoc(doc(firestore, "players", uid));
   const profileName = profileSnap.exists() ? (profileSnap.data().displayName || user.displayName || "Admin") : (user.displayName || "Admin");
-  const profilePhoto = profileSnap.exists() ? (profileSnap.data().avatar?.value || user.photoURL || null) : (user.photoURL || null);
+  const avatarObj = profileSnap.exists() ? (profileSnap.data().avatar || null) : null;
+  const profilePhoto = avatarObj?.type === "image" ? avatarObj.value : (user.photoURL || null);
 
   const clubId = `${Date.now()}_${uid.slice(0, 6)}`;
   const code = genClubCode();
@@ -36,6 +37,7 @@ export async function createClub({ name, description = "", themeColor = "#10d48e
   await setDoc(doc(firestore, "clubs", clubId, "members", uid), {
     uid, name: profileName,
     photoURL: profilePhoto,
+    avatar: avatarObj,
     role: "admin", joinedAt: serverTimestamp(),
     playerName: profileName,
   });
@@ -70,11 +72,13 @@ export async function joinClub(code) {
   // Use in-app display name from Firestore profile (set in Account), fall back to Google name
   const profileSnap = await getDoc(doc(firestore, "players", uid));
   const profileName = profileSnap.exists() ? (profileSnap.data().displayName || user.displayName || "Player") : (user.displayName || "Player");
-  const profilePhoto = profileSnap.exists() ? (profileSnap.data().avatar?.value || user.photoURL || null) : (user.photoURL || null);
+  const avatarObjJ = profileSnap.exists() ? (profileSnap.data().avatar || null) : null;
+  const profilePhoto = avatarObjJ?.type === "image" ? avatarObjJ.value : (user.photoURL || null);
 
   await setDoc(doc(firestore, "clubs", clubId, "members", uid), {
     uid, name: profileName,
     photoURL: profilePhoto,
+    avatar: avatarObjJ,
     role: "member", joinedAt: serverTimestamp(),
     playerName: profileName,
   });
@@ -95,6 +99,14 @@ export async function leaveClub(clubId) {
   if (!uid) return;
   await deleteDoc(doc(firestore, "clubs", clubId, "members", uid));
   await updateDoc(doc(firestore, "users", uid), { clubs: arrayRemove(clubId) });
+  // Decrement memberCount
+  try {
+    const clubSnap = await getDoc(doc(firestore, "clubs", clubId));
+    if (clubSnap.exists()) {
+      const current = clubSnap.data().memberCount || 1;
+      await updateDoc(doc(firestore, "clubs", clubId), { memberCount: Math.max(0, current - 1) });
+    }
+  } catch {}
 }
 
 // Compute per-player wins/losses from all matches in a tournament entry
