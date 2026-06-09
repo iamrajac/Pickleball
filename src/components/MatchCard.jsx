@@ -397,7 +397,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   };
 
   return (
-    <div ref={cardRef} className="mc fu glass-card" onClick={() => { if (!isPlayed && !readOnly) setIsActive(true); }} style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
+    <div ref={cardRef} className="mc fu glass-card" onClick={() => { if (!isPlayed) setIsActive(true); }} style={{ animationDelay: `${delay}s`, borderRadius: 'var(--radius-md)', padding: '1rem 1.1rem', marginBottom: 8, position: "relative", overflow: "hidden" }}>
       {isPlayed && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-lime)' }} />}
       {timer.running && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: 'var(--color-cyan)', animation: "pulse 1s infinite" }} />}
 
