@@ -46,10 +46,13 @@ Built to replace paper scoresheets for regular pickleball sessions. Supports 4�
 - **Public & private tournaments** — public ones appear in discovery feed
 - **Upcoming tournaments** — schedule in advance, scoring locks until start time
 - **Delete tournament** — removes from Realtime DB, Firestore, localStorage, and public discovery
+- **Rematch** — one tap from any history detail view pre-fills the same players for a brand new tournament
+- **History search** — filter past tournaments by tournament name or player name
 
 ### 📡 Real-Time Sync
 - Every score update syncs instantly to all connected devices via Firebase Realtime Database
 - **6-letter tournament code** — share to let anyone join as spectator
+- **Deep link auto-join** — sharing a link with `?join=CODE` opens the app and joins the tournament automatically, no manual code entry needed
 - **Online presence counter** — see how many people are watching live
 - **Offline detection** — banner appears when connection drops
 
@@ -81,6 +84,11 @@ Adaptive bracket format auto-selected based on player count:
 - Visual bracket tree with WINNER/LOSER flow arrows
 - Toggle between BRACKET and SCORES view
 - Quick Final option to skip straight to a deciding match
+
+### 🎯 In-Match Intelligence
+- **Head-to-head stats** — tap any live match card to instantly see the past H2H record between those players across all tournaments; works for both creator and spectators
+- **Serve info** — when a match card is activated, it deterministically shows who serves first and from which side, consistent across all devices
+- **Auto match narrative** — as scores are entered, the app generates live commentary ("5-point run", "comeback", "match point") saved as match notes automatically
 
 ### ✅ Official Scoring Rules
 - First to 11 points, win by 2
