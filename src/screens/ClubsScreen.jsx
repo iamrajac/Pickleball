@@ -14,18 +14,30 @@ export function ClubsScreen() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
 
+  const uid = getAuth().currentUser?.uid;
+
   // Auto-join from invite link: /#/clubs?join=CODE
   useEffect(() => {
     const p = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const code = p.get("join");
-    if (code) {
-      window.history.replaceState({}, "", window.location.pathname + "#/clubs");
+    if (!code) return;
+    window.history.replaceState({}, "", window.location.pathname + "#/clubs");
+    if (uid) {
+      // Signed in — join immediately
+      setWorking(true);
+      joinClub(code.trim()).then(({ clubId }) => {
+        navigate(`/clubs/${clubId}`);
+      }).catch(e => {
+        setError(e.message);
+        setJoinCode(code.toUpperCase());
+        setMode("join");
+      }).finally(() => setWorking(false));
+    } else {
+      // Not signed in — pre-fill the form
       setJoinCode(code.toUpperCase());
       setMode("join");
     }
-  }, []);
-
-  const uid = getAuth().currentUser?.uid;
+  }, [uid]);
 
   const handleCreate = async () => {
     if (!clubName.trim()) return;

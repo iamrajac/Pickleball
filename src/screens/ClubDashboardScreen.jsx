@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Copy, Plus, LogOut, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
 import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
@@ -350,13 +351,27 @@ export function ClubDashboardScreen() {
   const navigate = useNavigate();
   const { club, members, tournaments, seasons, loading, isAdmin } = useClubDetail(clubId);
   const [tab, setTab] = useState("members");
-  const [copied, setCopied] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const inviteLink = club ? `${window.location.origin}${window.location.pathname}#/clubs?join=${club.code}` : "";
+
+  const copyLink = () => {
+    navigator.clipboard?.writeText(inviteLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   const copyCode = () => {
-    const link = `${window.location.origin}${window.location.pathname}#/clubs?join=${club?.code}`;
-    navigator.clipboard?.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard?.writeText(club?.code || "");
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const shareWhatsApp = () => {
+    const msg = encodeURIComponent(`Join our club "${club.name}" on Pickleball Pro! 🏓\nTap to join: ${inviteLink}`);
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
 
   if (loading) return (
@@ -384,16 +399,9 @@ export function ClubDashboardScreen() {
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: club.themeColor || "var(--color-lime)", letterSpacing: 2, lineHeight: 1 }}>{club.name}</div>
               <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{members.length} member{members.length !== 1 ? "s" : ""}</div>
             </div>
-            <button className="pb" onClick={copyCode}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: copied ? "var(--color-lime)" : "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-              <Copy size={12} /> {copied ? "LINK COPIED!" : "INVITE LINK"}
-            </button>
-            <button className="pb" onClick={() => {
-              const msg = `Join our club "${club.name}" on Pickleball Pro! 🏓%0AUse code: *${club.code}*%0A%0ADownload: https://pickleball-eosin.vercel.app`;
-              window.open(`https://wa.me/?text=${msg}`, "_blank");
-            }}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>
-              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style={{ width: 18, height: 18 }} />
+            <button className="pb" onClick={() => setShowInvite(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              <Share2 size={12} /> INVITE
             </button>
           </div>
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
@@ -423,6 +431,44 @@ export function ClubDashboardScreen() {
         {tab === "tournaments" && <TournamentsTab tournaments={tournaments} clubId={clubId} navigate={navigate} onOpenLive={(code) => navigate(`/?join=${code}`)} />}
         {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}
       </div>
+
+      {/* Invite Modal */}
+      {showInvite && (
+        <div onClick={() => setShowInvite(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--card)", borderRadius: 20, padding: "1.5rem 1.2rem", width: "100%", maxWidth: 380, boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 2, color: club.themeColor || "var(--color-lime)" }}>INVITE TO CLUB</div>
+              <button onClick={() => setShowInvite(false)} className="pb" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20, lineHeight: 1 }}>×</button>
+            </div>
+
+            <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", marginBottom: 16 }}>{club.name} · Scan QR or share the link</div>
+
+            {/* QR Code */}
+            <div style={{ background: "#fff", borderRadius: 12, padding: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <QRCodeSVG value={inviteLink} size={180} />
+            </div>
+
+            {/* Club code display */}
+            <div style={{ background: "var(--surface)", borderRadius: 10, padding: "10px 14px", textAlign: "center", marginBottom: 16, border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: 2, marginBottom: 4 }}>CLUB CODE</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 4, color: club.themeColor || "var(--color-lime)" }}>{club.code}</div>
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <button className="pb" onClick={copyLink} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px", background: copiedLink ? "rgba(16,212,142,0.15)" : "var(--surface)", border: `1px solid ${copiedLink ? "var(--color-lime)" : "var(--border)"}`, borderRadius: 10, color: copiedLink ? "var(--color-lime)" : "var(--text)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <Copy size={13} /> {copiedLink ? "COPIED!" : "COPY LINK"}
+              </button>
+              <button className="pb" onClick={copyCode} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px", background: copiedCode ? "rgba(16,212,142,0.15)" : "var(--surface)", border: `1px solid ${copiedCode ? "var(--color-lime)" : "var(--border)"}`, borderRadius: 10, color: copiedCode ? "var(--color-lime)" : "var(--text)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <Copy size={13} /> {copiedCode ? "COPIED!" : "COPY CODE"}
+              </button>
+            </div>
+            <button className="pb" onClick={shareWhatsApp} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.4)", borderRadius: 10, color: "#25d366", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style={{ width: 16, height: 16 }} /> WHATSAPP
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
