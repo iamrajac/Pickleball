@@ -66,6 +66,7 @@ export async function saveFullTournament(uid, entry) {
       themeColor: entry.themeColor || "#10d48e",
       isPublic: entry.isPublic !== false,
       clubId: entry.clubId || null,
+      createdBy: entry.createdBy || null,
       updatedAt: Date.now(),
     };
 
@@ -232,6 +233,7 @@ export function useTournament() {
   const [scheduledAt, setScheduledAt] = useState(null); // ms timestamp or null
   const [claims, setClaims] = useState({});
   const [clubId, setClubId] = useState(null);
+  const [createdBy, setCreatedBy] = useState(null);
 
   // Refs that must not trigger re-renders
   const isWriting = useRef(false);
@@ -531,6 +533,7 @@ export function useTournament() {
       profiles: prof,
       themeColor: col,
       clubId: clubId || localStorage.getItem(`pkl_club_${c}`) || null,
+      createdBy: createdBy || null,
     };
     if (idx >= 0) h[idx] = entry; else h.push(entry);
     saveH(h); // always cache locally
@@ -538,7 +541,7 @@ export function useTournament() {
     // Only persist to Firestore for creator/scorer — spectators don't get it in their history
     const uid = getAuth().currentUser?.uid;
     if (uid && canEditRef.current) saveFullTournament(uid, entry);
-  }, [code, players, profiles, themeColor, tournamentName, isPublic, clubId]);
+  }, [code, players, profiles, themeColor, tournamentName, isPublic, clubId, createdBy]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -662,6 +665,7 @@ export function useTournament() {
         name: meta.name || "", isPublic: meta.isPublic !== false,
         scheduledAt: meta.scheduledAt || null,
         creatorUid: uid,
+        clubId: meta.clubId || null,
         ts: Date.now()
       });
 
@@ -675,6 +679,7 @@ export function useTournament() {
         isPublic: meta.isPublic !== false,
         scheduledAt: sAt || null,
         clubId: meta.clubId || null,
+        createdBy: uid || null,
       };
       const all = loadH().filter(t => t.code);
       const seen = new Map();
@@ -727,6 +732,7 @@ export function useTournament() {
     const joinedClubId = data.clubId || localStorage.getItem(`pkl_club_${c}`) || null;
     setClubId(joinedClubId);
     if (joinedClubId) localStorage.setItem(`pkl_club_${c}`, joinedClubId);
+    setCreatedBy(data.creatorUid || data.createdBy || null);
     setCode(c);
     setTab("rounds");
     // Lock if scheduled time is in the future (overrides canEdit)
@@ -917,7 +923,7 @@ export function useTournament() {
     pendingSync.current = null;
     setPlayers([]); setRounds([]); setPlayoffs(null);
     setCode(null); setChampion(null); setScorerPin(null);
-    setMatchTimers({}); setTournamentName(""); setIsPublic(true); setClubId(null);
+    setMatchTimers({}); setTournamentName(""); setIsPublic(true); setClubId(null); setCreatedBy(null);
     localPlayedCount.current = 0;
   };
 

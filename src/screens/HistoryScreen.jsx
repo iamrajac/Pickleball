@@ -364,24 +364,47 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
     if (!uid || !fullData?.code || togglingVisibility) return;
     setTogglingVisibility(true);
     const newPublic = !isPublic;
+    const code = fullData.code;
     try {
-      await updateDoc(doc(firestore, "users", uid, "tournaments", fullData.code), { isPublic: newPublic });
+      // Update creator's own record
+      await updateDoc(doc(firestore, "users", uid, "tournaments", code), { isPublic: newPublic });
+
+      // Update or remove from public discovery collection
       if (newPublic) {
-        await setDoc(doc(firestore, "tournaments", fullData.code), {
-          code: fullData.code, name: fullData.name || "",
+        await setDoc(doc(firestore, "tournaments", code), {
+          code, name: fullData.name || "",
           status: fullData.champion ? "completed" : "live",
           playerCount: fullData.players?.length || 0,
           champion: fullData.champion || null,
+          clubId: fullData.clubId || null,
           isPublic: true, createdBy: uid,
           updatedAt: Date.now(),
         }, { merge: true });
       } else {
-        await deleteDoc(doc(firestore, "tournaments", fullData.code));
+        await deleteDoc(doc(firestore, "tournaments", code));
       }
+
+      // Update all claimed users' Firestore records
+      try {
+        const { ref: dbRef, get: dbGet } = await import("firebase/database");
+        const { db: rtdb } = await import("../firebase");
+        const claimsSnap = await dbGet(dbRef(rtdb, `tournaments/${code}/claims`));
+        if (claimsSnap.exists()) {
+          const claims = claimsSnap.val();
+          await Promise.all(Object.values(claims).map(async (claim) => {
+            const claimUid = claim.uid;
+            if (claimUid && claimUid !== uid) {
+              try {
+                await updateDoc(doc(firestore, "users", claimUid, "tournaments", code), { isPublic: newPublic });
+              } catch {}
+            }
+          }));
+        }
+      } catch {}
+
       setIsPublic(newPublic);
-      // Update localStorage
       const all = loadH();
-      const idx = all.findIndex(x => x.code === fullData.code);
+      const idx = all.findIndex(x => x.code === code);
       if (idx >= 0) { all[idx] = { ...all[idx], isPublic: newPublic }; saveH(all); }
     } catch (e) { console.warn("Visibility toggle failed", e); }
     setTogglingVisibility(false);
@@ -416,7 +439,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                 <RotateCcw size={15} />
               </button>
             )}
-            {t.code && !!getAuth().currentUser?.uid && (
+            {t.code && (t.createdBy === getAuth().currentUser?.uid || isCreator(t.code)) && (
               <button className="pb" onClick={toggleVisibility} disabled={togglingVisibility}
                 title={isPublic ? "Make private" : "Make public"}
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, border: `1px solid ${isPublic ? "rgba(16,212,142,0.4)" : "var(--color-border)"}`, background: isPublic ? "rgba(16,212,142,0.08)" : "none", color: isPublic ? "var(--color-lime)" : muted, cursor: "pointer", fontSize: 16, opacity: togglingVisibility ? 0.5 : 1 }}>
