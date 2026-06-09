@@ -193,7 +193,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
                       ? <span className="badge badge-live" style={{ fontSize: 9 }}>LIVE</span>
                       : <span className="badge badge-done" style={{ fontSize: 9 }}>DONE</span>
                     }
-                    {t.code && localStorage.getItem(`pkl_club_${t.code}`) && (
+                    {(t.clubId || (t.code && localStorage.getItem(`pkl_club_${t.code}`))) && (
                       <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: "2px 7px", borderRadius: 20, background: "rgba(168,85,247,0.15)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.3)" }}>
                         🏘 CLUB
                       </span>
@@ -409,15 +409,15 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
             {onRematch && (
               <button className="pb" onClick={() => onRematch(t.players || [])}
                 title="Rematch — same players, new schedule"
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: muted, fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}>
-                <RotateCcw size={13} /> REMATCH
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: muted, cursor: "pointer" }}>
+                <RotateCcw size={15} />
               </button>
             )}
-            {t.code && (isCreator(t.code) || !!getAuth().currentUser?.uid) && (
+            {t.code && !!getAuth().currentUser?.uid && (
               <button className="pb" onClick={toggleVisibility} disabled={togglingVisibility}
                 title={isPublic ? "Make private" : "Make public"}
-                style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, border: `1px solid ${isPublic ? "rgba(16,212,142,0.4)" : "var(--color-border)"}`, background: isPublic ? "rgba(16,212,142,0.08)" : "none", color: isPublic ? "var(--color-lime)" : muted, fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 1, opacity: togglingVisibility ? 0.5 : 1 }}>
-                {isPublic ? "🌐" : "🔒"}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, border: `1px solid ${isPublic ? "rgba(16,212,142,0.4)" : "var(--color-border)"}`, background: isPublic ? "rgba(16,212,142,0.08)" : "none", color: isPublic ? "var(--color-lime)" : muted, cursor: "pointer", fontSize: 16, opacity: togglingVisibility ? 0.5 : 1 }}>
+                {isPublic ? "🔒" : "🌐"}
               </button>
             )}
             <button className="pb" onClick={() => setShowShare(true)}

@@ -65,7 +65,7 @@ function TournamentCard({ t, onClick, onDelete, showClubBadge = false }) {
   const isUpcoming = t.status === "upcoming";
   const isLive = t.status === "live" || t.status === "in-progress";
   const statusClass = isLive ? "live" : isUpcoming ? "upcoming" : "done";
-  const isClub = showClubBadge && t.code && !!localStorage.getItem(`pkl_club_${t.code}`);
+  const isClub = showClubBadge && !!(t.clubId || (t.code && localStorage.getItem(`pkl_club_${t.code}`)));
 
   const Badge = () => {
     if (isLive)     return <span className="badge badge-live"><span style={{ fontSize: 8 }}>●</span> LIVE</span>;

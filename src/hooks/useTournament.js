@@ -65,6 +65,7 @@ export async function saveFullTournament(uid, entry) {
       profiles: entry.profiles || {},
       themeColor: entry.themeColor || "#10d48e",
       isPublic: entry.isPublic !== false,
+      clubId: entry.clubId || null,
       updatedAt: Date.now(),
     };
 
@@ -671,6 +672,7 @@ export function useTournament() {
         profiles: normalizedProfiles, themeColor: tColor,
         isPublic: meta.isPublic !== false,
         scheduledAt: sAt || null,
+        clubId: meta.clubId || null,
       };
       const all = loadH().filter(t => t.code);
       const seen = new Map();
