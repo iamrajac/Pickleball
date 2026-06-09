@@ -392,7 +392,7 @@ export function ClubDashboardScreen() {
               window.open(`https://wa.me/?text=${msg}`, "_blank");
             }}
               style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>
-              <span style={{ fontSize: 16 }}>💬</span>
+              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style={{ width: 18, height: 18 }} />
             </button>
           </div>
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
