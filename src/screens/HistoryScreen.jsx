@@ -9,7 +9,7 @@ import { fetchUserTournaments, safePlayoffs, fromFirestoreDoc, saveFullTournamen
 import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
-import { Trophy, Calendar, Users, Trash2, ChevronRight, Share2, RotateCcw } from "lucide-react";
+import { Trophy, ArrowLeft, Calendar, Users, Trash2, ChevronRight, Share2, RotateCcw } from "lucide-react";
 import { StandingsShareModal } from "../components/StandingsShare";
 
 // Delete a single tournament from Firestore for a user
