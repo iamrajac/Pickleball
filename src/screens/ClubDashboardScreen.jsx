@@ -408,6 +408,7 @@ export function ClubDashboardScreen() {
     window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
 
+
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-muted)" }}>
       Loading club...
@@ -507,9 +508,6 @@ export function ClubDashboardScreen() {
                 <Copy size={14} /> {copiedCode ? "COPIED!" : "COPY CODE"}
               </button>
             </div>
-            <button className="pb" onClick={shareWhatsApp} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.4)", borderRadius: 10, color: "#25d366", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style={{ width: 16, height: 16 }} /> WHATSAPP
-            </button>
           </div>
         </div>
       )}
