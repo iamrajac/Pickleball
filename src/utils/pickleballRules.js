@@ -12,20 +12,20 @@ export function validatePickleballScore(a, b) {
   const low = Math.min(sA, sB);
   const diff = high - low;
 
-  // Must win by at least 2
-  if (diff < 2) return { valid: false, error: `Need a 2-point lead (e.g. ${high}-${high - 2})` };
+  // First check: must reach 11 before anything else matters
+  if (high < 11) return { valid: false, error: "First to 11 — keep playing" };
 
-  // Below 11 — only valid if one side has 11+ or it's a valid extended game
-  if (high < 11) return { valid: false, error: `First to 11 — highest score must be at least 11` };
+  // 11-10: need to keep going
+  if (high === 11 && low === 10) return { valid: false, error: "11-10 — play continues until 2-point lead (e.g. 12-10)" };
 
-  // If both below 10 when high reaches 11, fine (e.g. 11-0 to 11-9)
+  // Valid standard win: 11-0 to 11-9
   if (high === 11 && low <= 9) return { valid: true };
 
-  // If low is 10 or more, this is an extended game — need 2 point lead
+  // Extended game (both reached 10+): must win by 2
   if (low >= 10 && diff >= 2) return { valid: true };
 
-  // Edge case: high is 11 but low is 10 → need more points
-  if (high === 11 && low === 10) return { valid: false, error: "Score is 11-10 — play continues until 2-point lead (e.g. 12-10)" };
+  // Extended game but not enough lead yet
+  if (low >= 10 && diff < 2) return { valid: false, error: `Need a 2-point lead — next valid score: ${low + 2}-${low}` };
 
   return { valid: true };
 }

@@ -250,16 +250,16 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 8 }}>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamA?.join(" & ")}</div>
-              <ScoreCounter value={sA} onChange={v => { setSA(v); const nb = sB === "" ? "0" : sB; if (sB === "") setSB("0"); setIsActive(true); updatePlayoffScore(v, nb); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={gameOver} />
+              <ScoreCounter value={sA} onChange={v => { setSA(v); const nb = sB === "" ? "0" : sB; if (sB === "") setSB("0"); setIsActive(true); updatePlayoffScore(v, nb); }} hasError={!!(isActive && hint && sA !== "" && sB !== "")} incDisabled={gameOver} />
             </div>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 16, color: "var(--text-muted)", letterSpacing: 2 }}>VS</div>
             <div style={{ textAlign: "center", flex: 1 }}>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.teamB?.join(" & ")}</div>
-              <ScoreCounter value={sB} onChange={v => { setSB(v); const na = sA === "" ? "0" : sA; if (sA === "") setSA("0"); setIsActive(true); updatePlayoffScore(na, v); }} hasError={!!(hint && sA !== "" && sB !== "")} incDisabled={gameOver} />
+              <ScoreCounter value={sB} onChange={v => { setSB(v); const na = sA === "" ? "0" : sA; if (sA === "") setSA("0"); setIsActive(true); updatePlayoffScore(na, v); }} hasError={!!(isActive && hint && sA !== "" && sB !== "")} incDisabled={gameOver} />
             </div>
           </div>
 
-          {hint && sA !== "" && sB !== "" && (
+          {isActive && hint && sA !== "" && sB !== "" && (
             <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 6, background: "var(--danger-dim)", border: "1px solid var(--danger)", fontSize: 11, color: "var(--danger)" }}>
               ⚠ {hint}
             </div>
