@@ -43,7 +43,6 @@ Built to replace paper scoresheets for regular pickleball sessions. Supports 4�
 - **Any player count** from 4 to 20, including odd numbers
 - **Bye rotation** for odd counts — fair sit-out rotation, never twice in a row
 - **Custom round count** — choose how many rounds to play
-- **Player seeding** — reorder players before start, or auto-seed by career win rate
 - **Public & private tournaments** — public ones appear in discovery feed
 - **Upcoming tournaments** — schedule in advance, scoring locks until start time
 - **Delete tournament** — removes from Realtime DB, Firestore, localStorage, and public discovery
@@ -142,7 +141,6 @@ Aggregated across all tournaments the user has participated in:
 ### 📲 PWA (Installable App)
 - Install to home screen on Android and iOS
 - Offline caching via Workbox service worker
-- Push notifications (FCM) — works when app is closed on Android; iOS 16.4+ when installed
 - Loading skeletons, score animations, haptic feedback
 - 7-day install prompt dismiss
 
@@ -161,7 +159,6 @@ Aggregated across all tournaments the user has participated in:
 | Realtime DB | Firebase Realtime Database (asia-southeast1) |
 | Persistent DB | Firebase Firestore |
 | Auth | Firebase Auth (Google Sign-In) |
-| Push | Firebase Cloud Messaging (FCM) |
 | Email | EmailJS |
 | PWA | vite-plugin-pwa, Workbox |
 | Fonts | Bebas Neue, Inter (Google Fonts) |
