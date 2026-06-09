@@ -136,6 +136,18 @@ function computePlayerStats(entry) {
   return stats;
 }
 
+// Get the active season ID for a club (returns null if none)
+export async function getActiveSeasonId(clubId) {
+  if (!clubId) return null;
+  try {
+    const { query, where, collection: col, getDocs: gd } = await import("firebase/firestore");
+    const q = query(col(firestore, "clubs", clubId, "seasons"), where("status", "==", "active"));
+    const snap = await gd(q);
+    if (snap.empty) return null;
+    return snap.docs[0].id;
+  } catch { return null; }
+}
+
 export async function saveTournamentToClub(clubId, tournamentEntry) {
   if (!clubId || !tournamentEntry?.code) return;
   const playerStats = computePlayerStats(tournamentEntry);

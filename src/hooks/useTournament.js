@@ -392,8 +392,13 @@ export function useTournament() {
           // Update club tournament record if this belongs to a club
           const storedClubId = localStorage.getItem(`pkl_club_${code}`);
           if (storedClubId) {
-            import("../hooks/useClub").then(({ saveTournamentToClub, addTournamentToSeason }) => {
-              saveTournamentToClub(storedClubId, finalEntry);
+            import("../hooks/useClub").then(async ({ saveTournamentToClub, addTournamentToSeason, getActiveSeasonId }) => {
+              await saveTournamentToClub(storedClubId, finalEntry);
+              // Update active season standings if one exists
+              const seasonId = await getActiveSeasonId(storedClubId);
+              if (seasonId) {
+                addTournamentToSeason(storedClubId, seasonId, finalEntry.code, finalEntry.players, finalEntry.champion);
+              }
             });
           }
         }

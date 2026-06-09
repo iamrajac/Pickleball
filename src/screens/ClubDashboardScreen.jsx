@@ -108,27 +108,32 @@ function MembersTab({ members, club, isAdmin, clubId, navigate }) {
 
 function LeaderboardTab({ members, tournaments }) {
   // Compute stats from club tournaments
+  // Use lowercase keys for matching since tournament names may differ in case
   const stats = {};
+  const keyMap = {}; // lowercase → original key
   members.forEach(m => {
     const key = m.playerName || m.name;
-    stats[key] = { name: key, uid: m.uid, photoURL: m.photoURL, avatar: m.avatar || null, wins: 0, losses: 0, titles: 0, matches: 0 };
+    const lkey = key.toLowerCase();
+    stats[lkey] = { name: key, uid: m.uid, photoURL: m.photoURL, avatar: m.avatar || null, wins: 0, losses: 0, titles: 0, matches: 0 };
+    keyMap[lkey] = lkey;
   });
 
   tournaments.forEach(t => {
     if (!t.players) return;
-    // Count titles
+    // Count titles — case insensitive
     if (t.champion) {
-      t.champion.split(" & ").map(s => s.trim()).forEach(p => {
+      t.champion.split(" & ").map(s => s.trim().toLowerCase()).forEach(p => {
         if (stats[p]) stats[p].titles++;
       });
     }
-    // Aggregate wins/losses from stored playerStats
+    // Aggregate wins/losses — case insensitive
     if (t.playerStats) {
       Object.entries(t.playerStats).forEach(([name, s]) => {
-        if (stats[name]) {
-          stats[name].wins += s.wins || 0;
-          stats[name].losses += s.losses || 0;
-          stats[name].matches += s.matches || 0;
+        const lname = name.toLowerCase();
+        if (stats[lname]) {
+          stats[lname].wins += s.wins || 0;
+          stats[lname].losses += s.losses || 0;
+          stats[lname].matches += s.matches || 0;
         }
       });
     }
