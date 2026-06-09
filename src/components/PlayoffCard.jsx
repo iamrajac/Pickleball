@@ -204,8 +204,8 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   }, [isActive]);
 
   return (
-    <div ref={cardRef} className="card" onClick={() => { if (!match?.played && !readOnly) setIsActive(true); }}
-      style={{ borderRadius: "var(--radius-md)", padding: "1.2rem", position: "relative", overflow: "hidden", cursor: !match?.played && !readOnly ? "pointer" : "default" }}>
+    <div ref={cardRef} className="card" onClick={() => { if (!match?.played) setIsActive(true); }}
+      style={{ borderRadius: "var(--radius-md)", padding: "1.2rem", position: "relative", overflow: "hidden", cursor: !match?.played ? "pointer" : "default" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: ac }} />
       <div style={{ fontSize: 10, letterSpacing: 2, color: ac, marginBottom: 2, marginTop: 4, fontWeight: 700 }}>{match.label}</div>
       <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 14 }}>{match.note}</div>

@@ -289,7 +289,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
   // Only compute H2H when match is active (user focused on it)
   const h2hData = [];
-  if ((isActive || (readOnly && match.played)) && h2hMatrix && match.teamA && match.teamB) {
+  if (isActive && h2hMatrix && match.teamA && match.teamB) {
     match.teamA.forEach(a => {
       match.teamB.forEach(b => {
         const stat = getH2HStats(a, b, h2hMatrix);
