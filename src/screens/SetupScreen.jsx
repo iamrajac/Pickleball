@@ -60,7 +60,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
   const clubMembers = location.state?.clubMembers || null; // [{uid, name, playerName, photoURL}]
   const rematchPlayers = location.state?.rematchPlayers || null;
   const [step, setStep] = useState(rematchPlayers ? "players" : "form"); // skip form if rematch
-  const [name, setName] = useState("");
+  const [name, setName] = useState(rematchPlayers ? `Rematch ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "");
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState("");
   const [numP, setNumP] = useState(rematchPlayers ? rematchPlayers.length : 8);
