@@ -414,8 +414,15 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
     // Load display name for current user
     import("firebase/firestore").then(({ doc, getDoc }) => {
       import("../firebase").then(({ firestore }) => {
-        getDoc(doc(firestore, "users", uid)).then(snap => {
-          if (snap.exists()) setCurrentUserName(snap.data().name || null);
+        // Read from players/{uid} first (in-app saved name), fall back to users/{uid}
+        getDoc(doc(firestore, "players", uid)).then(snap => {
+          if (snap.exists() && snap.data().displayName) {
+            setCurrentUserName(snap.data().displayName);
+          } else {
+            getDoc(doc(firestore, "users", uid)).then(s => {
+              if (s.exists()) setCurrentUserName(s.data().name || null);
+            });
+          }
         });
       });
     });

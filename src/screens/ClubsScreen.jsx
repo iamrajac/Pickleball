@@ -114,11 +114,21 @@ export function ClubsScreen() {
       {/* Club list */}
       {loading ? (
         <div style={{ textAlign: "center", color: "var(--color-muted)", padding: "2rem" }}>Loading...</div>
-      ) : clubs.length === 0 ? (
-        <div className="glass-card" style={{ textAlign: "center", padding: "3rem 1rem", borderRadius: 16 }}>
+      ) : clubs.length === 0 && !mode ? (
+        <div className="glass-card" style={{ textAlign: "center", padding: "3rem 1.5rem", borderRadius: 16 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🏓</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-border)", letterSpacing: 2 }}>NO CLUBS YET</div>
-          <div style={{ fontSize: 13, color: "var(--color-muted)", marginTop: 8 }}>Create a club to track your regular group's stats automatically.</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-lime)", letterSpacing: 2 }}>NO CLUBS YET</div>
+          <div style={{ fontSize: 13, color: "var(--color-muted)", marginTop: 8, marginBottom: 24 }}>Create a club to automatically track your group's wins, losses and titles.</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="pb" onClick={() => setMode("create")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "rgba(16,212,142,0.12)", border: "1px solid rgba(16,212,142,0.4)", borderRadius: 12, color: "var(--color-lime)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <Plus size={15} /> CREATE
+            </button>
+            <button className="pb" onClick={() => setMode("join")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "rgba(255,255,255,0.05)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <LogIn size={15} /> JOIN
+            </button>
+          </div>
         </div>
       ) : (
         clubs.map(club => (

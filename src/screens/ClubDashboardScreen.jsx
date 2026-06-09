@@ -339,6 +339,13 @@ export function ClubDashboardScreen() {
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: copied ? "var(--color-lime)" : "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               <Copy size={12} /> {copied ? "COPIED!" : club.code}
             </button>
+            <button className="pb" onClick={() => {
+              const msg = `Join our club "${club.name}" on Pickleball Pro! 🏓%0AUse code: *${club.code}*%0A%0ADownload: https://pickleball-eosin.vercel.app`;
+              window.open(`https://wa.me/?text=${msg}`, "_blank");
+            }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>
+              <span style={{ fontSize: 16 }}>💬</span>
+            </button>
           </div>
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
             {[

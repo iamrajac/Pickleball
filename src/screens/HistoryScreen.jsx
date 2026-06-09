@@ -38,9 +38,13 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
 
   // Always load from localStorage first so data shows immediately
   const [hist, setHist] = useState(() => onlyCompleted(loadH()));
+  const [histLoading, setHistLoading] = useState(() => {
+    // Only show loading if no local data exists (new device)
+    return onlyCompleted(loadH()).length === 0 && !!getAuth().currentUser?.uid;
+  });
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
-    if (!uid) return; // Guests: localStorage already loaded in useState
+    if (!uid) { setHistLoading(false); return; } // Guests: localStorage already loaded in useState
 
     // ONE-TIME MIGRATION: push localStorage data to Firestore (same as HubScreen)
     const MIGRATION_KEY = `pkl_migrated_${uid}`;
@@ -54,6 +58,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
     const unsub = onSnapshot(
       collection(firestore, "users", uid, "tournaments"),
       (snap) => {
+        setHistLoading(false);
         if (snap.empty) return; // no cloud data yet — keep local
         const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
         setHist(onlyCompleted(docs));
@@ -111,8 +116,17 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
           )}
         </div>
 
-        {/* Empty state */}
-        {hist.length === 0 ? (
+        {/* Loading state — only shown on new device with no local data */}
+        {histLoading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} className="glass-card" style={{ borderRadius: 12, padding: "1.2rem 1.4rem", opacity: 0.5 }}>
+                <div style={{ height: 16, width: "60%", borderRadius: 6, background: "var(--color-border)", marginBottom: 10, animation: "shimmer 1.5s infinite" }} />
+                <div style={{ height: 12, width: "40%", borderRadius: 6, background: "var(--color-border)", animation: "shimmer 1.5s infinite" }} />
+              </div>
+            ))}
+          </div>
+        ) : hist.length === 0 ? (
           <div className="fu glass-card" style={{ padding: "4rem 2rem", textAlign: "center", borderRadius: 'var(--radius-lg)' }}>
             <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>🏆</div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: border, letterSpacing: 2 }}>NO HISTORY YET</div>
