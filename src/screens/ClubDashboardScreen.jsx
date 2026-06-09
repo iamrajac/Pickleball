@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub } from "../hooks/useClub";
+import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
 import { firestore, db } from "../firebase";
@@ -13,7 +13,7 @@ import { ref, get } from "firebase/database";
 
 async function deleteClub(clubId, adminUid) {
   // Delete all subcollections
-  for (const sub of ["members", "tournaments", "seasons"]) {
+  for (const sub of ["members", "pendingMembers", "tournaments", "seasons"]) {
     const snap = await getDocs(collection(firestore, "clubs", clubId, sub));
     await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
   }
@@ -22,7 +22,7 @@ async function deleteClub(clubId, adminUid) {
   // Note: other members' clubs array will have a stale reference — harmless, useClubs filters missing clubs
 }
 
-function MembersTab({ members, club, isAdmin, clubId, navigate }) {
+function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate }) {
   const uid = getAuth().currentUser?.uid;
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -39,8 +39,42 @@ function MembersTab({ members, club, isAdmin, clubId, navigate }) {
 
   return (
     <div>
+      {/* Pending requests — admin only */}
+      {isAdmin() && pendingMembers.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: "#f59e0b", fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            ⏳ PENDING REQUESTS
+            <span style={{ background: "rgba(245,158,11,0.2)", color: "#f59e0b", borderRadius: 10, padding: "1px 7px", fontSize: 11 }}>{pendingMembers.length}</span>
+          </div>
+          {pendingMembers.map(m => {
+            const pName = m.playerName || m.name;
+            const avatarProfile = m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+            return (
+              <div key={m.uid} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, border: "1px solid rgba(245,158,11,0.25)" }}>
+                <PlayerAvatar name={pName} profile={avatarProfile} size={36} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{pName}</div>
+                  <div style={{ fontSize: 11, color: "var(--color-muted)" }}>Wants to join</div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button className="pb" onClick={() => rejectJoinRequest(clubId, m.uid)}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    REJECT
+                  </button>
+                  <button className="pb" onClick={() => approveJoinRequest(clubId, m.uid)}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "var(--color-lime)", color: "#0d0f0a", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    APPROVE
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ height: 1, background: "var(--color-border)", marginBottom: 16 }} />
+        </div>
+      )}
+
       <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 12 }}>
-        {members.length} members · Share code <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, letterSpacing: 2, color: "var(--color-lime)" }}>{club?.code}</span> to invite
+        {members.length} member{members.length !== 1 ? "s" : ""}
       </div>
       {members.map(m => {
         const pName = m.playerName || m.name;
@@ -349,7 +383,7 @@ function SeasonTab({ seasons, clubId, isAdmin }) {
 export function ClubDashboardScreen() {
   const { clubId } = useParams();
   const navigate = useNavigate();
-  const { club, members, tournaments, seasons, loading, isAdmin } = useClubDetail(clubId);
+  const { club, members, pendingMembers, tournaments, seasons, loading, isAdmin } = useClubDetail(clubId);
   const [tab, setTab] = useState("members");
   const [showInvite, setShowInvite] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -417,7 +451,13 @@ export function ClubDashboardScreen() {
               { id: "tournaments", label: "📅 MATCHES" },
               { id: "season", label: "🏅 SEASON" },
             ].map(t => (
-              <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => setTab(t.id)} style={{ flex: 1 }}>{t.label}</button>
+              <button key={t.id} className={`tab-btn ${tab === t.id ? "on" : "off"}`} onClick={() => setTab(t.id)}
+                style={{ flex: 1, position: "relative" }}>
+                {t.label}
+                {t.id === "members" && isAdmin() && pendingMembers.length > 0 && (
+                  <span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+                )}
+              </button>
             ))}
           </div>
         </div>
@@ -432,7 +472,7 @@ export function ClubDashboardScreen() {
           </button>
         )}
 
-        {tab === "members" && <MembersTab members={members} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} />}
+        {tab === "members" && <MembersTab members={members} pendingMembers={pendingMembers} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} />}
         {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} />}
         {tab === "tournaments" && <TournamentsTab tournaments={tournaments} clubId={clubId} navigate={navigate} onOpenLive={(code) => navigate(`/?join=${code}`)} />}
         {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}

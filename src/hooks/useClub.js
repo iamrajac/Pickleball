@@ -94,6 +94,77 @@ export async function joinClub(code) {
   return { clubId, club: clubDoc.data() };
 }
 
+export async function requestJoinClub(code) {
+  const auth = getAuth();
+  const uid = auth.currentUser?.uid;
+  const user = auth.currentUser;
+  if (!uid) throw new Error("Not logged in");
+
+  const { getDocs: gd, collection: col, query, where } = await import("firebase/firestore");
+  const q = query(col(firestore, "clubs"), where("code", "==", code.toUpperCase()));
+  const snap = await gd(q);
+  if (snap.empty) throw new Error("Club not found");
+
+  const clubDoc = snap.docs[0];
+  const clubId = clubDoc.id;
+
+  // Already a member?
+  const memberSnap = await getDoc(doc(firestore, "clubs", clubId, "members", uid));
+  if (memberSnap.exists()) throw new Error("Already a member");
+
+  // Already pending?
+  const pendingSnap = await getDoc(doc(firestore, "clubs", clubId, "pendingMembers", uid));
+  if (pendingSnap.exists()) throw new Error("Request already sent");
+
+  const profileSnap = await getDoc(doc(firestore, "players", uid));
+  const profileName = profileSnap.exists() ? (profileSnap.data().displayName || user.displayName || "Player") : (user.displayName || "Player");
+  const avatarObj = profileSnap.exists() ? (profileSnap.data().avatar || null) : null;
+  const profilePhoto = avatarObj?.type === "image" ? avatarObj.value : (user.photoURL || null);
+
+  await setDoc(doc(firestore, "clubs", clubId, "pendingMembers", uid), {
+    uid, name: profileName, photoURL: profilePhoto, avatar: avatarObj,
+    playerName: profileName, requestedAt: serverTimestamp(),
+  });
+
+  // Track pending club in user doc for badge display
+  await updateDoc(doc(firestore, "users", uid), {
+    pendingClubs: arrayUnion(clubId),
+  });
+
+  return { clubId, clubName: clubDoc.data().name };
+}
+
+export async function approveJoinRequest(clubId, pendingUid) {
+  const pendingRef = doc(firestore, "clubs", clubId, "pendingMembers", pendingUid);
+  const pendingSnap = await getDoc(pendingRef);
+  if (!pendingSnap.exists()) return;
+
+  const data = pendingSnap.data();
+  await setDoc(doc(firestore, "clubs", clubId, "members", pendingUid), {
+    ...data, role: "member", joinedAt: serverTimestamp(),
+  });
+  await deleteDoc(pendingRef);
+
+  const clubSnap = await getDoc(doc(firestore, "clubs", clubId));
+  if (clubSnap.exists()) {
+    await updateDoc(doc(firestore, "clubs", clubId), {
+      memberCount: (clubSnap.data().memberCount || 0) + 1,
+    });
+  }
+
+  await updateDoc(doc(firestore, "users", pendingUid), {
+    clubs: arrayUnion(clubId),
+    pendingClubs: arrayRemove(clubId),
+  });
+}
+
+export async function rejectJoinRequest(clubId, pendingUid) {
+  await deleteDoc(doc(firestore, "clubs", clubId, "pendingMembers", pendingUid));
+  await updateDoc(doc(firestore, "users", pendingUid), {
+    pendingClubs: arrayRemove(clubId),
+  });
+}
+
 export async function leaveClub(clubId) {
   const uid = getAuth().currentUser?.uid;
   if (!uid) return;
@@ -212,31 +283,34 @@ export async function addTournamentToSeason(clubId, seasonId, tournamentCode, pl
 
 export function useClubs() {
   const [clubs, setClubs] = useState([]);
+  const [pendingClubIds, setPendingClubIds] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
     if (!uid) { setLoading(false); return; }
 
-    // Load clubs user belongs to
     getDoc(doc(firestore, "users", uid)).then(async snap => {
       const clubIds = snap.exists() ? (snap.data().clubs || []) : [];
-      if (!clubIds.length) { setLoading(false); return; }
+      const pendingIds = snap.exists() ? (snap.data().pendingClubs || []) : [];
+      setPendingClubIds(pendingIds);
 
-      const clubDocs = await Promise.all(
-        clubIds.map(id => getDoc(doc(firestore, "clubs", id)))
-      );
+      const allIds = [...new Set([...clubIds, ...pendingIds])];
+      if (!allIds.length) { setLoading(false); return; }
+
+      const clubDocs = await Promise.all(allIds.map(id => getDoc(doc(firestore, "clubs", id))));
       setClubs(clubDocs.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
   }, []);
 
-  return { clubs, loading };
+  return { clubs, pendingClubIds, loading };
 }
 
 export function useClubDetail(clubId) {
   const [club, setClub] = useState(null);
   const [members, setMembers] = useState([]);
+  const [pendingMembers, setPendingMembers] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [seasons, setSeasons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -244,31 +318,31 @@ export function useClubDetail(clubId) {
   useEffect(() => {
     if (!clubId) return;
 
-    // Club doc
     const unsubClub = onSnapshot(doc(firestore, "clubs", clubId), snap => {
       if (snap.exists()) setClub({ id: snap.id, ...snap.data() });
       setLoading(false);
     });
 
-    // Members
     const unsubMembers = onSnapshot(collection(firestore, "clubs", clubId, "members"), snap => {
       setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
     });
 
-    // Tournaments
+    const unsubPending = onSnapshot(collection(firestore, "clubs", clubId, "pendingMembers"), snap => {
+      setPendingMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+    });
+
     const unsubTournaments = onSnapshot(collection(firestore, "clubs", clubId, "tournaments"), snap => {
       const list = snap.docs.map(d => ({ ...d.data() }));
       list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setTournaments(list);
     });
 
-    // Seasons
     const unsubSeasons = onSnapshot(collection(firestore, "clubs", clubId, "seasons"), snap => {
       setSeasons(snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
     });
 
-    return () => { unsubClub(); unsubMembers(); unsubTournaments(); unsubSeasons(); };
+    return () => { unsubClub(); unsubMembers(); unsubPending(); unsubTournaments(); unsubSeasons(); };
   }, [clubId]);
 
   const isAdmin = useCallback(() => {
@@ -276,5 +350,5 @@ export function useClubDetail(clubId) {
     return club?.adminUid === uid;
   }, [club]);
 
-  return { club, members, tournaments, seasons, loading, isAdmin };
+  return { club, members, pendingMembers, tournaments, seasons, loading, isAdmin };
 }

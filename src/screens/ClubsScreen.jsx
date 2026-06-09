@@ -1,39 +1,39 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Users, LogIn } from "lucide-react";
-import { useClubs, createClub, joinClub } from "../hooks/useClub";
+import { useClubs, createClub, requestJoinClub } from "../hooks/useClub";
 import { getAuth } from "firebase/auth";
 
 export function ClubsScreen() {
-  const { clubs, loading } = useClubs();
+  const { clubs, pendingClubIds, loading } = useClubs();
   const navigate = useNavigate();
-  const [mode, setMode] = useState(null); // "create" | "join"
+  const [mode, setMode] = useState(null); // "create" | "join" | "requested"
   const [clubName, setClubName] = useState("");
   const [clubDesc, setClubDesc] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
+  const [requestedClubName, setRequestedClubName] = useState("");
 
   const uid = getAuth().currentUser?.uid;
 
-  // Auto-join from invite link: /#/clubs?join=CODE
+  // Auto-request from invite link: /#/clubs?join=CODE
   useEffect(() => {
     const p = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const code = p.get("join");
     if (!code) return;
     window.history.replaceState({}, "", window.location.pathname + "#/clubs");
     if (uid) {
-      // Signed in — join immediately
       setWorking(true);
-      joinClub(code.trim()).then(({ clubId }) => {
-        navigate(`/clubs/${clubId}`);
+      requestJoinClub(code.trim()).then(({ clubName }) => {
+        setRequestedClubName(clubName);
+        setMode("requested");
       }).catch(e => {
         setError(e.message);
         setJoinCode(code.toUpperCase());
         setMode("join");
       }).finally(() => setWorking(false));
     } else {
-      // Not signed in — pre-fill the form
       setJoinCode(code.toUpperCase());
       setMode("join");
     }
@@ -54,9 +54,10 @@ export function ClubsScreen() {
     if (!joinCode.trim()) return;
     setWorking(true); setError("");
     try {
-      const { clubId } = await joinClub(joinCode.trim());
-      setMode(null); setJoinCode("");
-      navigate(`/clubs/${clubId}`);
+      const { clubName } = await requestJoinClub(joinCode.trim());
+      setRequestedClubName(clubName);
+      setMode("requested");
+      setJoinCode("");
     } catch (e) { setError(e.message); }
     finally { setWorking(false); }
   };
@@ -75,7 +76,6 @@ export function ClubsScreen() {
         <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 4 }}>Create or join a club to track stats automatically</div>
       </div>
 
-      {/* Action buttons — only show when user has clubs already (empty state has its own buttons) */}
       {!mode && clubs.length > 0 && (
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           <button className="pb" onClick={() => setMode("create")}
@@ -85,6 +85,21 @@ export function ClubsScreen() {
           <button className="pb" onClick={() => setMode("join")}
             style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "var(--surface)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
             <LogIn size={16} /> JOIN CLUB
+          </button>
+        </div>
+      )}
+
+      {/* Request sent confirmation */}
+      {mode === "requested" && (
+        <div className="glass-card" style={{ borderRadius: 14, padding: "1.5rem", marginBottom: 20, textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-lime)", letterSpacing: 2, marginBottom: 8 }}>REQUEST SENT!</div>
+          <div style={{ fontSize: 13, color: "var(--color-muted)", marginBottom: 16 }}>
+            Your request to join <strong style={{ color: "var(--color-text)" }}>{requestedClubName}</strong> has been sent. The admin will approve it soon.
+          </div>
+          <button className="pb" onClick={() => setMode(null)}
+            style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer", fontSize: 13 }}>
+            BACK TO CLUBS
           </button>
         </div>
       )}
@@ -128,7 +143,7 @@ export function ClubsScreen() {
             </button>
             <button className="pb" onClick={handleJoin} disabled={working || !joinCode.trim()}
               style={{ flex: 2, padding: 10, borderRadius: 8, border: "none", background: "var(--color-cyan)", color: "#0d0f0a", fontWeight: 700, cursor: "pointer", fontSize: 13, opacity: working ? 0.6 : 1 }}>
-              {working ? "JOINING..." : "JOIN"}
+              {working ? "SENDING..." : "REQUEST TO JOIN"}
             </button>
           </div>
         </div>
@@ -154,7 +169,7 @@ export function ClubsScreen() {
           </div>
         </div>
       ) : (
-        clubs.map(club => (
+        clubs.filter(c => !pendingClubIds.includes(c.id)).map(club => (
           <div key={club.id} className="rh glass-card" onClick={() => navigate(`/clubs/${club.id}`)}
             style={{ borderRadius: 14, padding: "1.2rem", marginBottom: 12, cursor: "pointer", border: `1px solid ${club.themeColor || "var(--color-lime)"}33` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -174,6 +189,25 @@ export function ClubsScreen() {
           </div>
         ))
       )}
+
+      {/* Pending clubs */}
+      {pendingClubIds.length > 0 && clubs.filter(c => pendingClubIds.includes(c.id)).map(club => (
+        <div key={club.id} className="glass-card"
+          style={{ borderRadius: 14, padding: "1.2rem", marginBottom: 12, border: `1px solid rgba(245,158,11,0.3)`, opacity: 0.8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: `${club.themeColor || "#10d48e"}22`, border: `2px solid ${club.themeColor || "#10d48e"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+              🏓
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-text)", letterSpacing: 1, lineHeight: 1 }}>{club.name}</div>
+              <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 3 }}>{club.description}</div>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "3px 8px", borderRadius: 20, background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)" }}>
+              PENDING
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
