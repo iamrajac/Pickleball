@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTimer } from "../utils/useTimer";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Info } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
@@ -46,6 +47,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
   const [sB, setSB] = useState(() => scoreBuffer[matchKey]?.sB ?? match?.scoreB ?? "");
   const [matchNotes, setMatchNotes] = useState(() => scoreBuffer[matchKey]?.notes ?? match?.notes ?? "");
   const [isActive, setIsActive] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const [scoreHistory, setScoreHistory] = useState([]);
   const [storyMoments, setStoryMoments] = useState([]);
   const notesEditedRef = useRef(false);
@@ -298,6 +300,72 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
             ))}
           </div>
         </div>
+      )}
+
+      {/* Details button for completed playoff matches */}
+      {match?.played && (
+        <button onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
+          style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 10, background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px 0", fontSize: 11 }}>
+          <Info size={13} /> DETAILS
+        </button>
+      )}
+
+      {/* Match Detail Bottom Sheet — portal */}
+      {showDetail && createPortal(
+        <div onClick={() => setShowDetail(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, margin: "0 auto", background: "var(--card)", borderRadius: "20px 20px 0 0", padding: "1.5rem 1.2rem 2.5rem", animation: "slideUp 0.25s ease-out" }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: "var(--border)", margin: "0 auto 1.2rem" }} />
+
+            {/* Label */}
+            <div style={{ fontSize: 11, letterSpacing: 2, color: ac, fontWeight: 700, marginBottom: 12 }}>{match.label}</div>
+
+            {/* Score */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: 36, color: wA ? "var(--accent)" : "var(--text-muted)", letterSpacing: 3 }}>{match.scoreA}</span>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--text-muted)" }}>–</span>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: 36, color: wB ? "var(--accent)" : "var(--text-muted)", letterSpacing: 3 }}>{match.scoreB}</span>
+              {match.duration && <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>⏱ {Math.floor(match.duration / 60)}m {match.duration % 60}s</span>}
+            </div>
+
+            {/* Teams */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wA ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${wA ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+                <div style={{ fontSize: 10, color: wA ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>{wA ? "WINNERS ✓" : "TEAM A"}</div>
+                <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{match.teamA?.join(" & ")}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>VS</div>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wB ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${wB ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+                <div style={{ fontSize: 10, color: wB ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>{wB ? "WINNERS ✓" : "TEAM B"}</div>
+                <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{match.teamB?.join(" & ")}</div>
+              </div>
+            </div>
+
+            {/* Serve info */}
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+              🎾 <strong style={{ color: "var(--text)" }}>{servingTeam}</strong> served first · <strong style={{ color: "var(--text)" }}>{serveSide}</strong> side
+            </div>
+
+            {/* Notes — bullet points */}
+            {match.notes && (
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>MATCH NOTES</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {match.notes.split("·").map((s, i) => s.trim() && (
+                    <div key={i} style={{ fontSize: 12, color: "var(--text)", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }}>•</span>
+                      <span>{s.trim()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => setShowDetail(false)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 10, border: "1px solid var(--border)", background: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }}>
+              Close
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

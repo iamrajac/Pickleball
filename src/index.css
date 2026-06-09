@@ -290,7 +290,7 @@ html, body, #root {
 
 /* ── Standings ─────────────────────────────────────── */
 .standings-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.standings-grid    { display: grid; grid-template-columns: 28px 1fr 24px 24px 24px 36px 36px 36px 36px 40px 76px; padding: 10px 14px; align-items: center; }
+.standings-grid    { display: grid; grid-template-columns: 28px 1fr 24px 24px 24px 36px 36px 36px 36px 76px; padding: 10px 14px; align-items: center; }
 .standings-rank    { font-family: var(--font-display); font-size: 20px; line-height: 1.1; }
 .standings-pts     { font-family: var(--font-display); font-size: 22px; line-height: 1.1; text-align: center; }
 .standings-name    { font-size: 14px; font-weight: 500; overflow: hidden; }
@@ -459,8 +459,8 @@ body.modal-open { overflow: hidden; touch-action: none; }
   /* Standings scroll */
   .standings-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .standings-grid {
-    grid-template-columns: 24px minmax(80px,1fr) 28px 28px 28px 38px 38px 36px 36px 40px 70px !important;
-    min-width: 480px; padding: 8px 10px !important;
+    grid-template-columns: 24px minmax(120px,1fr) 28px 28px 28px 38px 38px 36px 36px 70px !important;
+    min-width: 440px; padding: 8px 10px !important;
   }
   .standings-rank { font-size: 14px !important; }
   .standings-pts  { font-size: 17px !important; }
