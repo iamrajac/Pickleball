@@ -93,7 +93,7 @@ export async function saveFullTournament(uid, entry) {
         champion: data.champion,
         isPublic: true,
         createdBy: uid,
-        scheduledAt: entry.scheduledAt || null,
+        clubId: data.clubId || null,
         updatedAt: data.updatedAt,
         createdAt: data.createdAt || serverTimestamp(),
       });
@@ -231,6 +231,7 @@ export function useTournament() {
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState(null); // ms timestamp or null
   const [claims, setClaims] = useState({});
+  const [clubId, setClubId] = useState(null);
 
   // Refs that must not trigger re-renders
   const isWriting = useRef(false);
@@ -529,6 +530,7 @@ export function useTournament() {
       rounds: newRounds,
       profiles: prof,
       themeColor: col,
+      clubId: clubId || localStorage.getItem(`pkl_club_${c}`) || null,
     };
     if (idx >= 0) h[idx] = entry; else h.push(entry);
     saveH(h); // always cache locally
@@ -536,7 +538,7 @@ export function useTournament() {
     // Only persist to Firestore for creator/scorer — spectators don't get it in their history
     const uid = getAuth().currentUser?.uid;
     if (uid && canEditRef.current) saveFullTournament(uid, entry);
-  }, [code, players, profiles, themeColor, tournamentName, isPublic]);
+  }, [code, players, profiles, themeColor, tournamentName, isPublic, clubId]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -683,6 +685,7 @@ export function useTournament() {
 
       // Save to club if created from a club
       if (meta.clubId) {
+        setClubId(meta.clubId);
         localStorage.setItem(`pkl_club_${c}`, meta.clubId);
         import("../hooks/useClub").then(({ saveTournamentToClub }) => saveTournamentToClub(meta.clubId, newEntry));
       }
@@ -720,6 +723,10 @@ export function useTournament() {
     setThemeColor(data.themeColor || "#10d48e");
     setTournamentName(data.name || "");
     setIsPublic(data.isPublic !== false);
+    // Restore clubId from data (Firestore) or localStorage fallback
+    const joinedClubId = data.clubId || localStorage.getItem(`pkl_club_${c}`) || null;
+    setClubId(joinedClubId);
+    if (joinedClubId) localStorage.setItem(`pkl_club_${c}`, joinedClubId);
     setCode(c);
     setTab("rounds");
     // Lock if scheduled time is in the future (overrides canEdit)
@@ -910,7 +917,7 @@ export function useTournament() {
     pendingSync.current = null;
     setPlayers([]); setRounds([]); setPlayoffs(null);
     setCode(null); setChampion(null); setScorerPin(null);
-    setMatchTimers({}); setTournamentName(""); setIsPublic(true);
+    setMatchTimers({}); setTournamentName(""); setIsPublic(true); setClubId(null);
     localPlayedCount.current = 0;
   };
 
