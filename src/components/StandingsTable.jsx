@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Trophy, ChevronDown, ChevronUp, Flame, Info } from "lucide-react";
 import { PlayerAvatar } from "./PlayerAvatar";
 export function StandingsTable({ standings, rounds, profiles = {}, playoffs = null, champion = null }) {
@@ -230,52 +231,59 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
         ● TOP 4 ADVANCE TO PLAYOFFS · TAP ROW FOR MATCH HISTORY
       </div>
 
-      {/* Match Detail Bottom Sheet */}
-      {detailMatch && (
-        <div onClick={() => setDetailMatch(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 500, display: "flex", alignItems: "flex-end" }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, margin: "0 auto", background: "var(--color-card, var(--card))", borderRadius: "20px 20px 0 0", padding: "1.5rem 1.2rem 2.5rem", animation: "slideUp 0.25s ease-out" }}>
-            {/* Handle */}
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: "var(--color-border)", margin: "0 auto 1.2rem" }} />
+      {/* Match Detail Bottom Sheet — portal to escape stacking context */}
+      {detailMatch && createPortal(
+        <div onClick={() => setDetailMatch(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, margin: "0 auto", background: "var(--card)", borderRadius: "20px 20px 0 0", padding: "1.5rem 1.2rem 2.5rem", animation: "slideUp 0.25s ease-out" }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: "var(--border)", margin: "0 auto 1.2rem" }} />
 
-            {/* Result badge */}
+            {/* Result + score */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 2, padding: "3px 10px", borderRadius: 6, background: detailMatch.win ? "rgba(16,212,142,0.12)" : "rgba(239,68,68,0.12)", color: detailMatch.win ? "var(--color-lime)" : "var(--color-danger)" }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 2, padding: "3px 10px", borderRadius: 6, background: detailMatch.win ? "rgba(16,212,142,0.12)" : "rgba(239,68,68,0.12)", color: detailMatch.win ? "var(--accent)" : "var(--danger)" }}>
                 {detailMatch.win ? "WIN" : "LOSS"}
               </span>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: detailMatch.win ? "var(--color-lime)" : "var(--color-danger)", letterSpacing: 2 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: detailMatch.win ? "var(--accent)" : "var(--danger)", letterSpacing: 2 }}>
                 {detailMatch.myScore} – {detailMatch.oppScore}
               </span>
               {detailMatch.duration && (
-                <span style={{ fontSize: 12, color: "var(--color-muted)", marginLeft: "auto" }}>⏱ {Math.floor(detailMatch.duration / 60)}m {detailMatch.duration % 60}s</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>⏱ {Math.floor(detailMatch.duration / 60)}m {detailMatch.duration % 60}s</span>
               )}
             </div>
 
             {/* Teams */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "rgba(16,212,142,0.06)", border: "1px solid rgba(16,212,142,0.2)" }}>
-                <div style={{ fontSize: 10, color: "var(--color-lime)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>YOUR TEAM</div>
-                <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>{detailMatch.partner ? `You & ${detailMatch.partner}` : "You"}</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: detailMatch.win ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${detailMatch.win ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+                <div style={{ fontSize: 10, color: detailMatch.win ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>YOUR TEAM</div>
+                <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{detailMatch.partner ? `You & ${detailMatch.partner}` : "You"}</div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--color-muted)", fontWeight: 700 }}>VS</div>
-              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)" }}>
-                <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>OPPONENTS</div>
-                <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>{detailMatch.opp ? detailMatch.opp.join(" & ") : "TBD"}</div>
+              <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>VS</div>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: !detailMatch.win ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${!detailMatch.win ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+                <div style={{ fontSize: 10, color: !detailMatch.win ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>OPPONENTS</div>
+                <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{detailMatch.opp ? detailMatch.opp.join(" & ") : "TBD"}</div>
               </div>
             </div>
 
-            {/* Notes */}
+            {/* Notes — bullet points */}
             {detailMatch.notes && (
-              <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid var(--color-border)" }}>
-                <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 6 }}>MATCH NOTES</div>
-                <div style={{ fontSize: 13, color: "var(--color-text)", lineHeight: 1.6, fontStyle: "italic" }}>"{detailMatch.notes}"</div>
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>MATCH NOTES</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {detailMatch.notes.split("·").map((s, i) => s.trim() && (
+                    <div key={i} style={{ fontSize: 12, color: "var(--text)", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }}>•</span>
+                      <span>{s.trim()}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            <button onClick={() => setDetailMatch(null)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 10, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 13, cursor: "pointer" }}>
+            <button onClick={() => setDetailMatch(null)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 10, border: "1px solid var(--border)", background: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }}>
               Close
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
