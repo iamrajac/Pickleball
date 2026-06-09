@@ -343,6 +343,9 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
         </div>
       )}
 
+      {/* Live emoji reactions */}
+      <ReactionsOverlay code={code} />
+
       {/* TVMode overlay */}
       {showTVMode && <TVMode code={code} rounds={rounds} liveScores={liveScores} profiles={profiles} tournamentName={tournamentName} playoffs={playoffs} onClose={() => setShowTVMode(false)} />}
 
