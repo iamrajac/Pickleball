@@ -425,7 +425,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
 
         {/* STANDINGS */}
         {tab === "standings" && (
-          <div className="fu">
+          <div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
               <button className="pb" onClick={copyStandingsText} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", borderRadius: "var(--radius-sm)", color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📋 COPY FOR WHATSAPP</button>
               <button className="pb" onClick={() => setShowStandingsShare(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><Camera size={14} /> SHARE IMAGE</button>
@@ -443,7 +443,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
 
         {/* PLAYOFFS */}
         {tab === "playoffs" && (
-          <div className="fu">
+          <div>
             {!playoffs ? (
               <div className="glass-card" style={{ textAlign: "center", padding: "5rem 1rem", borderRadius: "var(--radius-lg)" }}>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: "var(--color-border)", letterSpacing: 4, lineHeight: 1 }}>LOCKED</div>
