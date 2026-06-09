@@ -61,7 +61,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
   const rematchPlayers = location.state?.rematchPlayers || null;
   const [step, setStep] = useState("form"); // always start at form, rematch pre-fills players
   const [name, setName] = useState(rematchPlayers ? `Rematch ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "");
-  const [isPublic, setIsPublic] = useState(true);
+  const [isPublic, setIsPublic] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
   const [numP, setNumP] = useState(rematchPlayers ? rematchPlayers.length : 8);
   const [rounds, setRounds] = useState(7);

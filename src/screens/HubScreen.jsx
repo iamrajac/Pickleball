@@ -212,6 +212,14 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
       try { await deleteDoc(doc(firestore, "users", user.uid, "tournaments", c)); } catch {}
     }
     try { await deleteDoc(doc(firestore, "tournaments", c)); } catch {}
+    // Remove from club if this tournament was created from one
+    try {
+      const clubId = localStorage.getItem(`pkl_club_${c}`);
+      if (clubId) {
+        await deleteDoc(doc(firestore, "clubs", clubId, "tournaments", c));
+        localStorage.removeItem(`pkl_club_${c}`);
+      }
+    } catch {}
     setConfirmDelete(null);
   };
 
