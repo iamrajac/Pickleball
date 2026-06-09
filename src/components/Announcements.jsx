@@ -93,7 +93,7 @@ export function Announcements({ code, readOnly, scorerName = "Organizer" }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 220, overflowY: "auto" }}>
               {announcements.map(a => (
-                <div key={a.id} style={{ background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-sm)", padding: "8px 10px", position: "relative", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div key={a.id} style={{ background: "var(--surface)", borderRadius: "var(--radius-sm)", padding: "8px 10px", position: "relative", border: "1px solid var(--border)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-gold)" }}>{a.authorName}</span>
                     <span style={{ fontSize: 10, color: "var(--color-muted)" }}>{relTime(a.ts)}</span>

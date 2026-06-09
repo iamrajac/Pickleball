@@ -101,7 +101,6 @@ export async function saveFullTournament(uid, entry) {
       await setDoc(doc(firestore, "tournaments", entry.code), summary, { merge: true });
     }
 
-    console.log("✅ Firestore write OK:", entry.code, "uid:", uid?.slice(0,8));
   } catch (e) {
     console.error("❌ saveFullTournament failed:", e.code, e.message);
   }

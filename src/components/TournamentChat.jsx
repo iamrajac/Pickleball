@@ -65,7 +65,7 @@ export function TournamentChat({ code, readOnly, currentUserName, isOrganizer, o
           )}
           {messages.map(m => (
             <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-              <div style={{ minWidth: 28, height: 28, borderRadius: "50%", background: m.isOrganizer ? "rgba(52,211,153,0.2)" : "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: m.isOrganizer ? "#34d399" : "var(--color-muted)", flexShrink: 0 }}>
+              <div style={{ minWidth: 28, height: 28, borderRadius: "50%", background: m.isOrganizer ? "rgba(52,211,153,0.2)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: m.isOrganizer ? "#34d399" : "var(--color-muted)", flexShrink: 0 }}>
                 {(m.authorName || "?")[0].toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>

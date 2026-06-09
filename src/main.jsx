@@ -20,14 +20,17 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ color: 'white', background: 'red', padding: '20px', zIndex: 9999 }}>
-          <h1>Something went wrong.</h1>
-          <pre>{this.state.error && this.state.error.toString()}</pre>
-          <pre>{this.state.error && this.state.error.stack}</pre>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0f1923', color: '#e2eaf4', padding: '2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🏓</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 2, color: '#10d48e', marginBottom: 8 }}>SOMETHING WENT WRONG</div>
+          <div style={{ fontSize: 14, color: '#7a95b0', marginBottom: 32, maxWidth: 320 }}>The app hit an unexpected error. Try refreshing — your tournament data is safe.</div>
+          <button onClick={() => window.location.reload()} style={{ padding: '14px 32px', background: '#10d48e', border: 'none', borderRadius: 10, color: '#0f1923', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, cursor: 'pointer' }}>
+            REFRESH
+          </button>
         </div>
       );
     }
-    return this.props.children; 
+    return this.props.children;
   }
 }
 

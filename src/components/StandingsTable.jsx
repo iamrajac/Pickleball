@@ -252,12 +252,12 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
 
             {/* Teams */}
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: detailMatch.win ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${detailMatch.win ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: detailMatch.win ? "rgba(16,212,142,0.06)" : "var(--surface)", border: `1px solid ${detailMatch.win ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
                 <div style={{ fontSize: 10, color: detailMatch.win ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>YOUR TEAM</div>
                 <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{detailMatch.partner ? `You & ${detailMatch.partner}` : "You"}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>VS</div>
-              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: !detailMatch.win ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${!detailMatch.win ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: !detailMatch.win ? "rgba(16,212,142,0.06)" : "var(--surface)", border: `1px solid ${!detailMatch.win ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
                 <div style={{ fontSize: 10, color: !detailMatch.win ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>OPPONENTS</div>
                 <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{detailMatch.opp ? detailMatch.opp.join(" & ") : "TBD"}</div>
               </div>
@@ -265,7 +265,7 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
 
             {/* Notes — bullet points */}
             {detailMatch.notes && (
-              <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>MATCH NOTES</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {detailMatch.notes.split("·").map((s, i) => s.trim() && (

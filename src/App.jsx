@@ -187,7 +187,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
       <div className="glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid var(--color-border)" }}>
         <div style={{ padding: "0 0.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 52 }}>
-            <button onClick={() => setShowConfirmEnd(true)} className="ni topbar-btn" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", padding: "6px", display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <button onClick={() => setShowConfirmEnd(true)} className="ni topbar-btn" style={{ background: "none", border: "none", color: "var(--text-secondary)", padding: "6px", display: "flex", alignItems: "center", flexShrink: 0 }}>
               <ArrowLeft size={20} />
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -196,10 +196,10 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                   {readOnly ? "👁 SPECTATING" : "LIVE"}
                 </div>
                 <span className="live-dot" style={{ width: 6, height: 6 }} />
-                {syncing && <RefreshCw size={10} className="spin" style={{ color: "rgba(255,255,255,0.6)" }} />}
+                {syncing && <RefreshCw size={10} className="spin" style={{ color: "var(--text-secondary)" }} />}
                 {isOffline && <WifiOff size={12} color="#fca5a5" />}
               </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", display: "flex", gap: 6, alignItems: "center", marginTop: 1 }}>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", display: "flex", gap: 6, alignItems: "center", marginTop: 1 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Users size={9} /> {onlineCount}</span>
                 <span style={{ color: "#93c5fd", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1, fontSize: 11 }}>{code}</span>
                 <span>· {totalPlayed}/{allM.length}</span>
@@ -220,28 +220,28 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
               ) : null}
               {/* Share button — always visible */}
               <button className="pb topbar-btn" onClick={() => setShowShare(true)}
-                style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#93c5fd", cursor: "pointer" }}>
+                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--upcoming)", cursor: "pointer" }}>
                 <Share2 size={16} />
               </button>
               {/* Desktop: show TV, Chat, Theme inline. Mobile: collapse into ⋯ */}
               <div className="topbar-desktop-only" style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <button className="pb topbar-btn" onClick={() => setShowTVMode(true)}
-                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer" }}>
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", cursor: "pointer" }}>
                   <Tv size={16} />
                 </button>
                 <button className="pb topbar-btn" onClick={() => setShowChat(true)}
-                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#34d399", cursor: "pointer" }}>
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "#34d399", cursor: "pointer" }}>
                   <MessageCircle size={16} />
                 </button>
                 <button className="pb topbar-btn" onClick={toggleTheme}
-                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", cursor: "pointer" }}>
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
               </div>
               {/* Mobile overflow menu */}
               <div className="topbar-mobile-only" style={{ position: "relative" }}>
                 <button className="pb topbar-btn" onClick={() => setShowOverflow(v => !v)}
-                  style={{ background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px 8px", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 16, fontWeight: 700, letterSpacing: 1 }}>
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", cursor: "pointer", fontSize: 16, fontWeight: 700, letterSpacing: 1 }}>
                   ⋯
                 </button>
                 {showOverflow && (
@@ -253,7 +253,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                     <button className="pb" onClick={() => setShowChat(true)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", color: "#34d399", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                       <MessageCircle size={15} /> CHAT
                     </button>
-                    <button className="pb" onClick={toggleTheme} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                    <button className="pb" onClick={toggleTheme} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                       {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />} {theme === "dark" ? "LIGHT" : "DARK"} MODE
                     </button>
                   </div>
@@ -263,7 +263,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                 <div style={{ width: 40, height: 3, background: "var(--color-border)", borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: "100%", background: "var(--color-lime)", width: `${pct}%`, transition: "width 0.5s" }} />
                 </div>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.9)" }}>{pct}%</span>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, color: "var(--text)" }}>{pct}%</span>
               </div>
             </div>
           </div>

@@ -49,7 +49,7 @@ export function ScorerPinModal({ code, pin, onClose }) {
         </div>
         <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 16 }}>They enter tournament code <strong style={{ color: "var(--color-cyan)" }}>{code}</strong> + this PIN to get scorer access</div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button className="pb" onClick={copy} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", background: copied ? "rgba(200,241,53,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${copied ? "var(--color-lime)" : "var(--color-border)"}`, borderRadius: 10, color: copied ? "var(--color-lime)" : "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <button className="pb" onClick={copy} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", background: copied ? "rgba(200,241,53,0.15)" : "var(--surface)", border: `1px solid ${copied ? "var(--color-lime)" : "var(--color-border)"}`, borderRadius: 10, color: copied ? "var(--color-lime)" : "var(--color-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             <Copy size={14} /> {copied ? "COPIED!" : "COPY PIN"}
           </button>
           <button className="pb" onClick={whatsapp} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.4)", borderRadius: 10, color: "#25d366", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>

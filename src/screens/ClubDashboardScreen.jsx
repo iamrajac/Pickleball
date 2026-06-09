@@ -279,7 +279,7 @@ function SeasonTab({ seasons, clubId, isAdmin }) {
         <div className="glass-card" style={{ borderRadius: 12, padding: "1rem", marginBottom: 16 }}>
           <input value={seasonName} onChange={e => setSeasonName(e.target.value)}
             placeholder="Season name (e.g. June 2026)"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.05)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--surface)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 8 }}>
             <button className="pb" onClick={() => setCreating(false)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>CANCEL</button>
             <button className="pb" onClick={handleCreate} disabled={working} style={{ flex: 2, padding: 10, borderRadius: 8, border: "none", background: "var(--color-lime)", color: "#0d0f0a", fontWeight: 700, cursor: "pointer" }}>
@@ -353,7 +353,8 @@ export function ClubDashboardScreen() {
   const [copied, setCopied] = useState(false);
 
   const copyCode = () => {
-    navigator.clipboard?.writeText(club?.code || "");
+    const link = `${window.location.origin}${window.location.pathname}#/clubs?join=${club?.code}`;
+    navigator.clipboard?.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -385,7 +386,7 @@ export function ClubDashboardScreen() {
             </div>
             <button className="pb" onClick={copyCode}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: copied ? "var(--color-lime)" : "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-              <Copy size={12} /> {copied ? "COPIED!" : club.code}
+              <Copy size={12} /> {copied ? "LINK COPIED!" : "INVITE LINK"}
             </button>
             <button className="pb" onClick={() => {
               const msg = `Join our club "${club.name}" on Pickleball Pro! 🏓%0AUse code: *${club.code}*%0A%0ADownload: https://pickleball-eosin.vercel.app`;

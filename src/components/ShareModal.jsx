@@ -89,7 +89,7 @@ export function ShareModal({ code, isPublic = true, onClose, tournamentName, pla
 
         {/* Buttons */}
         <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-          <button className="pb" onClick={copyCode} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: copied ? "rgba(200,241,53,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${copied ? "var(--color-lime)" : "var(--color-border)"}`, borderRadius: 10, color: copied ? "var(--color-lime)" : "var(--color-text)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button className="pb" onClick={copyCode} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: copied ? "rgba(200,241,53,0.15)" : "var(--surface)", border: `1px solid ${copied ? "var(--color-lime)" : "var(--color-border)"}`, borderRadius: 10, color: copied ? "var(--color-lime)" : "var(--color-text)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             <Copy size={14} /> {copied ? "COPIED!" : "COPY CODE"}
           </button>
           <button className="pb" onClick={whatsapp} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.4)", borderRadius: 10, color: "#25d366", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
@@ -110,7 +110,7 @@ export function ShareModal({ code, isPublic = true, onClose, tournamentName, pla
               placeholder="Enter email(s), separated by comma"
               value={emailInput}
               onChange={e => setEmailInput(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.05)", color: "var(--color-text)", fontSize: 13, boxSizing: "border-box" }}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--surface)", color: "var(--color-text)", fontSize: 13, boxSizing: "border-box" }}
             />
             <button className="pb" onClick={sendInviteEmail} disabled={emailSending || !emailInput.trim()}
               style={{ padding: "10px", borderRadius: 8, border: "none", background: emailSent ? "rgba(200,241,53,0.2)" : "rgba(147,197,253,0.2)", color: emailSent ? "var(--color-lime)" : "#93c5fd", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>

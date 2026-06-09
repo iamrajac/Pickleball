@@ -421,7 +421,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
             </div>
             {match.duration && <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 4 }}>⏱ {fmtDur(match.duration)}</div>}
             <button className="pb" onClick={(e) => { e.stopPropagation(); shareCard(); }}
-              style={{ marginTop: 6, background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", gap: 4, fontSize: 10, margin: "6px auto 0" }}>
+              style={{ marginTop: 6, background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, fontSize: 10, margin: "6px auto 0" }}>
               <Share2 size={10} /> SHARE
             </button>
           </div>
@@ -571,25 +571,25 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
             {/* Teams */}
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wA ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${wA ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wA ? "rgba(16,212,142,0.06)" : "var(--surface)", border: `1px solid ${wA ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
                 <div style={{ fontSize: 10, color: wA ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>{wA ? "WINNERS ✓" : "TEAM A"}</div>
                 <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{match.teamA?.join(" & ")}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>VS</div>
-              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wB ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${wB ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wB ? "rgba(16,212,142,0.06)" : "var(--surface)", border: `1px solid ${wB ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
                 <div style={{ fontSize: 10, color: wB ? "var(--accent)" : "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>{wB ? "WINNERS ✓" : "TEAM B"}</div>
                 <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{match.teamB?.join(" & ")}</div>
               </div>
             </div>
 
             {/* Serve info */}
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)" }}>
               🎾 <strong style={{ color: "var(--text)" }}>{servingTeam}</strong> served first · <strong style={{ color: "var(--text)" }}>{serveSide}</strong> side
             </div>
 
             {/* Notes — one bullet per moment */}
             {match.notes && (
-              <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>MATCH NOTES</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {match.notes.split("·").map((s, i) => s.trim() && (

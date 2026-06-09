@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Users, LogIn } from "lucide-react";
 import { useClubs, createClub, joinClub } from "../hooks/useClub";
@@ -13,6 +13,17 @@ export function ClubsScreen() {
   const [joinCode, setJoinCode] = useState("");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
+
+  // Auto-join from invite link: /#/clubs?join=CODE
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    const code = p.get("join");
+    if (code) {
+      window.history.replaceState({}, "", window.location.pathname + "#/clubs");
+      setJoinCode(code.toUpperCase());
+      setMode("join");
+    }
+  }, []);
 
   const uid = getAuth().currentUser?.uid;
 
@@ -60,7 +71,7 @@ export function ClubsScreen() {
             <Plus size={16} /> CREATE CLUB
           </button>
           <button className="pb" onClick={() => setMode("join")}
-            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "rgba(255,255,255,0.05)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "var(--surface)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
             <LogIn size={16} /> JOIN CLUB
           </button>
         </div>
@@ -72,10 +83,10 @@ export function ClubsScreen() {
           <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--color-lime)", fontWeight: 700, marginBottom: 12 }}>NEW CLUB</div>
           <input value={clubName} onChange={e => setClubName(e.target.value)}
             placeholder="Club name (e.g. SRM Pickleball)"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.05)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--surface)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
           <input value={clubDesc} onChange={e => setClubDesc(e.target.value)}
             placeholder="Description (optional)"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.05)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--surface)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box" }} />
           {error && <div style={{ color: "var(--color-danger)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
           <div style={{ display: "flex", gap: 8 }}>
             <button className="pb" onClick={() => { setMode(null); setError(""); }}
@@ -96,7 +107,7 @@ export function ClubsScreen() {
           <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--color-cyan)", fontWeight: 700, marginBottom: 12 }}>JOIN A CLUB</div>
           <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
             placeholder="Enter club code"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.05)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box", letterSpacing: 3, fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, textAlign: "center" }} />
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--surface)", color: "var(--color-text)", fontSize: 14, marginBottom: 10, boxSizing: "border-box", letterSpacing: 3, fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, textAlign: "center" }} />
           {error && <div style={{ color: "var(--color-danger)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
           <div style={{ display: "flex", gap: 8 }}>
             <button className="pb" onClick={() => { setMode(null); setError(""); }}
@@ -125,7 +136,7 @@ export function ClubsScreen() {
               <Plus size={15} /> CREATE
             </button>
             <button className="pb" onClick={() => setMode("join")}
-              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "rgba(255,255,255,0.05)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, background: "var(--surface)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
               <LogIn size={15} /> JOIN
             </button>
           </div>

@@ -198,7 +198,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
                         🏘 CLUB
                       </span>
                     )}
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: "2px 7px", borderRadius: 20, background: t.isPublic === true ? "rgba(16,212,142,0.1)" : "rgba(255,255,255,0.05)", color: t.isPublic === true ? "var(--color-lime)" : "var(--color-muted)", border: `1px solid ${t.isPublic === true ? "rgba(16,212,142,0.25)" : "rgba(255,255,255,0.1)"}` }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: "2px 7px", borderRadius: 20, background: t.isPublic === true ? "rgba(16,212,142,0.1)" : "var(--surface)", color: t.isPublic === true ? "var(--color-lime)" : "var(--color-muted)", border: `1px solid ${t.isPublic === true ? "rgba(16,212,142,0.25)" : "var(--border)"}` }}>
                       {t.isPublic === true ? "🌐 PUBLIC" : "🔒 PRIVATE"}
                     </span>
                   </div>
@@ -604,7 +604,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                         { l: "LONGEST", v: fmtD(longest?.duration) },
                         { l: "SHORTEST", v: fmtD(shortest?.duration) },
                       ].map(({ l, v }) => (
-                        <div key={l} style={{ textAlign: "center", background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 6px" }}>
+                        <div key={l} style={{ textAlign: "center", background: "var(--surface)", borderRadius: 10, padding: "10px 6px" }}>
                           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: lime, lineHeight: 1 }}>{v}</div>
                           <div style={{ fontSize: 8, color: muted, letterSpacing: 1, marginTop: 4 }}>{l}</div>
                         </div>
@@ -629,7 +629,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                             <span style={{ fontSize: 12, color: text }}>{label}</span>
                             <span style={{ fontSize: 12, color: muted }}>{count} match{count !== 1 ? "es" : ""} · {totalMatches > 0 ? Math.round((count/totalMatches)*100) : 0}%</span>
                           </div>
-                          <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: 8, background: "var(--border)", borderRadius: 4, overflow: "hidden" }}>
                             <div style={{ height: "100%", width: `${pct}%`, background: colorMap[label], borderRadius: 4, transition: "width 0.5s" }} />
                           </div>
                         </div>
@@ -658,7 +658,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                         <span style={{ fontSize: 13, color: text, fontWeight: 500 }}>{name}</span>
                         <span style={{ fontSize: 11, color: muted }}>{count}/{total} tournaments</span>
                       </div>
-                      <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: 6, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${pct}%`, background: pct >= 80 ? lime : pct >= 50 ? "var(--color-gold)" : "var(--color-danger)", borderRadius: 3, transition: "width 0.5s" }} />
                       </div>
                     </div>
@@ -677,7 +677,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                     return (
                       <div key={day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                         <div style={{ fontSize: 10, color: count > 0 ? lime : muted, fontWeight: count > 0 ? 700 : 400 }}>{count || ""}</div>
-                        <div style={{ width: "100%", height: `${h}px`, background: count > 0 ? (count === maxDay ? lime : "rgba(16,212,142,0.4)") : "rgba(255,255,255,0.06)", borderRadius: "3px 3px 0 0", transition: "height 0.4s" }} />
+                        <div style={{ width: "100%", height: `${h}px`, background: count > 0 ? (count === maxDay ? lime : "rgba(16,212,142,0.4)") : "var(--border)", borderRadius: "3px 3px 0 0", transition: "height 0.4s" }} />
                         <div style={{ fontSize: 10, color: muted }}>{day}</div>
                       </div>
                     );

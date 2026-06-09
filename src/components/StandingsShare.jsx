@@ -145,7 +145,7 @@ export function StandingsShareModal({ standings, onClose, playoffs = null, champ
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button className="pb" onClick={download} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button className="pb" onClick={download} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px", background: "var(--surface)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             <Download size={16} /> DOWNLOAD
           </button>
           <button className="pb" onClick={share} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px", background: "var(--color-lime)", border: "none", borderRadius: 12, color: "#0d0f0a", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>

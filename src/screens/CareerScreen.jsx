@@ -161,7 +161,7 @@ function InsightStrip({ insights, G }) {
       <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 8, fontWeight: 600 }}>💡 INSIGHTS</div>
       <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
         {insights.map((ins, i) => (
-          <div key={i} style={{ flexShrink: 0, maxWidth: 220, background: "rgba(255,255,255,0.04)", border: `1px solid ${ins.color}33`, borderRadius: 12, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <div key={i} style={{ flexShrink: 0, maxWidth: 220, background: "var(--surface)", border: `1px solid ${ins.color}33`, borderRadius: 12, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
             <span style={{ fontSize: 22, flexShrink: 0 }}>{ins.emoji}</span>
             <span style={{ fontSize: 12, color: G.text, lineHeight: 1.4 }}>{ins.text}</span>
           </div>
@@ -379,7 +379,7 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
                 const total = rs.wins + rs.losses;
                 const wr = total > 0 ? Math.round((rs.wins / total) * 100) : 0;
                 return (
-                  <div key={ri} style={{ flex: 1, minWidth: 60, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 8px", textAlign: "center", border: `1px solid ${G.border}` }}>
+                  <div key={ri} style={{ flex: 1, minWidth: 60, background: "var(--surface)", borderRadius: 10, padding: "10px 8px", textAlign: "center", border: `1px solid ${G.border}` }}>
                     <div style={{ fontSize: 9, color: G.muted, letterSpacing: 1, marginBottom: 4 }}>R{Number(ri) + 1}</div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: wr >= 60 ? G.lime : wr >= 40 ? G.gold : G.danger, lineHeight: 1 }}>{wr}%</div>
                     <div style={{ fontSize: 9, color: G.muted, marginTop: 2 }}>{rs.wins}W {rs.losses}L</div>
@@ -496,7 +496,7 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
                   <div style={{ fontSize: 10, letterSpacing: 2, color: G.muted, marginBottom: 8, fontWeight: 600 }}>💡 YOUR INSIGHTS</div>
                   <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
                     {ins.map((insight, i) => (
-                      <div key={i} style={{ flexShrink: 0, maxWidth: 200, background: "rgba(255,255,255,0.04)", border: `1px solid ${insight.color}33`, borderRadius: 12, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <div key={i} style={{ flexShrink: 0, maxWidth: 200, background: "var(--surface)", border: `1px solid ${insight.color}33`, borderRadius: 12, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
                         <span style={{ fontSize: 20, flexShrink: 0 }}>{insight.emoji}</span>
                         <span style={{ fontSize: 12, color: G.text, lineHeight: 1.4 }}>{insight.text}</span>
                       </div>
