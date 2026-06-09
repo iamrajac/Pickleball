@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useTimer } from "../utils/useTimer";
-import { Play, Pause, X, Share2 } from "lucide-react";
+import { Play, Pause, X, Share2, Info } from "lucide-react";
 import { validatePickleballScore, scoreHint } from "../utils/pickleballRules";
 import { getH2HStats } from "../utils/history";
 import { PlayerAvatar } from "./PlayerAvatar";
@@ -131,6 +131,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const [liveTick, setLiveTick] = useState(0); // forces re-render for live timer
   const [scoreSynced, setScoreSynced] = useState(false); // visual feedback for sync
   const prevPlayedRef = useRef(match.played); // track played state changes for spectator celebration
+  const [showDetail, setShowDetail] = useState(false);
 
   // ── Spectator: celebrate when a match gets saved (played → true) ──────────
   useEffect(() => {
@@ -475,27 +476,12 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
         </div>
       )}
 
-      {/* Serve and Match Notes Area */}
+      {/* Serve info only — no notes input */}
       {!isPlayed && !readOnly && isActive && (
-        <div style={{ marginTop: 12, padding: "10px", background: 'rgba(0,0,0,0.2)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)' }}>
-          <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ marginTop: 12, padding: "8px 10px", background: 'rgba(0,0,0,0.2)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)' }}>
+          <div style={{ fontSize: 11, color: 'var(--color-muted)', display: "flex", alignItems: "center", gap: 6 }}>
             🎾 <strong style={{ color: 'var(--color-text)' }}>{servingTeam || "TBD"}</strong> serves first from the <strong style={{ color: 'var(--color-text)' }}>{serveSide}</strong> side.
           </div>
-          <div style={{ position: "relative" }}>
-            <input type="text" placeholder="Match notes (auto-generated or type your own...)"
-              value={matchNotes}
-              onChange={e => { setMatchNotes(e.target.value); setNotesEdited(true); }}
-              style={{ width: '100%', background: 'var(--color-surface)', border: `1px solid var(--color-border)`, borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', padding: "8px", paddingRight: matchNotes ? "28px" : "8px", fontSize: 12, boxSizing: "border-box" }} />
-            {matchNotes && (
-              <button onClick={() => { setMatchNotes(""); setNotesEdited(false); }}
-                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
-                <X size={12} />
-              </button>
-            )}
-          </div>
-          {matchNotes && !notesEdited && (
-            <div style={{ fontSize: 10, color: "var(--color-muted)", marginTop: 4, fontStyle: "italic" }}>✨ Auto-generated — tap to edit</div>
-          )}
         </div>
       )}
 
@@ -549,6 +535,55 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
                 <strong style={{ color: 'var(--color-text)' }}>{d.a} vs {d.b}:</strong> {d.stat}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Info button for completed readOnly matches with notes */}
+      {isPlayed && readOnly && match.notes && (
+        <button onClick={() => setShowDetail(true)}
+          style={{ position: "absolute", bottom: 8, right: 8, background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: 4, display: "flex", alignItems: "center", gap: 4 }}>
+          <Info size={13} />
+          <span style={{ fontSize: 10, letterSpacing: 1 }}>DETAILS</span>
+        </button>
+      )}
+
+      {/* Match Detail Bottom Sheet */}
+      {showDetail && (
+        <div onClick={() => setShowDetail(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 500, display: "flex", alignItems: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, margin: "0 auto", background: "var(--color-card, var(--card))", borderRadius: "20px 20px 0 0", padding: "1.5rem 1.2rem 2.5rem", animation: "slideUp 0.25s ease-out" }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: "var(--color-border)", margin: "0 auto 1.2rem" }} />
+            {/* Score */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, color: "var(--color-lime)", letterSpacing: 3 }}>
+                {match.scoreA} – {match.scoreB}
+              </span>
+              {match.duration && (
+                <span style={{ fontSize: 12, color: "var(--color-muted)", marginLeft: "auto" }}>⏱ {Math.floor(match.duration / 60)}m {match.duration % 60}s</span>
+              )}
+            </div>
+            {/* Teams */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wA ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${wA ? "rgba(16,212,142,0.2)" : "var(--color-border)"}` }}>
+                <div style={{ fontSize: 10, color: wA ? "var(--color-lime)" : "var(--color-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>{wA ? "WINNERS" : "TEAM A"}</div>
+                <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>{match.teamA?.join(" & ")}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--color-muted)", fontWeight: 700 }}>VS</div>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: wB ? "rgba(16,212,142,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${wB ? "rgba(16,212,142,0.2)" : "var(--color-border)"}` }}>
+                <div style={{ fontSize: 10, color: wB ? "var(--color-lime)" : "var(--color-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>{wB ? "WINNERS" : "TEAM B"}</div>
+                <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>{match.teamB?.join(" & ")}</div>
+              </div>
+            </div>
+            {/* Notes */}
+            {match.notes && (
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid var(--color-border)" }}>
+                <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 6 }}>MATCH NOTES</div>
+                <div style={{ fontSize: 13, color: "var(--color-text)", lineHeight: 1.6, fontStyle: "italic" }}>"{match.notes}"</div>
+              </div>
+            )}
+            <button onClick={() => setShowDetail(false)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 10, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 13, cursor: "pointer" }}>
+              Close
+            </button>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trophy, ChevronDown, ChevronUp, Flame } from "lucide-react";
+import { Trophy, ChevronDown, ChevronUp, Flame, Info } from "lucide-react";
 import { PlayerAvatar } from "./PlayerAvatar";
 export function StandingsTable({ standings, rounds, profiles = {}, playoffs = null, champion = null }) {
 
@@ -34,6 +34,7 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
   };
 
   const [expandedRow, setExpandedRow] = useState(null);
+  const [detailMatch, setDetailMatch] = useState(null);
   const playerMatches = {};
   
   standings.forEach(s => playerMatches[s.name] = []);
@@ -201,17 +202,15 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
                   <div style={{ fontSize: 10, letterSpacing: 2, color: 'var(--color-muted)', marginBottom: 10, fontWeight: 600 }}>MATCH HISTORY</div>
                   <div style={{ display: "grid", gap: 6 }}>
                     {matches.map((m, mi) => (
-                      <div key={mi} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 'var(--radius-sm)', background: m.win ? 'var(--color-win)' : 'var(--color-lose)', borderLeft: `3px solid ${m.win ? 'var(--color-lime)' : 'var(--color-danger)'}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 12, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', fontWeight: 600, width: 20 }}>{m.win ? "W" : "L"}</span>
-                          <span style={{ fontSize: 13, color: 'var(--color-text)', flex: 1 }}>w/ {m.partner} vs {m.opp ? m.opp.join(" & ") : "TBD"}</span>
-                          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', margin: "0 12px" }}>{m.myScore}–{m.oppScore}</span>
-                          {m.duration && <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>⏱{Math.floor(m.duration / 60)}m{m.duration % 60}s</span>}
-                        </div>
+                      <div key={mi} style={{ display: "flex", alignItems: "center", padding: "8px 12px", borderRadius: 'var(--radius-sm)', background: m.win ? 'var(--color-win)' : 'var(--color-lose)', borderLeft: `3px solid ${m.win ? 'var(--color-lime)' : 'var(--color-danger)'}` }}>
+                        <span style={{ fontSize: 12, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', fontWeight: 600, width: 20 }}>{m.win ? "W" : "L"}</span>
+                        <span style={{ fontSize: 13, color: 'var(--color-text)', flex: 1 }}>w/ {m.partner} vs {m.opp ? m.opp.join(" & ") : "TBD"}</span>
+                        <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: m.win ? 'var(--color-lime)' : 'var(--color-danger)', margin: "0 8px" }}>{m.myScore}–{m.oppScore}</span>
+                        {m.duration && <span style={{ fontSize: 11, color: 'var(--color-muted)', marginRight: 6 }}>⏱{Math.floor(m.duration / 60)}m{m.duration % 60}s</span>}
                         {m.notes && (
-                          <div style={{ fontSize: 11, color: 'var(--color-text)', paddingLeft: 20, fontStyle: "italic", opacity: 0.8 }}>
-                            "{m.notes}"
-                          </div>
+                          <button onClick={() => setDetailMatch(m)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: 2, display: "flex", alignItems: "center" }}>
+                            <Info size={13} />
+                          </button>
                         )}
                       </div>
                     ))}
@@ -230,6 +229,54 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
       <div style={{ padding: "10px 14px", fontSize: 11, color: 'var(--color-muted)', letterSpacing: 1, background: 'rgba(0,0,0,0.1)' }}>
         ● TOP 4 ADVANCE TO PLAYOFFS · TAP ROW FOR MATCH HISTORY
       </div>
+
+      {/* Match Detail Bottom Sheet */}
+      {detailMatch && (
+        <div onClick={() => setDetailMatch(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 500, display: "flex", alignItems: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, margin: "0 auto", background: "var(--color-card, var(--card))", borderRadius: "20px 20px 0 0", padding: "1.5rem 1.2rem 2.5rem", animation: "slideUp 0.25s ease-out" }}>
+            {/* Handle */}
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: "var(--color-border)", margin: "0 auto 1.2rem" }} />
+
+            {/* Result badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 2, padding: "3px 10px", borderRadius: 6, background: detailMatch.win ? "rgba(16,212,142,0.12)" : "rgba(239,68,68,0.12)", color: detailMatch.win ? "var(--color-lime)" : "var(--color-danger)" }}>
+                {detailMatch.win ? "WIN" : "LOSS"}
+              </span>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: detailMatch.win ? "var(--color-lime)" : "var(--color-danger)", letterSpacing: 2 }}>
+                {detailMatch.myScore} – {detailMatch.oppScore}
+              </span>
+              {detailMatch.duration && (
+                <span style={{ fontSize: 12, color: "var(--color-muted)", marginLeft: "auto" }}>⏱ {Math.floor(detailMatch.duration / 60)}m {detailMatch.duration % 60}s</span>
+              )}
+            </div>
+
+            {/* Teams */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "rgba(16,212,142,0.06)", border: "1px solid rgba(16,212,142,0.2)" }}>
+                <div style={{ fontSize: 10, color: "var(--color-lime)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>YOUR TEAM</div>
+                <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>{detailMatch.partner ? `You & ${detailMatch.partner}` : "You"}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--color-muted)", fontWeight: 700 }}>VS</div>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)" }}>
+                <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 4 }}>OPPONENTS</div>
+                <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>{detailMatch.opp ? detailMatch.opp.join(" & ") : "TBD"}</div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            {detailMatch.notes && (
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid var(--color-border)" }}>
+                <div style={{ fontSize: 10, color: "var(--color-muted)", letterSpacing: 1, fontWeight: 700, marginBottom: 6 }}>MATCH NOTES</div>
+                <div style={{ fontSize: 13, color: "var(--color-text)", lineHeight: 1.6, fontStyle: "italic" }}>"{detailMatch.notes}"</div>
+              </div>
+            )}
+
+            <button onClick={() => setDetailMatch(null)} style={{ width: "100%", marginTop: 16, padding: 12, borderRadius: 10, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 13, cursor: "pointer" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

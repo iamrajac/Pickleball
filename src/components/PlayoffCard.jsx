@@ -269,12 +269,10 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
           </button>
 
           {isActive && (
-            <div style={{ marginTop: 10, padding: "10px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+            <div style={{ marginTop: 10, padding: "8px 10px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
                 🎾 <strong style={{ color: "var(--text)" }}>{servingTeam}</strong> serves first · <strong style={{ color: "var(--text)" }}>{serveSide}</strong> side
               </div>
-              <input type="text" placeholder="Match notes (auto-generated or type your own...)" value={matchNotes} onChange={e => { setMatchNotes(e.target.value); notesEditedRef.current = true; }}
-                style={{ width: "100%", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text)", padding: "8px", fontSize: 13, boxSizing: "border-box", outline: "none" }} />
             </div>
           )}
 
