@@ -130,6 +130,16 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const [localSaved, setLocalSaved] = useState(false); // instantly hides SAVE on this device
   const [liveTick, setLiveTick] = useState(0); // forces re-render for live timer
   const [scoreSynced, setScoreSynced] = useState(false); // visual feedback for sync
+  const prevPlayedRef = useRef(match.played); // track played state changes for spectator celebration
+
+  // ── Spectator: celebrate when a match gets saved (played → true) ──────────
+  useEffect(() => {
+    if (!readOnly) return; // creator/scorer already hears it via handleSave
+    if (match.played && !prevPlayedRef.current) {
+      playAudio("pop");
+    }
+    prevPlayedRef.current = match.played;
+  }, [match.played, readOnly]);
 
   // ── Sync live score from Firebase when local hasn't been touched ──────────
   useEffect(() => {
