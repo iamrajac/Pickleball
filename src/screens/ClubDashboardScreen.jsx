@@ -399,9 +399,15 @@ export function ClubDashboardScreen() {
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: club.themeColor || "var(--color-lime)", letterSpacing: 2, lineHeight: 1 }}>{club.name}</div>
               <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{members.length} member{members.length !== 1 ? "s" : ""}</div>
             </div>
-            <button className="pb" onClick={() => setShowInvite(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-              <Share2 size={12} /> INVITE
+            {isAdmin() && (
+              <button className="pb" onClick={() => setShowInvite(true)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <Share2 size={12} /> INVITE
+              </button>
+            )}
+            <button className="pb" onClick={shareWhatsApp}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", cursor: "pointer", flexShrink: 0 }}>
+              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style={{ width: 18, height: 18 }} />
             </button>
           </div>
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
