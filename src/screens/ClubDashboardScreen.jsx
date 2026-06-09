@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2 } from "lucide-react";
+import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
 import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
@@ -479,35 +479,35 @@ export function ClubDashboardScreen() {
       {/* Invite Modal */}
       {showInvite && (
         <div onClick={() => setShowInvite(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "var(--card)", borderRadius: 20, padding: "1.5rem", width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: club.themeColor || "var(--color-lime)" }}>INVITE TO CLUB</div>
-              <button onClick={() => setShowInvite(false)} className="pb" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
-            </div>
+          <div onClick={e => e.stopPropagation()} className="glass-card fu" style={{ borderRadius: 20, padding: "2rem", width: "90%", maxWidth: 360, textAlign: "center", position: "relative" }}>
+            <button onClick={() => setShowInvite(false)} className="pb" style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>
+              <X size={20} />
+            </button>
 
-            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>{club.name} · Scan QR or share the link</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: club.themeColor || "var(--color-lime)", marginBottom: 4 }}>INVITE TO CLUB</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>{club.name} · Scan QR or share the link</div>
 
-            {/* QR Code — full width */}
-            <div style={{ background: "#fff", borderRadius: 14, padding: 20, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-              <QRCodeSVG value={inviteLink} size={240} style={{ width: "100%", height: "auto", maxWidth: 240 }} />
+            {/* QR Code — inline-block so it wraps to content */}
+            <div style={{ background: "#fff", borderRadius: 16, padding: 16, display: "inline-block", marginBottom: 20 }}>
+              <QRCodeSVG value={inviteLink} size={180} fgColor="#0d0f0a" bgColor="#ffffff" />
             </div>
 
             {/* Club code display */}
-            <div style={{ background: "var(--surface)", borderRadius: 10, padding: "10px 14px", textAlign: "center", marginBottom: 14, border: "1px solid var(--border)" }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: 2, marginBottom: 4 }}>CLUB CODE</div>
+            <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 12, padding: "12px 20px", marginBottom: 20, border: "1px solid var(--color-border)" }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: 2, marginBottom: 6 }}>CLUB CODE</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, letterSpacing: 6, color: club.themeColor || "var(--color-lime)" }}>{club.code}</div>
             </div>
 
             {/* Action buttons */}
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <button className="pb" onClick={copyLink} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", background: copiedLink ? "rgba(16,212,142,0.15)" : "var(--surface)", border: `1px solid ${copiedLink ? "var(--color-lime)" : "var(--border)"}`, borderRadius: 10, color: copiedLink ? "var(--color-lime)" : "var(--text)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                <Copy size={13} /> {copiedLink ? "COPIED!" : "COPY LINK"}
+              <button className="pb" onClick={copyLink} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: copiedLink ? "rgba(200,241,53,0.15)" : "var(--surface)", border: `1px solid ${copiedLink ? "var(--color-lime)" : "var(--color-border)"}`, borderRadius: 10, color: copiedLink ? "var(--color-lime)" : "var(--color-text)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                <Copy size={14} /> {copiedLink ? "COPIED!" : "COPY LINK"}
               </button>
-              <button className="pb" onClick={copyCode} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", background: copiedCode ? "rgba(16,212,142,0.15)" : "var(--surface)", border: `1px solid ${copiedCode ? "var(--color-lime)" : "var(--border)"}`, borderRadius: 10, color: copiedCode ? "var(--color-lime)" : "var(--text)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                <Copy size={13} /> {copiedCode ? "COPIED!" : "COPY CODE"}
+              <button className="pb" onClick={copyCode} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: copiedCode ? "rgba(200,241,53,0.15)" : "var(--surface)", border: `1px solid ${copiedCode ? "var(--color-lime)" : "var(--color-border)"}`, borderRadius: 10, color: copiedCode ? "var(--color-lime)" : "var(--color-text)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                <Copy size={14} /> {copiedCode ? "COPIED!" : "COPY CODE"}
               </button>
             </div>
-            <button className="pb" onClick={shareWhatsApp} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.4)", borderRadius: 10, color: "#25d366", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            <button className="pb" onClick={shareWhatsApp} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.4)", borderRadius: 10, color: "#25d366", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style={{ width: 16, height: 16 }} /> WHATSAPP
             </button>
           </div>
