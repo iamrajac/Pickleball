@@ -481,26 +481,28 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
             </div>
           )}
 
-          {/* Empty state for current tab */}
-          {!loadingMy && !loadingPublic && myLive.length === 0 && myCompleted.length === 0 && myUpcoming.length === 0 && publicLive.length === 0 && (
-            <div className="card fu" style={{ marginTop: 32, padding: "3rem 2rem", textAlign: "center" }}>
-              <div style={{ fontSize: 56, marginBottom: 16 }}>🏓</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 2, color: "var(--text)", marginBottom: 8 }}>
-                NO TOURNAMENTS YET
+          {/* Per-tab empty state */}
+          {!loadingMy && !loadingPublic && (() => {
+            const hasPublic = [...myLive, ...myUpcoming, ...myCompleted, ...publicLive, ...publicUpcoming].some(t => t.isPublic === true);
+            const hasPrivate = [...myLive, ...myUpcoming, ...myCompleted].some(t => t.isPublic !== true);
+            if (tab === "public" && !hasPublic) return (
+              <div className="card fu" style={{ marginTop: 24, padding: "2.5rem 2rem", textAlign: "center" }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🌐</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2, color: "var(--text)", marginBottom: 8 }}>NO PUBLIC TOURNAMENTS</div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>Create a tournament and set it to Public so others can discover and join.</div>
+                <button onClick={onCreateTournament} style={{ padding: "12px 28px", background: "var(--accent)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 2, cursor: "pointer" }}>+ CREATE</button>
               </div>
-              <div style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24 }}>
-                Create your first tournament or join one with a code.
+            );
+            if (tab === "private" && !hasPrivate) return (
+              <div className="card fu" style={{ marginTop: 24, padding: "2.5rem 2rem", textAlign: "center" }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2, color: "var(--text)", marginBottom: 8 }}>NO PRIVATE TOURNAMENTS</div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>Create a private tournament — only people with the code can join.</div>
+                <button onClick={onCreateTournament} style={{ padding: "12px 28px", background: "var(--accent)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 2, cursor: "pointer" }}>+ CREATE</button>
               </div>
-              <button onClick={onCreateTournament} style={{
-                padding: "14px 32px", background: "var(--accent)", border: "none",
-                borderRadius: "var(--radius-md)", color: "#fff",
-                fontFamily: "var(--font-display)", fontSize: 18,
-                letterSpacing: 2, cursor: "pointer",
-              }}>
-                + CREATE NOW
-              </button>
-            </div>
-          )}
+            );
+            return null;
+          })()}
         </div>
       </div>
 

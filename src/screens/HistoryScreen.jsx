@@ -198,6 +198,9 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
                         🏘 CLUB
                       </span>
                     )}
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: "2px 7px", borderRadius: 20, background: t.isPublic === true ? "rgba(16,212,142,0.1)" : "rgba(255,255,255,0.05)", color: t.isPublic === true ? "var(--color-lime)" : "var(--color-muted)", border: `1px solid ${t.isPublic === true ? "rgba(16,212,142,0.25)" : "rgba(255,255,255,0.1)"}` }}>
+                      {t.isPublic === true ? "🌐 PUBLIC" : "🔒 PRIVATE"}
+                    </span>
                   </div>
                   {t.name && t.date && (
                     <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>
