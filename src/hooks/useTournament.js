@@ -458,7 +458,8 @@ export function useTournament() {
 
   // ── Champion celebration ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!champion || savedToHist || readOnly) return;
+    if (!champion || savedToHist) return;
+    // Celebration shows for EVERYONE — creator, scorer, and spectators
     playAudio("cheer");
     addToast(`🏆 ${champion} are Champions!`, "success", 6000);
     const end = Date.now() + 4000;
@@ -467,7 +468,10 @@ export function useTournament() {
       confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#c8f135", "#35c8f1", "#f1c835"] });
       if (Date.now() < end) requestAnimationFrame(frame);
     }());
-    _upsertHist(rounds, playoffs, champion);
+    // History save only for creator/scorer — not spectators
+    if (!readOnly) {
+      _upsertHist(rounds, playoffs, champion);
+    }
     setSavedToHist(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [champion, savedToHist, readOnly]);

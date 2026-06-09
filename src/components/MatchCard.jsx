@@ -134,9 +134,14 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   // ── Sync live score from Firebase when local hasn't been touched ──────────
   useEffect(() => {
     if (match.played || localTouched || !liveScore) return;
+    const prevA = sA, prevB = sB;
     if (liveScore.a !== undefined) setSA(String(liveScore.a));
     if (liveScore.b !== undefined) setSB(String(liveScore.b));
     if (liveScore.note) setMatchNotes(liveScore.note);
+    // Play sound for spectators when score changes
+    if (readOnly && (String(liveScore.a) !== prevA || String(liveScore.b) !== prevB)) {
+      playAudio("pop");
+    }
   }, [liveScore?.a, liveScore?.b, liveScore?.note, localTouched, match.played]);
 
   // ── Live timer tick for OTHER devices (reads from liveScore.startedAt) ────
