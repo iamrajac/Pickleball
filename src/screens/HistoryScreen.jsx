@@ -9,7 +9,7 @@ import { fetchUserTournaments, safePlayoffs, fromFirestoreDoc, saveFullTournamen
 import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
-import { Trophy, ArrowLeft, Calendar, Users, Trash2, ChevronRight, Share2, RotateCcw } from "lucide-react";
+import { Trophy, Calendar, Users, Trash2, ChevronRight, Share2, RotateCcw } from "lucide-react";
 import { StandingsShareModal } from "../components/StandingsShare";
 
 // Delete a single tournament from Firestore for a user
@@ -103,9 +103,6 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
 
         {/* Header */}
         <div className="fu" style={{ paddingTop: "2.5rem", paddingBottom: "2rem", display: "flex", alignItems: "center", gap: 16 }}>
-          <button className="pb glass" onClick={onBack} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 'var(--radius-sm)', border: `1px solid var(--color-border)`, color: text }}>
-            <ArrowLeft size={20} />
-          </button>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: lime, letterSpacing: 2, lineHeight: 1 }}>TOURNAMENT HISTORY</div>
             <div style={{ fontSize: 12, color: muted }}>{hist.length} saved tournament{hist.length !== 1 ? "s" : ""}</div>

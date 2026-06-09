@@ -448,10 +448,7 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
     <div style={{ padding: "0 1rem 4rem" }}>
       <div style={{ maxWidth: 680, margin: "0 auto" }}>
         {/* Header */}
-        <div className="fu" style={{ paddingTop: "2.5rem", paddingBottom: "1.5rem", display: "flex", alignItems: "center", gap: 16 }}>
-          <button className="pb glass" onClick={onBack} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: "var(--radius-sm)", border: `1px solid ${G.border}`, color: G.text }}>
-            <ArrowLeft size={20} />
-          </button>
+        <div className="fu" style={{ paddingTop: "2.5rem", paddingBottom: "1.5rem" }}>
           <div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: G.lime, letterSpacing: 2, lineHeight: 1 }}>CAREER STATS</div>
             <div style={{ fontSize: 12, color: G.muted }}>{totalTournaments} tournaments · {totalMatches} total matches</div>

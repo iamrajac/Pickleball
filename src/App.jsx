@@ -568,47 +568,40 @@ function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, re
   );
 }
 
-// ── Setup route ────────────────────────────────────────────────────────────
-function SetupRoute({ t, theme, toggleTheme }) {
-  const navigate = useNavigate();
-  const { addToast } = useToast();
 
-  // Auto-join from URL ?join=CODE
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const joinCode = params.get("join");
-    if (joinCode) {
-      window.history.replaceState({}, "", window.location.pathname);
-      const upper = joinCode.trim().toUpperCase();
-      get(ref(db, `tournaments/${upper}`))
-        .then((snap) => { if (snap.exists() && snap.val()) t.handleJoin(upper, snap.val()); })
-        .catch((e) => console.error("Auto-join error:", e));
-    }
-  }, []);
+// ── Setup screen route — back destination depends on origin ───────────────
+function SetupScreenRoute({ t, theme, navigate }) {
+  const location = useLocation();
+  const clubId = location.state?.clubId || null;
+  const origin = location.state?.origin || null; // "history-detail" when from rematch
+
+  const handleBack = () => {
+    if (clubId) navigate(`/clubs/${clubId}`);
+    else if (origin === "history-detail") navigate("/history");
+    else navigate("/");
+  };
 
   return (
     <SetupScreen
       onStart={t.handleStart}
       onJoin={t.handleJoin}
-      onHistory={() => navigate("/history")}
-      onCareer={() => navigate("/career")}
-      onToggleTheme={toggleTheme}
+      onBack={handleBack}
       theme={theme}
     />
   );
 }
-
 
 // ── History detail route ───────────────────────────────────────────────────
 function HistoryDetailRoute({ theme }) {
   const location = useLocation();
   const navigate = useNavigate();
   const tournament = location.state?.tournament;
+  const origin = location.state?.origin || "history"; // where the user came from
   if (!tournament) { navigate("/history", { replace: true }); return null; }
   return <HistoryDetail
     tournament={tournament}
-    onBack={() => navigate("/history")}
-    onRematch={(players) => navigate("/create", { state: { rematchPlayers: players } })}
+    onBack={() => navigate(origin === "home" ? "/" : "/history")}
+    onRematch={(players) => navigate("/create", { state: { rematchPlayers: players, origin: "history-detail" } })}
     theme={theme}
   />;
 }
@@ -618,7 +611,6 @@ function HistoryRoute({ theme }) {
   const navigate = useNavigate();
   return (
     <HistoryScreen
-      onBack={() => navigate("/")}
       onOpen={(tournament) => navigate("/history/detail", { state: { tournament } })}
       theme={theme}
     />
@@ -820,7 +812,7 @@ function AppInner() {
                     const full = local?.rounds?.length
                       ? { ...local, name: local.name || fbData.name || tournament.name || "", champion: local.champion || fbData.champion }
                       : { ...fbData, name: fbData.name || tournament.name || "", date: tournament.date || new Date().toISOString() };
-                    navigate("/history/detail", { state: { tournament: full } });
+                    navigate("/history/detail", { state: { tournament: full, origin: "home" } });
                     return;
                   }
                 }
@@ -831,22 +823,17 @@ function AppInner() {
               if (isLive) {
                 t.handleJoin(tournament.code, local || tournament);
               } else {
-                navigate("/history/detail", { state: { tournament: local || tournament } });
+                navigate("/history/detail", { state: { tournament: local || tournament, origin: "home" } });
               }
             }}
           />
         } />
         <Route path="/create" element={
-          <SetupScreen
-            onStart={t.handleStart}
-            onJoin={t.handleJoin}
-            onBack={() => navigate("/")}
-            theme={theme}
-          />
+          <SetupScreenRoute t={t} theme={theme} navigate={navigate} />
         } />
         <Route path="/history" element={<HistoryRoute theme={theme} />} />
         <Route path="/history/detail" element={<HistoryDetailRoute theme={theme} />} />
-        <Route path="/career" element={<CareerScreen onBack={() => navigate("/")} theme={theme} />} />
+        <Route path="/career" element={<CareerScreen theme={theme} />} />
         <Route path="/account" element={<AccountScreen />} />
         <Route path="/player/:username" element={<PlayerScreen />} />
         <Route path="/tournament/:code" element={<PublicTournamentScreen />} />
