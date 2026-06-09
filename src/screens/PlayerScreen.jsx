@@ -165,7 +165,7 @@ export function PlayerScreen() {
       <div style={{ fontSize: 56 }}>🤷</div>
       <div style={{ fontFamily: "var(--font-display)", fontSize: 28, letterSpacing: 2 }}>PLAYER NOT FOUND</div>
       <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>@{username} hasn't claimed a profile yet.</div>
-      <button onClick={() => navigate(-1)} style={{ marginTop: 8, background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", color: "var(--text-secondary)", padding: "10px 20px", cursor: "pointer", fontSize: 14 }}>
+      <button onClick={() => navigate("/")} style={{ marginTop: 8, background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", color: "var(--text-secondary)", padding: "10px 20px", cursor: "pointer", fontSize: 14 }}>
         Go back
       </button>
     </div>
@@ -180,7 +180,7 @@ export function PlayerScreen() {
 
         {/* Header bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: "1.5rem", paddingBottom: "1rem" }}>
-          <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 4, display: "flex" }}>
+          <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 4, display: "flex" }}>
             <ArrowLeft size={22} />
           </button>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 20, letterSpacing: 2, color: "var(--text)" }}>

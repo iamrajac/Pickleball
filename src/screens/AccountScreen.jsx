@@ -343,7 +343,7 @@ export function AccountScreen() {
     <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 1rem 90px" }}>
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: "2.5rem", paddingBottom: "1.5rem" }}>
-          <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
+          <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
             <ArrowLeft size={22} />
           </button>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 28, letterSpacing: 2, color: "var(--accent)" }}>ACCOUNT</div>
@@ -375,7 +375,7 @@ export function AccountScreen() {
 
         {/* Header bar */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "1.75rem", paddingBottom: "1rem" }}>
-          <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
+          <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
             <ArrowLeft size={22} />
           </button>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 20, letterSpacing: 2, color: "var(--text)" }}>

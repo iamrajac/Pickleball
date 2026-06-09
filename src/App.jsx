@@ -107,7 +107,8 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
     liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic, claims,
   } = t;
 
-  const leaveAndGoHome = () => { executeEnd(); navigate("/"); };
+  const clubId = code ? localStorage.getItem(`pkl_club_${code}`) : null;
+  const leaveAndGoHome = () => { executeEnd(); navigate(clubId ? `/clubs/${clubId}` : "/"); };
 
   // Countdown for scheduled tournaments
   const [countdown, setCountdown] = useState("");
@@ -334,7 +335,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                 style={{ flex: 1, padding: "12px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontWeight: 600, cursor: "pointer" }}>
                 CANCEL
               </button>
-              <button className="pb" onClick={() => { setShowConfirmDelete(false); deleteTournament(); navigate("/"); }}
+              <button className="pb" onClick={() => { setShowConfirmDelete(false); deleteTournament(); navigate(clubId ? `/clubs/${clubId}` : "/"); }}
                 style={{ flex: 1, padding: "12px", background: "var(--color-danger)", border: "none", borderRadius: "var(--radius-sm)", color: "white", fontWeight: 600, cursor: "pointer" }}>
                 YES, DELETE
               </button>
