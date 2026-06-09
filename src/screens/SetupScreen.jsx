@@ -58,14 +58,18 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
   const location = useLocation();
   const clubId = location.state?.clubId || null;
   const clubMembers = location.state?.clubMembers || null; // [{uid, name, playerName, photoURL}]
-  const [step, setStep] = useState("form"); // "form" | "players" | "seeding"
+  const rematchPlayers = location.state?.rematchPlayers || null;
+  const [step, setStep] = useState(rematchPlayers ? "players" : "form"); // skip form if rematch
   const [name, setName] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState("");
-  const [numP, setNumP] = useState(8);
+  const [numP, setNumP] = useState(rematchPlayers ? rematchPlayers.length : 8);
   const [rounds, setRounds] = useState(7);
   const [roundsSuggested, setRoundsSuggested] = useState(true);
-  const [names, setNames] = useState(Array(8).fill("").map((_, i) => `Player ${i + 1}`));
+  const [names, setNames] = useState(() => {
+    if (rematchPlayers) return [...rematchPlayers, ...Array(Math.max(0, 8 - rematchPlayers.length)).fill("")];
+    return Array(8).fill("").map((_, i) => `Player ${i + 1}`);
+  });
   const [profiles, setProfiles] = useState(() => getGlobalProfiles());
   const [editingAvatar, setEditingAvatar] = useState(null);
   const [focus, setFocus] = useState(null);

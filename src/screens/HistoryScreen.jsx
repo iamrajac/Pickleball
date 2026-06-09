@@ -9,7 +9,8 @@ import { fetchUserTournaments, safePlayoffs, fromFirestoreDoc, saveFullTournamen
 import { StandingsTable } from "../components/StandingsTable";
 import { MatchCard } from "../components/MatchCard";
 import { PlayoffCard } from "../components/PlayoffCard";
-import { Trophy, ArrowLeft, Calendar, Users, Trash2, ChevronRight } from "lucide-react";
+import { Trophy, ArrowLeft, Calendar, Users, Trash2, ChevronRight, Share2, RotateCcw } from "lucide-react";
+import { StandingsShareModal } from "../components/StandingsShare";
 
 // Delete a single tournament from Firestore for a user
 async function deleteFromFirestore(uid, code) {
@@ -71,6 +72,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
 
   const [deleteCode, setDeleteCode] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const open = !!(deleteCode || confirmClear);
@@ -116,6 +118,18 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
           )}
         </div>
 
+        {/* Search bar */}
+        {hist.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="🔍  Search by tournament or player name..."
+              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface)", color: text, fontSize: 13, boxSizing: "border-box" }}
+            />
+          </div>
+        )}
+
         {/* Loading state — only shown on new device with no local data */}
         {histLoading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -132,8 +146,22 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: border, letterSpacing: 2 }}>NO HISTORY YET</div>
             <div style={{ fontSize: 14, color: muted, marginTop: 8 }}>Complete a tournament to see it here.</div>
           </div>
-        ) : (
-          hist.map((t, i) => (
+        ) : (() => {
+          const filtered = search.trim()
+            ? hist.filter(t => {
+                const q = search.toLowerCase();
+                return (t.name || "").toLowerCase().includes(q) ||
+                  (t.players || []).some(p => p.toLowerCase().includes(q)) ||
+                  (t.champion || "").toLowerCase().includes(q);
+              })
+            : hist;
+          if (filtered.length === 0) return (
+            <div className="glass-card" style={{ padding: "3rem", textAlign: "center", borderRadius: 12 }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
+              <div style={{ fontSize: 14, color: muted }}>No tournaments match "{search}"</div>
+            </div>
+          );
+          return filtered.map((t, i) => (
             <div key={t.code || i} style={{ position: "relative", marginBottom: 12 }}>
 
               {/* Card */}
@@ -182,8 +210,8 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
                 <Trash2 size={14} />
               </button>
             </div>
-          ))
-        )}
+          ));
+        })()}
       </div>
 
       {/* Confirm Delete One */}
@@ -235,7 +263,7 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
   );
 }
 
-export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
+export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' }) {
   const lime = theme === 'light' ? '#1e3a5f' : 'var(--color-lime)';
   const muted = theme === 'light' ? '#64748b' : 'var(--color-muted)';
   const text = theme === 'light' ? '#0f172a' : 'var(--color-text)';
@@ -245,6 +273,7 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
   const [fullData, setFullData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("rounds");
+  const [showShare, setShowShare] = useState(false);
 
   // Always fetch full data from Realtime DB — it has rounds, players, profiles
   useEffect(() => {
@@ -325,6 +354,18 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
                 {t.code && <><span>·</span> <span style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 1 }}>#{t.code}</span></>}
               </div>
             </div>
+            {onRematch && (
+              <button className="pb" onClick={() => onRematch(t.players || [])}
+                title="Rematch — same players, new schedule"
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: muted, fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}>
+                <RotateCcw size={13} /> REMATCH
+              </button>
+            )}
+            <button className="pb" onClick={() => setShowShare(true)}
+              title="Share standings"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: muted, cursor: "pointer" }}>
+              <Share2 size={16} />
+            </button>
           </div>
           <div style={{ display: "flex", gap: 4, paddingBottom: 8 }}>
             {[{ id: "rounds", label: "⚡ ROUNDS" }, { id: "standings", label: "📊 TABLE" }, { id: "playoffs", label: "🏆 PLAYOFFS" }, { id: "analytics", label: "📈 ANALYTICS" }].map(tb => (
@@ -567,6 +608,16 @@ export function HistoryDetail({ tournament, onBack, theme = 'dark' }) {
           );
         })()}
       </div>
+
+      {/* Share standings modal */}
+      {showShare && (
+        <StandingsShareModal
+          standings={standings}
+          champion={t.champion || null}
+          playoffs={t.playoffs || null}
+          onClose={() => setShowShare(false)}
+        />
+      )}
     </div>
   );
 }

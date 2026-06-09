@@ -604,7 +604,12 @@ function HistoryDetailRoute({ theme }) {
   const navigate = useNavigate();
   const tournament = location.state?.tournament;
   if (!tournament) { navigate("/history", { replace: true }); return null; }
-  return <HistoryDetail tournament={tournament} onBack={() => navigate("/history")} theme={theme} />;
+  return <HistoryDetail
+    tournament={tournament}
+    onBack={() => navigate("/history")}
+    onRematch={(players) => navigate("/create", { state: { rematchPlayers: players } })}
+    theme={theme}
+  />;
 }
 
 // ── HistoryScreen with navigation ─────────────────────────────────────────
