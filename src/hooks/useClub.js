@@ -18,6 +18,11 @@ export async function createClub({ name, description = "", themeColor = "#10d48e
   const user = auth.currentUser;
   if (!uid) throw new Error("Not logged in");
 
+  // Use in-app display name from Firestore profile (set in Account), fall back to Google name
+  const profileSnap = await getDoc(doc(firestore, "players", uid));
+  const profileName = profileSnap.exists() ? (profileSnap.data().displayName || user.displayName || "Admin") : (user.displayName || "Admin");
+  const profilePhoto = profileSnap.exists() ? (profileSnap.data().avatar?.value || user.photoURL || null) : (user.photoURL || null);
+
   const clubId = `${Date.now()}_${uid.slice(0, 6)}`;
   const code = genClubCode();
 
@@ -29,10 +34,10 @@ export async function createClub({ name, description = "", themeColor = "#10d48e
 
   // Add creator as admin member
   await setDoc(doc(firestore, "clubs", clubId, "members", uid), {
-    uid, name: user.displayName || "Admin",
-    photoURL: user.photoURL || null,
+    uid, name: profileName,
+    photoURL: profilePhoto,
     role: "admin", joinedAt: serverTimestamp(),
-    playerName: user.displayName || "Admin",
+    playerName: profileName,
   });
 
   // Add club to user's profile
@@ -62,11 +67,16 @@ export async function joinClub(code) {
   const memberSnap = await getDoc(doc(firestore, "clubs", clubId, "members", uid));
   if (memberSnap.exists()) throw new Error("Already a member");
 
+  // Use in-app display name from Firestore profile (set in Account), fall back to Google name
+  const profileSnap = await getDoc(doc(firestore, "players", uid));
+  const profileName = profileSnap.exists() ? (profileSnap.data().displayName || user.displayName || "Player") : (user.displayName || "Player");
+  const profilePhoto = profileSnap.exists() ? (profileSnap.data().avatar?.value || user.photoURL || null) : (user.photoURL || null);
+
   await setDoc(doc(firestore, "clubs", clubId, "members", uid), {
-    uid, name: user.displayName || "Player",
-    photoURL: user.photoURL || null,
+    uid, name: profileName,
+    photoURL: profilePhoto,
     role: "member", joinedAt: serverTimestamp(),
-    playerName: user.displayName || "Player",
+    playerName: profileName,
   });
 
   await updateDoc(doc(firestore, "clubs", clubId), {
@@ -87,8 +97,36 @@ export async function leaveClub(clubId) {
   await updateDoc(doc(firestore, "users", uid), { clubs: arrayRemove(clubId) });
 }
 
+// Compute per-player wins/losses from all matches in a tournament entry
+function computePlayerStats(entry) {
+  const stats = {};
+  const ensure = (name) => {
+    if (name && !stats[name]) stats[name] = { wins: 0, losses: 0, matches: 0 };
+  };
+  const processMatch = (m) => {
+    if (!m || !m.played || !m.teamA || !m.teamB) return;
+    const aWon = m.scoreA > m.scoreB;
+    [...m.teamA, ...m.teamB].forEach(ensure);
+    m.teamA.forEach(p => {
+      stats[p].matches++;
+      if (aWon) stats[p].wins++; else stats[p].losses++;
+    });
+    m.teamB.forEach(p => {
+      stats[p].matches++;
+      if (!aWon) stats[p].wins++; else stats[p].losses++;
+    });
+  };
+  (entry.rounds || []).forEach(round => {
+    const matches = Array.isArray(round) ? round : (round?.matches || []);
+    matches.forEach(processMatch);
+  });
+  if (entry.playoffs) Object.values(entry.playoffs).forEach(processMatch);
+  return stats;
+}
+
 export async function saveTournamentToClub(clubId, tournamentEntry) {
   if (!clubId || !tournamentEntry?.code) return;
+  const playerStats = computePlayerStats(tournamentEntry);
   await setDoc(doc(firestore, "clubs", clubId, "tournaments", tournamentEntry.code), {
     code: tournamentEntry.code,
     name: tournamentEntry.name || "",
@@ -97,6 +135,7 @@ export async function saveTournamentToClub(clubId, tournamentEntry) {
     playerCount: tournamentEntry.players?.length || 0,
     status: tournamentEntry.champion ? "completed" : "live",
     players: tournamentEntry.players || [],
+    playerStats,
   }, { merge: true });
 }
 

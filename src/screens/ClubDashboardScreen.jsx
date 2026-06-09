@@ -109,15 +109,26 @@ function LeaderboardTab({ members, tournaments }) {
   // Compute stats from club tournaments
   const stats = {};
   members.forEach(m => {
-    stats[m.playerName || m.name] = { name: m.playerName || m.name, uid: m.uid, photoURL: m.photoURL, wins: 0, losses: 0, titles: 0, matches: 0 };
+    const key = m.playerName || m.name;
+    stats[key] = { name: key, uid: m.uid, photoURL: m.photoURL, wins: 0, losses: 0, titles: 0, matches: 0 };
   });
 
   tournaments.forEach(t => {
     if (!t.players) return;
-    // Count title
+    // Count titles
     if (t.champion) {
       t.champion.split(" & ").map(s => s.trim()).forEach(p => {
         if (stats[p]) stats[p].titles++;
+      });
+    }
+    // Aggregate wins/losses from stored playerStats
+    if (t.playerStats) {
+      Object.entries(t.playerStats).forEach(([name, s]) => {
+        if (stats[name]) {
+          stats[name].wins += s.wins || 0;
+          stats[name].losses += s.losses || 0;
+          stats[name].matches += s.matches || 0;
+        }
       });
     }
   });
@@ -146,6 +157,14 @@ function LeaderboardTab({ members, tournaments }) {
             <div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-gold)", lineHeight: 1 }}>{p.titles}</div>
               <div style={{ fontSize: 9, color: "var(--color-muted)", letterSpacing: 1 }}>TITLES</div>
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-lime)", lineHeight: 1 }}>{p.wins}</div>
+              <div style={{ fontSize: 9, color: "var(--color-muted)", letterSpacing: 1 }}>WINS</div>
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-muted)", lineHeight: 1 }}>{p.losses}</div>
+              <div style={{ fontSize: 9, color: "var(--color-muted)", letterSpacing: 1 }}>LOSS</div>
             </div>
           </div>
         </div>
