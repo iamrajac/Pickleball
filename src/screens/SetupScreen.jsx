@@ -59,7 +59,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
   const clubId = location.state?.clubId || null;
   const clubMembers = location.state?.clubMembers || null; // [{uid, name, playerName, photoURL}]
   const rematchPlayers = location.state?.rematchPlayers || null;
-  const [step, setStep] = useState(rematchPlayers ? "players" : "form"); // skip form if rematch
+  const [step, setStep] = useState("form"); // always start at form, rematch pre-fills players
   const [name, setName] = useState(rematchPlayers ? `Rematch ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "");
   const [isPublic, setIsPublic] = useState(true);
   const [scheduledAt, setScheduledAt] = useState("");
