@@ -386,4 +386,4 @@ git push
 
 ---
 
-*Built for the SRM Pickleball crew 🏓*
+*Built for the Pickleball crew 🏓*
