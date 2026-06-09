@@ -290,18 +290,21 @@ export function useClubs() {
     const uid = getAuth().currentUser?.uid;
     if (!uid) { setLoading(false); return; }
 
-    getDoc(doc(firestore, "users", uid)).then(async snap => {
+    // onSnapshot so approval/rejection updates the list in real-time
+    const unsub = onSnapshot(doc(firestore, "users", uid), async snap => {
       const clubIds = snap.exists() ? (snap.data().clubs || []) : [];
       const pendingIds = snap.exists() ? (snap.data().pendingClubs || []) : [];
       setPendingClubIds(pendingIds);
 
       const allIds = [...new Set([...clubIds, ...pendingIds])];
-      if (!allIds.length) { setLoading(false); return; }
+      if (!allIds.length) { setClubs([]); setLoading(false); return; }
 
       const clubDocs = await Promise.all(allIds.map(id => getDoc(doc(firestore, "clubs", id))));
       setClubs(clubDocs.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
+
+    return () => unsub();
   }, []);
 
   return { clubs, pendingClubIds, loading };
