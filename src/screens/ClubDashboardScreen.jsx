@@ -180,18 +180,39 @@ function LeaderboardTab({ members, tournaments }) {
 }
 
 function TournamentsTab({ tournaments, clubId, navigate, onOpenLive }) {
-  // Backfill playerStats for completed tournaments that don't have it yet
+  // Sync all tournaments with Firebase Realtime DB:
+  // - Completed without playerStats: backfill stats
+  // - Live/unknown: check if champion was declared and update status
   useEffect(() => {
     tournaments.forEach(t => {
-      if (t.status === "completed" && !t.playerStats && t.code) {
-        get(ref(db, `tournaments/${t.code}`)).then(snap => {
-          if (!snap.exists()) return;
-          const fbData = snap.val();
-          const rounds = fbData.rounds ? fbData.rounds.map(r => r ? Object.values(r) : []) : [];
-          const entry = { ...t, rounds, playoffs: fbData.playoffs || null };
+      if (!t.code) return;
+      const needsBackfill = t.status === "completed" && !t.playerStats;
+      const mightBeStale = t.status !== "completed"; // live or unknown
+      if (!needsBackfill && !mightBeStale) return;
+
+      get(ref(db, `tournaments/${t.code}`)).then(snap => {
+        if (!snap.exists()) return;
+        const fbData = snap.val();
+        const rounds = fbData.rounds ? fbData.rounds.map(r => r ? Object.values(r) : []) : [];
+        const entry = {
+          ...t,
+          rounds,
+          playoffs: fbData.playoffs || null,
+          champion: fbData.champion || t.champion || null,
+          players: fbData.players || t.players || [],
+        };
+        // If FB shows champion but club doc still shows live — update it
+        if (fbData.champion && t.status !== "completed") {
           saveTournamentToClub(clubId, entry);
-        }).catch(() => {});
-      }
+          // Also update season
+          import("../hooks/useClub").then(async ({ getActiveSeasonId, addTournamentToSeason }) => {
+            const seasonId = await getActiveSeasonId(clubId);
+            if (seasonId) addTournamentToSeason(clubId, seasonId, t.code, entry.players, fbData.champion);
+          });
+        } else if (needsBackfill) {
+          saveTournamentToClub(clubId, entry);
+        }
+      }).catch(() => {});
     });
   }, [tournaments, clubId]);
 
