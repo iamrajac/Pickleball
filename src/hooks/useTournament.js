@@ -901,8 +901,8 @@ export function useTournament() {
 
   const executeEnd = () => {
     if (code) localStorage.removeItem(`pkl_timers_${code}`);
-    // Only clear spectator session when tournament is complete; otherwise keep so they can rejoin
-    if (champion) localStorage.removeItem('pkl_session');
+    // Always clear spectator session when explicitly leaving
+    localStorage.removeItem('pkl_session');
     canEditRef.current = false;
     joinCompleteRef.current = false;
     pendingSync.current = null;
