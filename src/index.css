@@ -138,6 +138,7 @@ html, body, #root {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  -webkit-tap-highlight-color: transparent;
 }
 .card-elevated {
   background: var(--card);
@@ -148,7 +149,7 @@ html, body, #root {
 
 /* Legacy class — keep working */
 .glass      { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
-.glass-card { background: var(--card);    border: 1px solid var(--border); box-shadow: var(--shadow-sm); border-radius: var(--radius-lg); }
+.glass-card { background: var(--card);    border: 1px solid var(--border); box-shadow: var(--shadow-sm); border-radius: var(--radius-lg); -webkit-tap-highlight-color: transparent; }
 
 /* ── Topbar ────────────────────────────────────────── */
 .topbar {
