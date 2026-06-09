@@ -452,13 +452,14 @@ export function useTournament() {
         scorerPin: scorerPin ? String(scorerPin) : null,
         creatorUid: uid || null,
         claims: claims || null,
+        clubId: clubId || null,
         ts: Date.now()
       });
       pendingSync.current = null;
     };
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);
-  }, [code, players, themeColor, tournamentName, isPublic, scheduledAt, scorerPin]);
+  }, [code, players, themeColor, tournamentName, isPublic, scheduledAt, scorerPin, claims, clubId]);
 
   // ── Champion celebration ──────────────────────────────────────────────────
   useEffect(() => {
@@ -495,6 +496,7 @@ export function useTournament() {
         scorerPin: scorerPin ? String(scorerPin) : null,
         creatorUid: uid || null,
         claims: claims || null,
+        clubId: clubId || null,
         ts: Date.now()
       });
       pendingSync.current = null;
@@ -504,7 +506,7 @@ export function useTournament() {
     } finally {
       setTimeout(() => { isWriting.current = false; }, 800);
     }
-  }, [code, readOnly, players, profiles, themeColor, tournamentName]);
+  }, [code, readOnly, players, profiles, themeColor, tournamentName, isPublic, scheduledAt, scorerPin, claims, clubId]);
 
   // ── Internal: save tournament history ────────────────────────────────────
   // Google users → Firestore (source of truth) + localStorage (cache)
@@ -756,6 +758,7 @@ export function useTournament() {
           playoffs: data.playoffs || null, champion: data.champion || null,
           isPublic: data.isPublic !== false,
           finalStandings: [], profiles: data.profiles || {}, themeColor: data.themeColor || "#10d48e",
+          clubId: joinedClubId || null,
         };
         seen.set(c, spectatedEntry);
         saveH(Array.from(seen.values()));
