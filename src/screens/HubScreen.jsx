@@ -61,10 +61,11 @@ function fmtDate(ts) {
 }
 
 /* ── Tournament card ──────────────────────────────── */
-function TournamentCard({ t, onClick, onDelete }) {
+function TournamentCard({ t, onClick, onDelete, showClubBadge = false }) {
   const isUpcoming = t.status === "upcoming";
   const isLive = t.status === "live" || t.status === "in-progress";
   const statusClass = isLive ? "live" : isUpcoming ? "upcoming" : "done";
+  const isClub = showClubBadge && t.code && !!localStorage.getItem(`pkl_club_${t.code}`);
 
   const Badge = () => {
     if (isLive)     return <span className="badge badge-live"><span style={{ fontSize: 8 }}>●</span> LIVE</span>;
@@ -75,8 +76,15 @@ function TournamentCard({ t, onClick, onDelete }) {
   return (
     <div className={`t-card ${statusClass} fu`} onClick={onClick}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 20, letterSpacing: 1.5, color: "var(--text)", lineHeight: 1, flex: 1, marginRight: 8 }}>
-          {t.name || "Unnamed Tournament"}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginRight: 8, flexWrap: "wrap" }}>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 20, letterSpacing: 1.5, color: "var(--text)", lineHeight: 1 }}>
+            {t.name || "Unnamed Tournament"}
+          </div>
+          {isClub && (
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: "2px 7px", borderRadius: 20, background: "rgba(168,85,247,0.15)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.3)", flexShrink: 0 }}>
+              🏘 CLUB
+            </span>
+          )}
         </div>
         <Badge />
       </div>
@@ -98,10 +106,6 @@ function TournamentCard({ t, onClick, onDelete }) {
           <span style={{ opacity: 0.7 }}>📅 {fmtDate(t.date || t.updatedAt)}</span>
         )}
         {t.champion && <span>🏆 {t.champion}</span>}
-        {t.isPublic === true
-          ? <span className="badge" style={{ fontSize: 9, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(16,212,142,0.25)" }}>🌐 PUBLIC</span>
-          : <span className="badge badge-private" style={{ fontSize: 9 }}>🔒 PRIVATE</span>
-        }
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
@@ -167,6 +171,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const [playerProfile, setPlayerProfile] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [autoJoinErr, setAutoJoinErr] = useState("");
+  const [tab, setTab] = useState("public"); // "public" | "private"
 
   useEffect(() => {
     if (user?.uid) getPlayerByUid(user.uid).then(p => { if (p) setPlayerProfile(p); });
@@ -391,52 +396,75 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
       <div style={{ padding: "0 1rem" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
-          {/* LIVE — all live tournaments merged, deduped by code */}
+          {/* PUBLIC / PRIVATE tab toggle */}
+          <div style={{ display: "flex", gap: 8, marginTop: 24, marginBottom: 4 }}>
+            {[["public", "🌐 PUBLIC"], ["private", "🔒 PRIVATE"]].map(([key, label]) => (
+              <button key={key} className="pb" onClick={() => setTab(key)}
+                style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-md)", border: tab === key ? "none" : "1px solid var(--border)", background: tab === key ? (key === "public" ? "var(--accent)" : "var(--card-hover)") : "transparent", color: tab === key ? (key === "public" ? "#fff" : "var(--text)") : "var(--text-muted)", fontFamily: "var(--font-display)", fontSize: 14, letterSpacing: 1, cursor: "pointer", fontWeight: tab === key ? 700 : 400 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* LIVE */}
           {(() => {
             const myCodes = new Set(myLive.map(t => t.code));
             const seen = new Set();
-            const all = [...myLive, ...publicLive.map(t => ({ ...t, code: t.code || t.id }))]
+            const merged = [...myLive, ...publicLive.map(t => ({ ...t, code: t.code || t.id }))]
               .filter(t => { const k = t.code; if (seen.has(k)) return false; seen.add(k); return true; });
+            const all = tab === "public"
+              ? merged.filter(t => t.isPublic === true)
+              : merged.filter(t => t.isPublic !== true);
             return all.length > 0 ? (
               <>
                 <SectionHeader label="🔴 LIVE" count={all.length} color="var(--live)" />
                 {all.map((t, i) => (
                   <TournamentCard key={t.code || i} t={{ ...t, status: "live" }}
                     onClick={() => onOpenTournament(t)}
-                    onDelete={myCodes.has(t.code) || t.createdBy === user?.uid ? () => setConfirmDelete(t) : undefined} />
+                    onDelete={myCodes.has(t.code) || t.createdBy === user?.uid ? () => setConfirmDelete(t) : undefined}
+                    showClubBadge />
                 ))}
               </>
             ) : null;
           })()}
 
-          {/* UPCOMING — all upcoming merged, deduped */}
+          {/* UPCOMING */}
           {(() => {
             const myCodes = new Set(myUpcoming.map(t => t.code));
             const seen = new Set();
-            const all = [...myUpcoming, ...publicUpcoming.map(t => ({ ...t, code: t.code || t.id }))]
+            const merged = [...myUpcoming, ...publicUpcoming.map(t => ({ ...t, code: t.code || t.id }))]
               .filter(t => { const k = t.code; if (seen.has(k)) return false; seen.add(k); return true; })
               .sort((a, b) => toMs(a.scheduledAt) - toMs(b.scheduledAt));
+            const all = tab === "public"
+              ? merged.filter(t => t.isPublic === true)
+              : merged.filter(t => t.isPublic !== true);
             return all.length > 0 ? (
               <>
                 <SectionHeader label="🕐 UPCOMING" count={all.length} color="var(--upcoming)" />
                 {all.map((t, i) => (
                   <TournamentCard key={t.code || i} t={{ ...t, status: "upcoming" }}
                     onClick={() => onOpenTournament(t)}
-                    onDelete={myCodes.has(t.code) || t.createdBy === user?.uid ? () => setConfirmDelete(t) : undefined} />
+                    onDelete={myCodes.has(t.code) || t.createdBy === user?.uid ? () => setConfirmDelete(t) : undefined}
+                    showClubBadge />
                 ))}
               </>
             ) : null;
           })()}
 
-          {/* My history */}
-          {myCompleted.length > 0 && (
-            <>
-              <SectionHeader label="✅ RECENT" count={myCompleted.length} color="var(--accent)" />
-              {myCompleted.slice(0, 5).map((t, i) => (
-                <TournamentCard key={t.code || i} t={{ ...t, status: "done" }} onClick={() => onOpenTournament(t)} />
-              ))}
-            </>
-          )}
+          {/* RECENT */}
+          {(() => {
+            const all = tab === "public"
+              ? myCompleted.filter(t => t.isPublic === true)
+              : myCompleted.filter(t => t.isPublic !== true);
+            return all.length > 0 ? (
+              <>
+                <SectionHeader label="✅ RECENT" count={all.length} color="var(--accent)" />
+                {all.slice(0, 5).map((t, i) => (
+                  <TournamentCard key={t.code || i} t={{ ...t, status: "done" }} onClick={() => onOpenTournament(t)} showClubBadge />
+                ))}
+              </>
+            ) : null;
+          })()}
 
           {/* Skeleton loading */}
           {(loadingMy || loadingPublic) && myLive.length === 0 && myCompleted.length === 0 && publicLive.length === 0 && (
@@ -445,7 +473,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
             </div>
           )}
 
-          {/* Empty state */}
+          {/* Empty state for current tab */}
           {!loadingMy && !loadingPublic && myLive.length === 0 && myCompleted.length === 0 && myUpcoming.length === 0 && publicLive.length === 0 && (
             <div className="card fu" style={{ marginTop: 32, padding: "3rem 2rem", textAlign: "center" }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🏓</div>

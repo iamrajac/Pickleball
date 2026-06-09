@@ -193,6 +193,11 @@ export function HistoryScreen({ onBack, onOpen, theme = 'dark' }) {
                       ? <span className="badge badge-live" style={{ fontSize: 9 }}>LIVE</span>
                       : <span className="badge badge-done" style={{ fontSize: 9 }}>DONE</span>
                     }
+                    {t.code && localStorage.getItem(`pkl_club_${t.code}`) && (
+                      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, padding: "2px 7px", borderRadius: 20, background: "rgba(168,85,247,0.15)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.3)" }}>
+                        🏘 CLUB
+                      </span>
+                    )}
                   </div>
                   {t.name && t.date && (
                     <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>
