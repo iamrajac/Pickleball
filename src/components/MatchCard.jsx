@@ -113,7 +113,7 @@ export function generateAutoNote(history, teamA, teamB) {
   const high = Math.max(a, b), low = Math.min(a, b);
   const leader = a > b ? tA : tB;
   if (high === 10 && low <= 8) return `${leader} on match point!`;
-  if (high === 10 && low === 9) return `${leader} on match point — ${low <= 9 ? tA === leader ? tB : tA : ""} must score!`;
+  if (high === 10 && low === 9) return `${leader} on match point — ${tA === leader ? tB : tA} must score!`;
 
   return "";
 }
@@ -158,11 +158,10 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
   // ── Live timer tick for OTHER devices (reads from liveScore.startedAt) ────
   useEffect(() => {
-    if (!liveScore?.startedAt) return;
-    // Force re-render every 100ms for smooth timer update
+    if (!liveScore?.startedAt || match.played) return;
     const id = setInterval(() => setLiveTick(t => t + 1), 100);
     return () => clearInterval(id);
-  }, [liveScore?.startedAt]);
+  }, [liveScore?.startedAt, match.played]);
 
   // ── Local (lifted) timer ──────────────────────────────────────────────────
   const localTimer = useTimer();
@@ -290,7 +289,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
   // Only compute H2H when match is active (user focused on it)
   const h2hData = [];
-  if (isActive && !match.played && h2hMatrix && match.teamA && match.teamB) {
+  if ((isActive || (readOnly && match.played)) && h2hMatrix && match.teamA && match.teamB) {
     match.teamA.forEach(a => {
       match.teamB.forEach(b => {
         const stat = getH2HStats(a, b, h2hMatrix);
@@ -376,7 +375,8 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
     if (!canSave) return;
     const { valid } = validatePickleballScore(sA, sB);
     if (!valid) return;
-    const dur = timer.running ? timer.stop() : timer.elapsed || null;
+    const rawDur = timer.running ? timer.stop() : timer.elapsed || null;
+    const dur = rawDur && !isNaN(rawDur) ? rawDur : null;
     timer.reset();
     setIsActive(false);
     setLocalSaved(true); // instantly switch card to "done" state while Firebase updates

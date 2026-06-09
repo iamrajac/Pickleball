@@ -165,7 +165,8 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
   const [loadingPublic, setLoadingPublic] = useState(true);
   const [loadingMy, setLoadingMy] = useState(true);
   const [playerProfile, setPlayerProfile] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null); // tournament object
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [autoJoinErr, setAutoJoinErr] = useState("");
 
   useEffect(() => {
     if (user?.uid) getPlayerByUid(user.uid).then(p => { if (p) setPlayerProfile(p); });
@@ -180,8 +181,14 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
     // Clear param from URL
     window.history.replaceState({}, "", window.location.pathname + window.location.hash.split("?")[0]);
     get(ref(db, `tournaments/${code.toUpperCase()}`))
-      .then(snap => { if (snap.exists() && snap.val()) onJoin(code.toUpperCase(), snap.val()); })
-      .catch(() => {});
+      .then(snap => {
+        if (snap.exists() && snap.val()) {
+          onJoin(code.toUpperCase(), snap.val());
+        } else {
+          setAutoJoinErr("Tournament not found or has ended.");
+        }
+      })
+      .catch(() => { setAutoJoinErr("Could not connect. Try joining manually."); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -373,6 +380,11 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
 
           {/* Join by code */}
           <JoinBox onJoin={onJoin} />
+          {autoJoinErr && (
+            <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--danger)", fontSize: 13 }}>
+              {autoJoinErr}
+            </div>
+          )}
         </div>
       </div>
 

@@ -23,8 +23,9 @@ export function StandingsTable({ standings, rounds, profiles = {}, playoffs = nu
       const losers = winA ? match.teamB : match.teamA;
       return losers?.includes(name);
     };
+    if (mode === "final_only" && checkMatch(playoffs.final)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
     if (mode === "elim_to_sf" && checkMatch(playoffs.sf1)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
-    if (mode === "ipl6" && checkMatch(playoffs.elim)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
+    if (mode === "ipl6" && (checkMatch(playoffs.elim) || checkMatch(playoffs.q1))) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
     if (mode === "ipl8" && checkMatch(playoffs.q2)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
     if (mode === "top8" && (checkMatch(playoffs.sf1) || checkMatch(playoffs.sf2))) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };
     if (mode === "top8_ipl" && checkMatch(playoffs.sf)) return { symbol: "🥉", label: "3RD PLACE", color: "#cd7f32" };

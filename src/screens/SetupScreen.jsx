@@ -322,7 +322,7 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{n}</div>
-                    {st ? <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{st.winRate}% win rate · {st.matches} matches</div>
+                    {st ? <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{st.winRate != null ? `${st.winRate}% win rate · ` : ""}{st.matches} matches</div>
                         : <div style={{ fontSize: 11, color: "var(--text-muted)" }}>No stats yet</div>}
                   </div>
                   <div style={{ display: "flex", gap: 4 }}>

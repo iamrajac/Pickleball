@@ -192,7 +192,7 @@ export function computeCareerStats(history) {
     p.currentStreak = cur;
     p.bestStreak = best;
     p.streakType = curType;
-    p.winRate = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+    p.winRate = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : null;
     p.avgScore = p.matches > 0 ? (p.scored / p.matches).toFixed(1) : 0;
     p.diff = p.scored - p.conceded;
   });

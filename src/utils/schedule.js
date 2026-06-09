@@ -102,14 +102,14 @@ export function computeStandings(players, rounds) {
     m.teamA.forEach(p => {
       if (!s[p]) return;
       s[p].played++; s[p].scored += sA; s[p].conceded += sB;
-      if (sA > sB) { s[p].pts += 2; s[p].won++; s[p].form.push("W"); }
-      else { s[p].lost++; s[p].form.push("L"); }
+      if (sA > sB) { s[p].pts += 2; s[p].won++; s[p].form = [...s[p].form, "W"]; }
+      else { s[p].lost++; s[p].form = [...s[p].form, "L"]; }
     });
     m.teamB.forEach(p => {
       if (!s[p]) return;
       s[p].played++; s[p].scored += sB; s[p].conceded += sA;
-      if (sB > sA) { s[p].pts += 2; s[p].won++; s[p].form.push("W"); }
-      else { s[p].lost++; s[p].form.push("L"); }
+      if (sB > sA) { s[p].pts += 2; s[p].won++; s[p].form = [...s[p].form, "W"]; }
+      else { s[p].lost++; s[p].form = [...s[p].form, "L"]; }
     });
   }));
   return Object.values(s).sort((a,b) => b.pts - a.pts || (b.scored-b.conceded) - (a.scored-a.conceded) || b.scored - a.scored);

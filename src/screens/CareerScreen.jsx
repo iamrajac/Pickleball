@@ -194,7 +194,7 @@ function PlayerDetail({ player, allPlayers, h2h, onClose, theme = 'dark' }) {
           <Avatar name={player.name} size={72} index={allPlayers.indexOf(player)} />
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, color: G.text, letterSpacing: 2, marginTop: 12, lineHeight: 1 }}>{player.name}</div>
           <div style={{ fontSize: 12, color: G.muted, marginBottom: 16 }}>{player.tournaments} tournaments · {player.matches} matches played</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: winRate >= 60 ? G.lime : winRate >= 40 ? G.gold : G.danger, lineHeight: 1 }}>{winRate}%</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: winRate == null ? G.muted : winRate >= 60 ? G.lime : winRate >= 40 ? G.gold : G.danger, lineHeight: 1 }}>{winRate == null ? "—" : `${winRate}%`}</div>
           <div style={{ fontSize: 11, color: G.muted, letterSpacing: 2, marginBottom: 16 }}>WIN RATE</div>
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
             {player.titles > 0 && Array(player.titles).fill(0).map((_, i) => <span key={i} style={{ fontSize: 20 }}>🏆</span>)}
