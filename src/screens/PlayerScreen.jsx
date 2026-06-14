@@ -192,7 +192,7 @@ export function PlayerScreen() {
         <div className="card" style={{ padding: "1.75rem", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: badges.length > 0 ? 18 : 0 }}>
             <div style={{ border: "3px solid var(--accent)", borderRadius: "50%", flexShrink: 0 }}>
-              <PlayerAvatar name={displayName} profile={profile?.avatar} size={68} />
+              <PlayerAvatar name={displayName} profile={profile?.avatar} size={68} expandable />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 1.5, color: "var(--text)", lineHeight: 1.1, marginBottom: 3 }}>

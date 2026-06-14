@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useClubs } from "../hooks/useClub";
+import { useClubs, syncProfileToClubs } from "../hooks/useClub";
 import { ArrowLeft, Camera, ExternalLink, Edit2, Trash2, X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -80,7 +80,7 @@ function AvatarEditor({ avatar, googlePhotoURL, onChange }) {
       {tab === "color" && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {ACOLORS.map(c => (
-            <button key={c} onClick={() => onChange({ ...avatar, type: "color", color: c })} style={{
+            <button key={c} onClick={() => onChange({ ...avatar, color: c, type: avatar?.type === "emoji" ? "emoji" : "color" })} style={{
               width: 34, height: 34, borderRadius: "50%", background: c, cursor: "pointer",
               border: avatar?.color === c ? "3px solid var(--text)" : "3px solid transparent",
               boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
@@ -334,6 +334,10 @@ export function AccountScreen() {
       mergeIntoGlobal({ [normalizePlayerName(displayName)]: avatar });
       await syncGlobalProfilesToFirestore(user.uid, firestore);
     }
+    // Push updated avatar to all club member docs so everyone sees it immediately
+    if (clubs.length) {
+      await syncProfileToClubs(user.uid, clubs.map(c => c.id), { displayName, avatar });
+    }
     setProfile(prev => ({ ...prev, displayName, bio, avatar }));
     setShowEdit(false);
   };
@@ -387,7 +391,7 @@ export function AccountScreen() {
         {/* Avatar + name */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingBottom: "1.5rem" }}>
           <div style={{ marginBottom: 14 }}>
-            <PlayerAvatar name={displayName || "?"} profile={avatar} size={86} />
+            <PlayerAvatar name={displayName || "?"} profile={avatar} size={86} expandable />
           </div>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 26, letterSpacing: 1.5, color: "var(--text)", textAlign: "center", lineHeight: 1.1 }}>
             {displayName || user.displayName}

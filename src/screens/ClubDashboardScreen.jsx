@@ -3,12 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, leaveClub, createSeason, endSeason, saveTournamentToClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
+import { useClubDetail, useClubMemberProfiles, leaveClub, kickMember, createSeason, endSeason, saveTournamentToClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
 import { firestore, db } from "../firebase";
-import { getGlobalProfiles } from "../utils/globalProfiles";
-import { normalizePlayerName } from "../utils/players";
 import { ref, get } from "firebase/database";
 
 async function deleteClub(clubId, adminUid) {
@@ -22,10 +20,11 @@ async function deleteClub(clubId, adminUid) {
   // Note: other members' clubs array will have a stale reference — harmless, useClubs filters missing clubs
 }
 
-function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate }) {
+function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, memberProfiles }) {
   const uid = getAuth().currentUser?.uid;
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmKick, setConfirmKick] = useState(null); // uid of member to kick
 
   const handleLeave = async () => {
     await leaveClub(clubId);
@@ -77,22 +76,44 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate }
         {members.length} member{members.length !== 1 ? "s" : ""}
       </div>
       {members.map(m => {
-        const pName = m.playerName || m.name;
-        const globalProfile = getGlobalProfiles()[normalizePlayerName(pName)];
-        const avatarProfile = globalProfile || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+        const live = memberProfiles?.[m.uid];
+        const pName = live?.displayName || m.playerName || m.name;
+        const avatarProfile = live?.avatar || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+        const isMe = m.uid === uid;
+        const canKick = isAdmin() && !isMe && m.role !== "admin";
         return (
-        <div key={m.uid} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
-          <PlayerAvatar name={pName} profile={avatarProfile} size={36} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
-              {pName}
-              {m.uid === uid && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
+          <div key={m.uid}>
+            <div className="glass-card" style={{ borderRadius: confirmKick === m.uid ? "12px 12px 0 0" : 12, padding: "12px 14px", marginBottom: confirmKick === m.uid ? 0 : 8, display: "flex", alignItems: "center", gap: 12 }}>
+              <PlayerAvatar name={pName} profile={avatarProfile} size={36} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
+                  {pName}
+                  {isMe && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
+                  {m.role === "admin" ? "👑 Admin" : "Member"}
+                </div>
+              </div>
+              {canKick && confirmKick !== m.uid && (
+                <button className="pb" onClick={() => setConfirmKick(m.uid)}
+                  style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  KICK
+                </button>
+              )}
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
-              {m.role === "admin" ? "👑 Admin" : "Member"}
-            </div>
+            {confirmKick === m.uid && (
+              <div className="glass-card" style={{ borderRadius: "0 0 12px 12px", padding: "10px 14px", marginBottom: 8, border: "1px solid rgba(239,68,68,0.3)", borderTop: "none" }}>
+                <div style={{ fontSize: 12, color: "var(--color-text)", marginBottom: 8 }}>Remove <strong>{pName}</strong> from the club?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setConfirmKick(null)} style={{ flex: 1, padding: "8px", borderRadius: 7, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 12, cursor: "pointer" }}>CANCEL</button>
+                  <button onClick={async () => { await kickMember(clubId, m.uid); setConfirmKick(null); }}
+                    style={{ flex: 1, padding: "8px", borderRadius: 7, border: "none", background: "var(--color-danger)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    REMOVE
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
         );
       })}
 
@@ -141,15 +162,17 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate }
   );
 }
 
-function LeaderboardTab({ members, tournaments }) {
+function LeaderboardTab({ members, tournaments, memberProfiles }) {
   // Compute stats from club tournaments
   // Use lowercase keys for matching since tournament names may differ in case
   const stats = {};
   const keyMap = {}; // lowercase → original key
   members.forEach(m => {
-    const key = m.playerName || m.name;
+    const live = memberProfiles?.[m.uid];
+    const key = live?.displayName || m.playerName || m.name;
     const lkey = key.toLowerCase();
-    stats[lkey] = { name: key, uid: m.uid, photoURL: m.photoURL, avatar: m.avatar || null, wins: 0, losses: 0, titles: 0, matches: 0 };
+    const avatarProfile = live?.avatar || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+    stats[lkey] = { name: key, uid: m.uid, avatar: avatarProfile, wins: 0, losses: 0, titles: 0, matches: 0 };
     keyMap[lkey] = lkey;
   });
 
@@ -190,7 +213,7 @@ function LeaderboardTab({ members, tournaments }) {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i === 0 ? "var(--color-gold)" : i === 1 ? "var(--color-muted)" : "var(--color-muted)", width: 28, textAlign: "center" }}>
             {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
           </div>
-          <PlayerAvatar name={p.name} profile={p.avatar || (p.photoURL ? { type: "image", value: p.photoURL } : null)} size={32} />
+          <PlayerAvatar name={p.name} profile={p.avatar} size={32} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{p.name}</div>
           </div>
@@ -384,6 +407,7 @@ export function ClubDashboardScreen() {
   const { clubId } = useParams();
   const navigate = useNavigate();
   const { club, members, pendingMembers, tournaments, seasons, loading, isAdmin } = useClubDetail(clubId);
+  const memberProfiles = useClubMemberProfiles(members);
   const [tab, setTab] = useState("members");
   const [showInvite, setShowInvite] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -471,8 +495,8 @@ export function ClubDashboardScreen() {
           </button>
         )}
 
-        {tab === "members" && <MembersTab members={members} pendingMembers={pendingMembers} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} />}
-        {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} />}
+        {tab === "members" && <MembersTab members={members} pendingMembers={pendingMembers} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} memberProfiles={memberProfiles} />}
+        {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} memberProfiles={memberProfiles} />}
         {tab === "tournaments" && <TournamentsTab tournaments={tournaments} clubId={clubId} navigate={navigate} onOpenLive={(code) => navigate(`/?join=${code}`)} />}
         {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}
       </div>

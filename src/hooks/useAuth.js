@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import emailjs from "@emailjs/browser";
 import { auth, googleProvider, firestore } from "../firebase";
 import { initFCM } from "../utils/fcm";
+
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 // ── EmailJS config — replace these with your values from emailjs.com ──────
 const EMAILJS_SERVICE_ID  = "service_2k7c608";
@@ -60,6 +62,18 @@ export function useAuth() {
       setLoading(false);
     }
 
+    // On iOS, pick up the result of a signInWithRedirect if one is pending
+    if (isIOS) {
+      getRedirectResult(auth).then(async result => {
+        if (result?.user) {
+          localStorage.removeItem(GUEST_KEY);
+          setIsGuest(false);
+          await ensureUserProfile(result.user);
+          initFCM(result.user.uid);
+        }
+      }).catch(() => {});
+    }
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         localStorage.removeItem(GUEST_KEY);
@@ -77,9 +91,14 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      localStorage.removeItem(GUEST_KEY);
-      setIsGuest(false);
+      if (isIOS) {
+        await signInWithRedirect(auth, googleProvider);
+        // Page will redirect away — onAuthStateChanged picks up the result on return
+      } else {
+        await signInWithPopup(auth, googleProvider);
+        localStorage.removeItem(GUEST_KEY);
+        setIsGuest(false);
+      }
     } catch (e) {
       console.error("Google sign-in failed", e);
       throw e;

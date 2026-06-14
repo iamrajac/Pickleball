@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ref, onValue, set, onDisconnect, get } from "firebase/database";
-import { doc, setDoc, deleteDoc, collection, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, collection, query, orderBy, getDocs, serverTimestamp, onSnapshot as fsOnSnapshot } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db, firestore } from "../firebase";
 import confetti from "canvas-confetti";
@@ -238,6 +238,7 @@ export function useTournament() {
   const isWriting = useRef(false);
   const canEditRef = useRef(false);
   const joinCompleteRef = useRef(false);
+  const lastWrittenProfiles = useRef("{}");
   // Track the number of played matches we've saved locally — Firebase listener
   // must never go backwards (prevents overwriting rounds with stale data)
   const localPlayedCount = useRef(0);
@@ -319,6 +320,11 @@ export function useTournament() {
   // ── Sync profile changes to Firebase + global store ──────────────────────
   useEffect(() => {
     if (!code || Object.keys(profiles).length === 0 || isWriting.current) return;
+    // Skip write if profiles haven't changed — prevents infinite loop when onValue
+    // echoes back the data we just wrote, which would re-trigger this effect.
+    const ser = JSON.stringify(profiles);
+    if (ser === lastWrittenProfiles.current) return;
+    lastWrittenProfiles.current = ser;
     // Sync to Realtime DB for live tournament
     try { set(ref(db, `tournaments/${code}/profiles`), profiles).catch(() => {}); } catch {}
     // Merge into global profile store (localStorage + Firestore)
@@ -438,6 +444,27 @@ export function useTournament() {
     });
     return () => unsubClaims();
   }, [code]);
+
+  // ── Real-time profile sync for claimed players ────────────────────────────
+  // For each player who has claimed their spot (name → uid), subscribe to their
+  // players/{uid} doc. When their profile changes, push the fresh avatar into
+  // the tournament profiles — triggering the save effect which writes to RDB,
+  // so ALL viewers see the update immediately.
+  useEffect(() => {
+    if (!code || !players.length || !Object.keys(claims).length) return;
+    const claimedPlayers = players
+      .map(name => ({ uid: claims[name.replace(/\s+/g, "_").toLowerCase()]?.uid, name }))
+      .filter(c => c.uid);
+    if (!claimedPlayers.length) return;
+
+    const unsubs = claimedPlayers.map(({ uid, name }) =>
+      fsOnSnapshot(doc(firestore, "players", uid), snap => {
+        if (!snap.exists() || !snap.data().avatar) return;
+        setProfiles(prev => ({ ...prev, [name]: snap.data().avatar }));
+      })
+    );
+    return () => unsubs.forEach(u => u());
+  }, [code, players.join(","), JSON.stringify(claims)]);
 
   // ── Reconnect: flush any pending offline write ────────────────────────────
   useEffect(() => {

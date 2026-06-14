@@ -165,6 +165,33 @@ export async function rejectJoinRequest(clubId, pendingUid) {
   });
 }
 
+export async function kickMember(clubId, memberUid) {
+  await deleteDoc(doc(firestore, "clubs", clubId, "members", memberUid));
+  try {
+    await updateDoc(doc(firestore, "users", memberUid), { clubs: arrayRemove(clubId) });
+  } catch {}
+  try {
+    const clubSnap = await getDoc(doc(firestore, "clubs", clubId));
+    if (clubSnap.exists()) {
+      const current = clubSnap.data().memberCount || 1;
+      await updateDoc(doc(firestore, "clubs", clubId), { memberCount: Math.max(0, current - 1) });
+    }
+  } catch {}
+}
+
+export async function syncProfileToClubs(uid, clubIds, { displayName, avatar }) {
+  if (!uid || !clubIds?.length) return;
+  const photoURL = avatar?.type === "image" ? avatar.value : null;
+  await Promise.all(clubIds.map(clubId =>
+    updateDoc(doc(firestore, "clubs", clubId, "members", uid), {
+      name: displayName,
+      playerName: displayName,
+      avatar: avatar || null,
+      photoURL: photoURL || null,
+    }).catch(() => {})
+  ));
+}
+
 export async function leaveClub(clubId) {
   const uid = getAuth().currentUser?.uid;
   if (!uid) return;
@@ -308,6 +335,28 @@ export function useClubs() {
   }, []);
 
   return { clubs, pendingClubIds, loading };
+}
+
+// Subscribes to players/{uid} for each member — single source of truth for name/avatar.
+// Returns a map of uid → player profile data. Updates in real-time when anyone changes their profile.
+export function useClubMemberProfiles(members) {
+  const [profiles, setProfiles] = useState({});
+  const uids = members.map(m => m.uid).filter(Boolean).sort().join(",");
+
+  useEffect(() => {
+    if (!uids) { setProfiles({}); return; }
+    const memberList = members.filter(m => m.uid);
+    const unsubs = memberList.map(m =>
+      onSnapshot(doc(firestore, "players", m.uid), snap => {
+        if (snap.exists()) {
+          setProfiles(prev => ({ ...prev, [m.uid]: snap.data() }));
+        }
+      })
+    );
+    return () => unsubs.forEach(u => u());
+  }, [uids]);
+
+  return profiles;
 }
 
 export function useClubDetail(clubId) {

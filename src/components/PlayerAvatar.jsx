@@ -1,6 +1,39 @@
+import { useState } from "react";
 import { ACOLORS } from "../utils/theme";
 
-export function PlayerAvatar({ name, profile, size = 30, fallbackIndex = 0 }) {
+function AvatarOverlay({ name, profile, color, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <div style={{
+        width: 220, height: 220, borderRadius: "50%", flexShrink: 0,
+        background: profile?.type === "image" ? "var(--color-surface)" : color,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 100, fontWeight: 700, color: "var(--color-dark)",
+        overflow: "hidden",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+      }}>
+        {profile?.type === "image" || profile?.photo ? (
+          <img src={profile.value || profile.photo} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : profile?.type === "emoji" ? (
+          profile.value
+        ) : (
+          name?.[0]?.toUpperCase() || "?"
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function PlayerAvatar({ name, profile, size = 30, fallbackIndex = 0, expandable = false }) {
+  const [expanded, setExpanded] = useState(false);
+
   const getFallbackColor = () => {
     if (profile?.color) return profile.color;
     if (fallbackIndex !== undefined && fallbackIndex !== null) return ACOLORS[fallbackIndex % ACOLORS.length];
@@ -18,24 +51,26 @@ export function PlayerAvatar({ name, profile, size = 30, fallbackIndex = 0 }) {
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: size * 0.45, fontWeight: 700, color: 'var(--color-dark)',
     boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-    overflow: "hidden"
+    overflow: "hidden",
+    cursor: expandable ? "pointer" : undefined,
   };
 
-  if (profile?.type === 'image' || profile?.photo) {
-    return (
-      <div style={st}>
-        <img src={profile.value || profile.photo} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-      </div>
-    );
-  }
-
-  if (profile?.type === 'emoji') {
-    return <div style={st}>{profile.value}</div>;
-  }
+  const handleClick = expandable ? (e) => { e.stopPropagation(); setExpanded(true); } : undefined;
 
   return (
-    <div style={st}>
-      {name?.[0]?.toUpperCase() || "?"}
-    </div>
+    <>
+      <div style={st} onClick={handleClick}>
+        {profile?.type === 'image' || profile?.photo ? (
+          <img src={profile.value || profile.photo} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : profile?.type === 'emoji' ? (
+          profile.value
+        ) : (
+          name?.[0]?.toUpperCase() || "?"
+        )}
+      </div>
+      {expanded && (
+        <AvatarOverlay name={name} profile={profile} color={color} onClose={() => setExpanded(false)} />
+      )}
+    </>
   );
 }
