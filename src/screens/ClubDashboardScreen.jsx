@@ -50,7 +50,7 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
             const avatarProfile = m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
             return (
               <div key={m.uid} className="glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, border: "1px solid rgba(245,158,11,0.25)" }}>
-                <PlayerAvatar name={pName} profile={avatarProfile} size={36} />
+                <PlayerAvatar name={pName} profile={avatarProfile} size={36} expandable />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{pName}</div>
                   <div style={{ fontSize: 11, color: "var(--color-muted)" }}>Wants to join</div>
@@ -84,7 +84,7 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
         return (
           <div key={m.uid}>
             <div className="glass-card" style={{ borderRadius: confirmKick === m.uid ? "12px 12px 0 0" : 12, padding: "12px 14px", marginBottom: confirmKick === m.uid ? 0 : 8, display: "flex", alignItems: "center", gap: 12 }}>
-              <PlayerAvatar name={pName} profile={avatarProfile} size={36} />
+              <PlayerAvatar name={pName} profile={avatarProfile} size={36} expandable />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
                   {pName}
@@ -213,7 +213,7 @@ function LeaderboardTab({ members, tournaments, memberProfiles }) {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i === 0 ? "var(--color-gold)" : i === 1 ? "var(--color-muted)" : "var(--color-muted)", width: 28, textAlign: "center" }}>
             {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
           </div>
-          <PlayerAvatar name={p.name} profile={p.avatar} size={32} />
+          <PlayerAvatar name={p.name} profile={p.avatar} size={32} expandable />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{p.name}</div>
           </div>
