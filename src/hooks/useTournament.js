@@ -863,6 +863,13 @@ export function useTournament() {
     } catch { addToast("Failed to save score", "error"); }
   };
 
+  const resetPlayoffs = () => {
+    setPlayoffs(null); setChampion(null); setTab("standings");
+    pushToFirebase(rounds, null, null);
+    _upsertHist(rounds, null, null);
+    addToast("Playoffs reset — choose again", "info");
+  };
+
   const startPlayoffs = () => {
     const st = computeStandings(players, rounds);
     const poffs = initPlayoffs(st);
@@ -1023,6 +1030,6 @@ export function useTournament() {
     liveScores, pushLiveScore, clearLiveScore,
     // Actions
     handleStart, handleJoin, saveResult, savePlayoff, executeEnd, deleteTournament,
-    handleScorerPinEntered, copyStandingsText, startPlayoffs, declareAsFinal,
+    handleScorerPinEntered, copyStandingsText, startPlayoffs, declareAsFinal, resetPlayoffs,
   };
 }

@@ -103,7 +103,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
     players, rounds, playoffs, champion, code, tab, setTab,
     readOnly, syncing, onlineCount, animatingScore, scorerPin, profiles,
     saveResult, savePlayoff, executeEnd, deleteTournament, handleScorerPinEntered,
-    copyStandingsText, startPlayoffs, declareAsFinal, h2hMatrix,
+    copyStandingsText, startPlayoffs, declareAsFinal, resetPlayoffs, h2hMatrix,
     liveScores, pushLiveScore, scheduledAt, tournamentName, isPublic, claims,
   } = t;
 
@@ -458,6 +458,13 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
               </div>
             ) : (playoffs && Object.values(playoffs).some(v => v?.teamA)) ? (
               <PlayoffBoundary>
+                {!readOnly && !champion && !Object.values(playoffs).some(v => v?.played) && (
+                  <div style={{ textAlign: "center", marginBottom: 12 }}>
+                    <button className="pb" onClick={resetPlayoffs} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                      ← Reset &amp; choose again
+                    </button>
+                  </div>
+                )}
                 <PlayoffSection key={playoffs ? Object.keys(playoffs).filter(k => playoffs[k]?.teamA).sort().join(",") : "empty"}
                   playoffs={playoffs} champion={champion} players={players} profiles={profiles}
                   savePlayoff={savePlayoff} readOnly={readOnly} h2hMatrix={h2hMatrix} showStandingsShare={() => setShowPlayoffShare(true)}
