@@ -31,13 +31,14 @@ function AvatarEditor({ avatar, googlePhotoURL, onChange }) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX = 400;
+        const MAX = 700;
         let w = img.width, h = img.height;
         if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
         else { if (h > MAX) { w *= MAX / h; h = MAX; } }
         canvas.width = w; canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        onChange({ type: "image", value: canvas.toDataURL("image/jpeg", 0.88) });
+        const webp = canvas.toDataURL("image/webp", 0.90);
+        onChange({ type: "image", value: webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.90) });
       };
       img.src = ev.target.result;
     };
