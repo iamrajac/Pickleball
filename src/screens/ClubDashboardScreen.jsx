@@ -323,7 +323,7 @@ function TournamentsTab({ tournaments, clubId, navigate, onOpenLive, isAdmin }) 
           // Also update season
           import("../hooks/useClub").then(async ({ getActiveSeasonId, addTournamentToSeason }) => {
             const seasonId = await getActiveSeasonId(clubId);
-            if (seasonId) addTournamentToSeason(clubId, seasonId, t.code, entry.players, fbData.champion);
+            if (seasonId) addTournamentToSeason(clubId, seasonId, t.code, entry.players, fbData.champion, fbData.playoffs || null);
           });
         } else if (needsBackfill) {
           saveTournamentToClub(clubId, entry);

@@ -297,7 +297,7 @@ export async function endSeason(clubId, seasonId) {
   await updateDoc(doc(firestore, "clubs", clubId, "seasons", seasonId), { status: "completed" });
 }
 
-export async function addTournamentToSeason(clubId, seasonId, tournamentCode, players, champion) {
+export async function addTournamentToSeason(clubId, seasonId, tournamentCode, players, champion, playoffs) {
   const seasonRef = doc(firestore, "clubs", clubId, "seasons", seasonId);
   const snap = await getDoc(seasonRef);
   if (!snap.exists()) return;
@@ -305,20 +305,36 @@ export async function addTournamentToSeason(clubId, seasonId, tournamentCode, pl
   const season = snap.data();
   if ((season.tournaments || []).includes(tournamentCode)) return;
 
-  // Compute new standings
+  const losingTeam = (match) => {
+    if (!match?.played) return [];
+    return (match.scoreA > match.scoreB ? match.teamB : match.teamA) || [];
+  };
+
+  const silverTeam = playoffs?.final ? losingTeam(playoffs.final) : [];
+
+  let bronzeTeam = [];
+  if (playoffs) {
+    const mode = playoffs.mode;
+    if (mode === "ipl8" || mode === "top8_ipl") bronzeTeam = losingTeam(playoffs.q2);
+    else if (mode === "ipl6") bronzeTeam = losingTeam(playoffs.elim);
+    else if (mode === "elim_to_sf") bronzeTeam = losingTeam(playoffs.sf);
+    else if (mode === "top8") bronzeTeam = [...losingTeam(playoffs.sf1), ...losingTeam(playoffs.sf2)];
+  }
+
+  const championSet = new Set(champion ? champion.split(" & ").map(s => s.trim().toLowerCase()) : []);
+  const silverSet = new Set(silverTeam.map(s => s.toLowerCase()));
+  const bronzeSet = new Set(bronzeTeam.map(s => s.toLowerCase()));
+
   const standings = { ...(season.standings || {}) };
   (players || []).forEach(p => {
     if (!standings[p]) standings[p] = { points: 0, wins: 0, played: 0 };
     standings[p].played++;
-    standings[p].points++; // 1 point for participating
+    const k = p.toLowerCase();
+    if (championSet.has(k)) { standings[p].points += 5; standings[p].wins++; }
+    else if (silverSet.has(k)) standings[p].points += 3;
+    else if (bronzeSet.has(k)) standings[p].points += 2;
+    else standings[p].points += 1;
   });
-  if (champion) {
-    champion.split(" & ").map(s => s.trim()).forEach(p => {
-      if (!standings[p]) standings[p] = { points: 0, wins: 0, played: 0 };
-      standings[p].points += 2; // 2 bonus points for winning
-      standings[p].wins++;
-    });
-  }
 
   await updateDoc(seasonRef, {
     tournaments: arrayUnion(tournamentCode),
