@@ -438,9 +438,9 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
   }
 
   const { players = [], partnerships = [], records = {}, totalTournaments = 0, totalMatches = 0 } = stats;
-  const mvp = players[0];
   const topScorer = [...players].sort((a, b) => b.scored - a.scored)[0];
   const mostTitles = [...players].sort((a, b) => b.titles - a.titles)[0];
+  const bestWinRate = [...players].filter(p => p.matches >= 3).sort((a, b) => (b.winRate ?? 0) - (a.winRate ?? 0))[0] || players[0];
   const longestStreak = [...players].sort((a, b) => b.bestStreak - a.bestStreak)[0];
   const bestPartner = partnerships[0];
 
@@ -469,7 +469,7 @@ export function CareerScreen({ onBack, theme = 'dark' }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {[
                   { icon: "🏆", label: "MOST TITLES", name: mostTitles?.name, val: `${mostTitles?.titles || 0} titles` },
-                  { icon: "🎯", label: "BEST WIN RATE", name: mvp?.name, val: `${mvp?.winRate || 0}%` },
+                  { icon: "🎯", label: "BEST WIN RATE", name: bestWinRate?.name, val: `${bestWinRate?.winRate || 0}%` },
                   { icon: "⚡", label: "LONGEST STREAK", name: longestStreak?.name, val: `${longestStreak?.bestStreak || 0}W streak` },
                   { icon: "💥", label: "TOP SCORER", name: topScorer?.name, val: `${topScorer?.scored || 0} pts` },
                 ].map(({ icon, label, name, val }) => (

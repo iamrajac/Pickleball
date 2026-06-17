@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useClubDetail, useClubMemberProfiles, useClubFullHistory } from "../hooks/useClub";
 import { computeCareerStats, getH2HBetween } from "../utils/careerStats";
@@ -50,6 +50,8 @@ function computeInsights(player) {
 export function ClubPlayerStatsScreen() {
   const { clubId, uid } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTab = location.state?.fromTab || "members";
   const { club, members, tournaments, seasons, loading } = useClubDetail(clubId);
   const memberProfiles = useClubMemberProfiles(members);
   const fullHistory = useClubFullHistory(tournaments);
@@ -92,7 +94,7 @@ export function ClubPlayerStatsScreen() {
     <div style={{ minHeight: "100vh", background: "var(--color-dark)", paddingBottom: "2rem" }}>
       <div className="glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid var(--color-border)" }}>
         <div style={{ padding: "0 1rem", display: "flex", alignItems: "center", gap: 12, height: 60 }}>
-          <button onClick={() => navigate(-1)} className="ni" style={{ background: "none", border: "none", color: "var(--color-muted)", display: "flex", alignItems: "center", cursor: "pointer" }}>
+          <button onClick={() => navigate(`/clubs/${clubId}`, { state: { tab: returnTab } })} className="ni" style={{ background: "none", border: "none", color: "var(--color-muted)", display: "flex", alignItems: "center", cursor: "pointer" }}>
             <ArrowLeft size={22} />
           </button>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: themeColor, letterSpacing: 2 }}>PLAYER PROFILE</div>

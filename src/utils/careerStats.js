@@ -186,13 +186,13 @@ export function computeCareerStats(history) {
 
   // Compute streaks
   Object.values(players).forEach(p => {
-    let cur = 0, best = 0, curType = null;
+    let cur = 0, curType = null, bestWin = 0;
     p.lastResults.forEach(r => {
-      if (r === curType) { cur++; if (cur > best) best = cur; }
-      else { cur = 1; curType = r; }
+      if (r === curType) { cur++; } else { cur = 1; curType = r; }
+      if (r === "W" && cur > bestWin) bestWin = cur;
     });
     p.currentStreak = cur;
-    p.bestStreak = best;
+    p.bestStreak = bestWin;
     p.streakType = curType;
     p.winRate = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : null;
     p.avgScore = p.matches > 0 ? (p.scored / p.matches).toFixed(1) : 0;
