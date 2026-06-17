@@ -467,7 +467,7 @@ function ClubStatsTab({ tournaments, seasons, members, memberProfiles, clubId, n
                   <div>
                     <div style={{ fontSize: 11, color: "var(--color-muted)" }}>Biggest Margin</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginTop: 2 }}>
-                      {records.biggestComeback.scoreA > records.biggestComeback.scoreB ? records.biggestComeback.teamA.join(" & ") : records.biggestComeback.teamB.join(" & ")} won by {records.biggestComeback.diff}
+                      {records.biggestComeback.teamA.join(" & ")} vs {records.biggestComeback.teamB.join(" & ")}
                     </div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-gold)" }}>
                       {records.biggestComeback.scoreA}–{records.biggestComeback.scoreB}
