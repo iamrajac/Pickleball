@@ -4,7 +4,8 @@ import {
   deleteDoc, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { firestore } from "../firebase";
+import { ref, get } from "firebase/database";
+import { firestore, db } from "../firebase";
 
 function genClubCode() {
   return Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -408,4 +409,31 @@ export function useClubDetail(clubId) {
   }, [club]);
 
   return { club, members, pendingMembers, tournaments, seasons, loading, isAdmin };
+}
+
+// Fetches full match data (rounds + playoffs) from RTDB for each completed club tournament
+// Returns null while loading, [] or populated array when ready
+export function useClubFullHistory(tournaments) {
+  const [fullHistory, setFullHistory] = useState(null);
+  const codesKey = tournaments
+    .filter(t => t.status === "completed" && t.code)
+    .map(t => t.code).sort().join(",");
+
+  useEffect(() => {
+    if (!codesKey) { setFullHistory([]); return; }
+    const completed = tournaments.filter(t => t.status === "completed" && t.code);
+    Promise.all(completed.map(clubT =>
+      get(ref(db, `tournaments/${clubT.code}`)).then(snap => {
+        if (!snap.exists()) return null;
+        const fbData = snap.val();
+        return {
+          ...clubT,
+          rounds: fbData.rounds ? fbData.rounds.map(r => r ? Object.values(r) : []) : [],
+          playoffs: fbData.playoffs || null,
+        };
+      }).catch(() => null)
+    )).then(results => setFullHistory(results.filter(Boolean)));
+  }, [codesKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return fullHistory;
 }

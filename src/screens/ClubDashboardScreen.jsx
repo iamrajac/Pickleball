@@ -3,8 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, useClubMemberProfiles, leaveClub, kickMember, createSeason, endSeason, saveTournamentToClub, removeTournamentFromClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
+import { useClubDetail, useClubMemberProfiles, useClubFullHistory, leaveClub, kickMember, createSeason, endSeason, saveTournamentToClub, removeTournamentFromClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
+import { computeCareerStats } from "../utils/careerStats";
+import { normalizePlayerName } from "../utils/players";
 import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
 import { firestore, db } from "../firebase";
 import { ref, get } from "firebase/database";
@@ -91,7 +93,7 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
                   {isMe && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
-                  {m.role === "admin" ? "👑 Admin" : "Member"} · tap for stats
+                  {m.role === "admin" ? "👑 Admin" : "Member"}
                 </div>
               </div>
               {canKick && confirmKick !== m.uid && (
@@ -332,109 +334,201 @@ function TournamentsTab({ tournaments, clubId, navigate, onOpenLive, isAdmin }) 
 
 function ClubStatsTab({ tournaments, seasons, members, memberProfiles, clubId, navigate, themeColor }) {
   const [selectedSeason, setSelectedSeason] = useState("all");
+  const [statsTab, setStatsTab] = useState("players");
+  const fullHistory = useClubFullHistory(tournaments);
 
-  const completedTournaments = tournaments.filter(t => t.status === "completed");
-  const filteredTournaments = selectedSeason === "all"
-    ? completedTournaments
+  const tc = themeColor || "var(--color-lime)";
+
+  function getProfileForName(name) {
+    const lname = normalizePlayerName(name);
+    const m = members.find(mem => normalizePlayerName(memberProfiles?.[mem.uid]?.displayName || mem.playerName || mem.name || "") === lname);
+    if (!m) return null;
+    const live = memberProfiles?.[m.uid];
+    return live?.avatar || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+  }
+
+  function getUidForName(name) {
+    const lname = normalizePlayerName(name);
+    return members.find(m => normalizePlayerName(memberProfiles?.[m.uid]?.displayName || m.playerName || m.name || "") === lname)?.uid;
+  }
+
+  const filteredHistory = fullHistory === null ? null : selectedSeason === "all"
+    ? fullHistory
     : (() => {
         const season = seasons.find(s => s.id === selectedSeason);
         const codes = new Set(season?.tournaments || []);
-        return completedTournaments.filter(t => codes.has(t.code));
+        return fullHistory.filter(t => codes.has(t.code));
       })();
 
-  const stats = {};
-  members.forEach(m => {
-    const live = memberProfiles?.[m.uid];
-    const key = live?.displayName || m.playerName || m.name;
-    const lkey = key.toLowerCase();
-    const avatarProfile = live?.avatar || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
-    stats[lkey] = { name: key, uid: m.uid, avatar: avatarProfile, wins: 0, losses: 0, titles: 0, matches: 0 };
-  });
+  const stats = filteredHistory ? computeCareerStats(filteredHistory) : null;
+  const { players = [], partnerships = [], records = {}, totalTournaments = 0, totalMatches = 0 } = stats || {};
 
-  filteredTournaments.forEach(t => {
-    if (t.champion) {
-      t.champion.split(" & ").map(s => s.trim().toLowerCase()).forEach(p => {
-        if (stats[p]) stats[p].titles++;
-      });
-    }
-    if (t.playerStats) {
-      Object.entries(t.playerStats).forEach(([name, s]) => {
-        const lname = name.toLowerCase();
-        if (stats[lname]) {
-          stats[lname].wins += s.wins || 0;
-          stats[lname].losses += s.losses || 0;
-          stats[lname].matches += s.matches || 0;
-        }
-      });
-    }
-  });
-
-  const ranked = Object.values(stats)
-    .filter(p => p.matches > 0)
-    .sort((a, b) => b.titles - a.titles || (b.matches > 0 ? b.wins / b.matches : 0) - (a.matches > 0 ? a.wins / a.matches : 0) || b.wins - a.wins);
+  const mostTitles = [...players].sort((a, b) => b.titles - a.titles)[0];
+  const bestWinRate = [...players].sort((a, b) => (b.winRate ?? 0) - (a.winRate ?? 0))[0];
+  const longestStreak = [...players].sort((a, b) => b.bestStreak - a.bestStreak)[0];
+  const topScorer = [...players].sort((a, b) => b.scored - a.scored)[0];
 
   return (
     <div>
+      {/* Season selector */}
       <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
         {[{ id: "all", name: "All Time" }, ...seasons].map(s => (
           <button key={s.id} onClick={() => setSelectedSeason(s.id)}
             style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer",
-              background: selectedSeason === s.id ? (themeColor || "var(--color-lime)") : "rgba(255,255,255,0.06)",
+              background: selectedSeason === s.id ? tc : "rgba(255,255,255,0.06)",
               color: selectedSeason === s.id ? "#0d0f0a" : "var(--color-muted)" }}>
             {s.name}
           </button>
         ))}
       </div>
 
-      {ranked.length === 0 ? (
+      {filteredHistory === null ? (
+        <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>Loading stats...</div>
+      ) : players.length === 0 ? (
         <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
           <div>No stats yet for this period</div>
         </div>
       ) : (
         <>
-          <div style={{ display: "flex", alignItems: "center", padding: "0 14px 6px", gap: 12 }}>
-            <div style={{ width: 28 }} />
-            <div style={{ width: 44 }} />
-            <div style={{ flex: 1 }} />
-            <div style={{ display: "flex", gap: 0, textAlign: "center" }}>
-              {["TITLES", "WINS", "LOSS", "WIN%"].map(h => (
-                <div key={h} style={{ width: 40, fontSize: 9, color: "var(--color-muted)", letterSpacing: 1 }}>{h}</div>
+          {/* Summary */}
+          <div style={{ fontSize: 12, color: "var(--color-muted)", marginBottom: 16 }}>
+            {totalTournaments} tournament{totalTournaments !== 1 ? "s" : ""} · {totalMatches} total matches
+          </div>
+
+          {/* Hall of Fame */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, color: "var(--color-muted)", marginBottom: 10, fontWeight: 600 }}>🏅 HALL OF FAME</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[
+                { icon: "🏆", label: "MOST TITLES", name: mostTitles?.name, val: `${mostTitles?.titles || 0} titles` },
+                { icon: "🎯", label: "BEST WIN RATE", name: bestWinRate?.name, val: `${bestWinRate?.winRate || 0}%` },
+                { icon: "⚡", label: "LONGEST STREAK", name: longestStreak?.name, val: `${longestStreak?.bestStreak || 0}W streak` },
+                { icon: "💥", label: "TOP SCORER", name: topScorer?.name, val: `${topScorer?.scored || 0} pts` },
+              ].map(({ icon, label, name, val }) => (
+                <div key={label} className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.1rem", display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ fontSize: 26 }}>{icon}</div>
+                  <div>
+                    <div style={{ fontSize: 9, letterSpacing: 1.5, color: "var(--color-muted)", fontWeight: 600 }}>{label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", marginTop: 2 }}>{name || "—"}</div>
+                    <div style={{ fontSize: 11, color: tc }}>{val}</div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-          {ranked.map((p, i) => {
-            const winRate = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+
+          {/* Records */}
+          {records.highestScoringMatch && (
+            <div className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem", marginBottom: 20 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, color: "var(--color-muted)", marginBottom: 10, fontWeight: 600 }}>🔥 ALL-TIME RECORDS</div>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-muted)" }}>Highest Scoring Match</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginTop: 2 }}>
+                    {records.highestScoringMatch.teamA.join(" & ")} vs {records.highestScoringMatch.teamB.join(" & ")}
+                  </div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-lime)" }}>
+                    {records.highestScoringMatch.scoreA}–{records.highestScoringMatch.scoreB}
+                  </div>
+                </div>
+                {records.biggestComeback && (
+                  <div>
+                    <div style={{ fontSize: 11, color: "var(--color-muted)" }}>Biggest Margin</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginTop: 2 }}>
+                      {records.biggestComeback.scoreA > records.biggestComeback.scoreB ? records.biggestComeback.teamA.join(" & ") : records.biggestComeback.teamB.join(" & ")} won by {records.biggestComeback.diff}
+                    </div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-gold)" }}>
+                      {records.biggestComeback.scoreA}–{records.biggestComeback.scoreB}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "var(--color-surface)", borderRadius: 8, padding: 4 }}>
+            {[{ id: "players", label: "👤 PLAYERS" }, { id: "partnerships", label: "🤝 PARTNERSHIPS" }].map(t => (
+              <button key={t.id} className={`tab-btn ${statsTab === t.id ? "on" : "off"}`} onClick={() => setStatsTab(t.id)} style={{ flex: 1 }}>{t.label}</button>
+            ))}
+          </div>
+
+          {statsTab === "players" && players.map((p, i) => {
+            const diff = p.scored - p.conceded;
+            const uid = getUidForName(p.name);
             return (
               <div key={p.name} className="rh glass-card"
-                style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
-                  background: i === 0 ? "rgba(241,200,53,0.06)" : undefined,
-                  border: i === 0 ? "1px solid rgba(241,200,53,0.2)" : undefined }}
-                onClick={() => navigate(`/clubs/${clubId}/player/${p.uid}`)}>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-muted)", width: 28, textAlign: "center" }}>
-                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                style={{ borderRadius: 14, padding: "1rem 1.2rem", cursor: "pointer", marginBottom: 10, border: `1px solid ${i === 0 ? "rgba(241,200,53,0.2)" : "var(--color-border)"}`, background: i === 0 ? "rgba(241,200,53,0.06)" : undefined }}
+                onClick={() => uid && navigate(`/clubs/${clubId}/player/${uid}`)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i < 3 ? "var(--color-lime)" : "var(--color-muted)", width: 28, textAlign: "center" }}>
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                  </div>
+                  <PlayerAvatar name={p.name} profile={getProfileForName(p.name)} size={36} expandable />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: "var(--color-text)" }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{p.tournaments} tournaments · {p.matches} matches</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: p.winRate >= 60 ? "var(--color-lime)" : p.winRate >= 40 ? "var(--color-gold)" : "var(--color-danger)", lineHeight: 1 }}>{p.winRate}%</div>
+                    <div style={{ fontSize: 10, color: "var(--color-muted)" }}>WIN RATE</div>
+                  </div>
                 </div>
-                <PlayerAvatar name={p.name} profile={p.avatar} size={32} expandable />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{p.name}</div>
-                </div>
-                <div style={{ display: "flex", gap: 0, textAlign: "center" }}>
-                  <div style={{ width: 40 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-gold)", lineHeight: 1 }}>{p.titles}</div>
-                  </div>
-                  <div style={{ width: 40 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-lime)", lineHeight: 1 }}>{p.wins}</div>
-                  </div>
-                  <div style={{ width: 40 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-muted)", lineHeight: 1 }}>{p.losses}</div>
-                  </div>
-                  <div style={{ width: 40 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: winRate >= 50 ? "var(--color-lime)" : "var(--color-danger)", lineHeight: 1 }}>{winRate}%</div>
+                <div style={{ display: "flex", gap: 16, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--color-border)" }}>
+                  {[
+                    { v: p.wins, l: "WINS", c: "#6aaa50" },
+                    { v: p.losses, l: "LOSSES", c: "var(--color-danger)" },
+                    { v: (diff > 0 ? "+" : "") + diff, l: "+/-", c: diff >= 0 ? "var(--color-lime)" : "var(--color-danger)" },
+                    { v: p.titles, l: "TITLES", c: "var(--color-gold)" },
+                    { v: `${p.currentStreak}${p.streakType}`, l: "STREAK", c: p.streakType === "W" ? "var(--color-lime)" : "var(--color-danger)" },
+                  ].map(({ v, l, c }) => (
+                    <div key={l} style={{ textAlign: "center" }}>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: c }}>{v}</div>
+                      <div style={{ fontSize: 9, color: "var(--color-muted)", letterSpacing: 1 }}>{l}</div>
+                    </div>
+                  ))}
+                  <div style={{ flex: 1, textAlign: "right" }}>
+                    <div style={{ display: "flex", gap: 2, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                      {p.lastResults.slice(-8).map((r, i) => (
+                        <div key={i} style={{ width: 13, height: 13, borderRadius: 3, background: r === "W" ? "#1a5c12" : "#5c1212", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, color: r === "W" ? "#6aff50" : "#ff5050", fontWeight: 700 }}>{r}</div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 9, color: "var(--color-muted)", marginTop: 2, letterSpacing: 1 }}>RECENT FORM</div>
                   </div>
                 </div>
               </div>
             );
           })}
+
+          {statsTab === "partnerships" && (
+            partnerships.length === 0 ? (
+              <div className="glass-card" style={{ textAlign: "center", padding: "3rem", borderRadius: 14, color: "var(--color-muted)" }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🤝</div>
+                <div>Need at least 2 tournaments to show partnerships</div>
+              </div>
+            ) : partnerships.map((pair, i) => {
+              const wr = Math.round((pair.wins / pair.matches) * 100);
+              return (
+                <div key={pair.players.join("|")} className="glass-card" style={{ borderRadius: 14, padding: "1rem 1.2rem", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-muted)", width: 24 }}>{i + 1}</div>
+                    <div style={{ display: "flex", gap: -8 }}>
+                      {pair.players.map(name => <PlayerAvatar key={name} name={name} profile={getProfileForName(name)} size={30} />)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{pair.players.join(" & ")}</div>
+                      <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{pair.matches} matches together</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: wr >= 60 ? "var(--color-lime)" : wr >= 40 ? "var(--color-gold)" : "var(--color-danger)", lineHeight: 1 }}>{wr}%</div>
+                      <div style={{ fontSize: 10, color: "var(--color-muted)" }}>WIN RATE</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </>
       )}
     </div>
