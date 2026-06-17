@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { ref, get } from "firebase/database";
-import { db } from "../firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { db, firestore } from "../firebase";
 import { Wifi, AlertCircle } from "lucide-react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { AvatarPickerModal } from "../components/AvatarPickerModal";
@@ -73,6 +74,41 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
   const [profiles, setProfiles] = useState(() => getGlobalProfiles());
   const [editingAvatar, setEditingAvatar] = useState(null);
   const [focus, setFocus] = useState(null);
+  const [seedStatMap, setSeedStatMap] = useState({});
+
+  useEffect(() => {
+    if (step !== "seeding") return;
+    const load = async () => {
+      if (clubId) {
+        try {
+          const snap = await getDocs(collection(firestore, `clubs/${clubId}/tournaments`));
+          const clubTs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const completed = clubTs.filter(t => t.status === "completed" && t.code);
+          const fullHistory = (await Promise.all(completed.map(async ct => {
+            const s = await get(ref(db, `tournaments/${ct.code}`));
+            if (!s.exists()) return null;
+            const fd = s.val();
+            return { ...ct, rounds: fd.rounds ? fd.rounds.map(r => r ? Object.values(r) : []) : [], playoffs: fd.playoffs || null };
+          }))).filter(Boolean);
+          const { players: sp } = computeCareerStats(fullHistory);
+          const sm = {};
+          sp.forEach(p => { sm[p.name.toLowerCase()] = p; });
+          setSeedStatMap(sm);
+        } catch {
+          const { players: sp } = computeCareerStats(loadH());
+          const sm = {};
+          sp.forEach(p => { sm[p.name.toLowerCase()] = p; });
+          setSeedStatMap(sm);
+        }
+      } else {
+        const { players: sp } = computeCareerStats(loadH());
+        const sm = {};
+        sp.forEach(p => { sm[p.name.toLowerCase()] = p; });
+        setSeedStatMap(sm);
+      }
+    };
+    load();
+  }, [step]);
 
   // Join state — pre-fill from ?join= URL param (coming from public tournament JOIN button)
   const [joinCode, setJoinCode] = useState(() => {
@@ -251,8 +287,8 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             )}
 
             <button className="pb btn btn-primary" style={{ width: "100%", fontSize: 20, padding: "18px", borderRadius: "var(--radius-lg)", opacity: canStart ? 1 : 0.4, cursor: canStart ? "pointer" : "not-allowed" }}
-              onClick={() => canStart && onStart(names.slice(0, numP).map(n => n.trim()), rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null, clubId: clubId || null })}>
-              START TOURNAMENT →
+              onClick={() => canStart && setStep("seeding")}>
+              NEXT: SEEDING →
             </button>
           </div>
         </div>
@@ -269,20 +305,13 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
     };
 
     const autoSeedByStats = () => {
-      const history = loadH();
-      const { players: statPlayers } = computeCareerStats(history);
-      const statMap = {};
-      statPlayers.forEach(p => { statMap[p.name.toLowerCase()] = p; });
-
       const sorted = [...seededNames].sort((a, b) => {
-        const sa = statMap[a.toLowerCase()];
-        const sb = statMap[b.toLowerCase()];
-        // Known players sorted by win rate desc, unknown players go to bottom
+        const sa = seedStatMap[a.toLowerCase()];
+        const sb = seedStatMap[b.toLowerCase()];
         if (!sa && !sb) return 0;
         if (!sa) return 1;
         if (!sb) return -1;
-        if (sb.winRate !== sa.winRate) return sb.winRate - sa.winRate;
-        return sb.wins - sa.wins;
+        return (sb.titles ?? 0) - (sa.titles ?? 0) || (sb.winRate ?? 0) - (sa.winRate ?? 0) || (sb.wins ?? 0) - (sa.wins ?? 0);
       });
       setNames([...sorted, ...names.slice(numP)]);
     };
@@ -308,31 +337,25 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
             </div>
 
             <div className="card" style={{ padding: "1.25rem", marginBottom: 16 }}>
-              {(() => {
-                const history = loadH();
-                const { players: sp } = computeCareerStats(history);
-                const sm = {};
-                sp.forEach(p => { sm[p.name.toLowerCase()] = p; });
-                return seededNames.map((n, i) => {
-                  const st = sm[n.toLowerCase()];
-                  return (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < seededNames.length - 1 ? "1px solid var(--border)" : "none" }}>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: i < 3 ? "var(--accent)" : "var(--text-muted)", width: 32, textAlign: "center", flexShrink: 0 }}>
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+              {seededNames.map((n, i) => {
+                const st = seedStatMap[n.toLowerCase()];
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < seededNames.length - 1 ? "1px solid var(--border)" : "none" }}>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: i < 3 ? "var(--accent)" : "var(--text-muted)", width: 32, textAlign: "center", flexShrink: 0 }}>
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{n}</div>
+                      {st ? <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{st.winRate != null ? `${st.winRate}% win rate · ` : ""}{st.matches} matches</div>
+                          : <div style={{ fontSize: 11, color: "var(--text-muted)" }}>No stats yet</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button onClick={() => i > 0 && move(i, i - 1)} disabled={i === 0} style={{ width: 32, height: 32, borderRadius: 6, background: i === 0 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === 0 ? "var(--text-muted)" : "var(--text)", cursor: i === 0 ? "not-allowed" : "pointer", fontSize: 14 }}>↑</button>
+                      <button onClick={() => i < seededNames.length - 1 && move(i, i + 1)} disabled={i === seededNames.length - 1} style={{ width: 32, height: 32, borderRadius: 6, background: i === seededNames.length - 1 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === seededNames.length - 1 ? "var(--text-muted)" : "var(--text)", cursor: i === seededNames.length - 1 ? "not-allowed" : "pointer", fontSize: 14 }}>↓</button>
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{n}</div>
-                    {st ? <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{st.winRate != null ? `${st.winRate}% win rate · ` : ""}{st.matches} matches</div>
-                        : <div style={{ fontSize: 11, color: "var(--text-muted)" }}>No stats yet</div>}
-                  </div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => i > 0 && move(i, i - 1)} disabled={i === 0} style={{ width: 32, height: 32, borderRadius: 6, background: i === 0 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === 0 ? "var(--text-muted)" : "var(--text)", cursor: i === 0 ? "not-allowed" : "pointer", fontSize: 14 }}>↑</button>
-                    <button onClick={() => i < seededNames.length - 1 && move(i, i + 1)} disabled={i === seededNames.length - 1} style={{ width: 32, height: 32, borderRadius: 6, background: i === seededNames.length - 1 ? "var(--surface)" : "var(--card)", border: "1px solid var(--border)", color: i === seededNames.length - 1 ? "var(--text-muted)" : "var(--text)", cursor: i === seededNames.length - 1 ? "not-allowed" : "pointer", fontSize: 14 }}>↓</button>
-                  </div>
-                </div>
-                  );
-                });
-              })()}
+                );
+              })}
             </div>
 
             <div className="card" style={{ padding: "12px 16px", marginBottom: 16, borderLeft: "3px solid var(--upcoming)" }}>
@@ -341,9 +364,13 @@ export function SetupScreen({ onStart, onJoin, onBack, theme }) {
               </div>
             </div>
 
-            <button className="pb btn btn-primary" style={{ width: "100%", fontSize: 20, padding: "18px", borderRadius: "var(--radius-lg)" }}
-              onClick={() => onStart(seededNames, rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null })}>
+            <button className="pb btn btn-primary" style={{ width: "100%", fontSize: 20, padding: "18px", borderRadius: "var(--radius-lg)", marginBottom: 10 }}
+              onClick={() => onStart(seededNames, rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null, clubId: clubId || null, seeded: true })}>
               START TOURNAMENT →
+            </button>
+            <button className="pb" style={{ width: "100%", fontSize: 14, padding: "14px", borderRadius: "var(--radius-lg)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer" }}
+              onClick={() => onStart(seededNames, rounds, profiles, "#10d48e", { name: name.trim(), isPublic, scheduledAt: scheduledAt || null, clubId: clubId || null, seeded: false })}>
+              SKIP SEEDING — random matchups
             </button>
           </div>
         </div>

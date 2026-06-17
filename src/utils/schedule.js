@@ -1,6 +1,6 @@
 // ── Schedule generator supporting any number of players ───────────────────
 
-export function generateSchedule(players, numRounds) {
+export function generateSchedule(players, numRounds, seeded = false) {
   const n = players.length;
   const courtsPerRound = Math.floor(n / 4);
   const byeCount = n % 4;
@@ -42,6 +42,29 @@ export function generateSchedule(players, numRounds) {
     }
 
     const active = new Set(Array.from({length:n}, (_,i)=>i).filter(i => !byePlayers.has(i)));
+
+    // Seeded balanced Round 1: pair seed i with seed n-1-i, match top pair vs bottom pair
+    if (r === 0 && seeded && byePlayers.size === 0 && n % 4 === 0) {
+      const halfN = n / 2;
+      const pairs = Array.from({length: halfN}, (_, i) => [i, n - 1 - i]);
+      const rm = [];
+      for (let c = 0; c < courtsPerRound; c++) {
+        const [a1, a2] = pairs[c];
+        const [b1, b2] = pairs[halfN - 1 - c];
+        rm.push([[a1, a2], [b1, b2]]);
+        partnerCount[a1][a2]++; partnerCount[a2][a1]++;
+        partnerCount[b1][b2]++; partnerCount[b2][b1]++;
+        [b1,b2].forEach(o => { oppCount[a1][o]++; oppCount[a2][o]++; oppCount[o][a1]++; oppCount[o][a2]++; });
+        [a1,a2,b1,b2].forEach(p => playCount[p]++);
+      }
+      rounds.push(rm.map(([[a1,a2],[b1,b2]], ci) => {
+        const flip = ci % 2 === 1;
+        const tA = flip ? [players[b1], players[b2]] : [players[a1], players[a2]];
+        const tB = flip ? [players[a1], players[a2]] : [players[b1], players[b2]];
+        return { id: `r0_c${ci}`, teamA: tA, teamB: tB, scoreA: null, scoreB: null, played: false, duration: null, bye: null };
+      }));
+      continue;
+    }
 
     const used = new Set();
     const scored = allMatches

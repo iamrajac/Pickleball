@@ -658,7 +658,7 @@ export function useTournament() {
       normalizedProfiles[norm] = profile;
     });
 
-    const r = generateSchedule(normalizedPlayers, numRounds);
+    const r = generateSchedule(normalizedPlayers, numRounds, meta.seeded || false);
     const c = genCode();
     const pin = generateScorerPin();
     const uid = getAuth().currentUser?.uid || null;
