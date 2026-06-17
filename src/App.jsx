@@ -18,6 +18,7 @@ import { AccountScreen } from "./screens/AccountScreen";
 import { PublicTournamentScreen } from "./screens/PublicTournamentScreen";
 import { ClubsScreen } from "./screens/ClubsScreen";
 import { ClubDashboardScreen } from "./screens/ClubDashboardScreen";
+import { ClubPlayerStatsScreen } from "./screens/ClubPlayerStatsScreen";
 import { ToastProvider, useToast } from "./components/Toast";
 import { MatchCard } from "./components/MatchCard";
 import { StandingsTable } from "./components/StandingsTable";
@@ -846,6 +847,7 @@ function AppInner() {
         <Route path="/tournament/:code" element={<PublicTournamentScreen />} />
         <Route path="/clubs" element={<ClubsScreen />} />
         <Route path="/clubs/:clubId" element={<ClubDashboardScreen />} />
+        <Route path="/clubs/:clubId/player/:uid" element={<ClubPlayerStatsScreen />} />
         <Route path="*" element={<HubScreen user={user} isGuest={isGuest} theme={theme} onToggleTheme={toggleTheme} onCreateTournament={() => navigate("/create")} onOpenTournament={() => {}} />} />
       </Routes>
       </div>

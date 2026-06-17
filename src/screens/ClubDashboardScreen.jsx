@@ -85,13 +85,13 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
           <div key={m.uid}>
             <div className="glass-card" style={{ borderRadius: confirmKick === m.uid ? "12px 12px 0 0" : 12, padding: "12px 14px", marginBottom: confirmKick === m.uid ? 0 : 8, display: "flex", alignItems: "center", gap: 12 }}>
               <PlayerAvatar name={pName} profile={avatarProfile} size={36} expandable />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, cursor: "pointer" }} onClick={() => navigate(`/clubs/${clubId}/player/${m.uid}`)}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
                   {pName}
                   {isMe && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
-                  {m.role === "admin" ? "👑 Admin" : "Member"}
+                  {m.role === "admin" ? "👑 Admin" : "Member"} · tap for stats
                 </div>
               </div>
               {canKick && confirmKick !== m.uid && (
@@ -330,6 +330,117 @@ function TournamentsTab({ tournaments, clubId, navigate, onOpenLive, isAdmin }) 
   );
 }
 
+function ClubStatsTab({ tournaments, seasons, members, memberProfiles, clubId, navigate, themeColor }) {
+  const [selectedSeason, setSelectedSeason] = useState("all");
+
+  const completedTournaments = tournaments.filter(t => t.status === "completed");
+  const filteredTournaments = selectedSeason === "all"
+    ? completedTournaments
+    : (() => {
+        const season = seasons.find(s => s.id === selectedSeason);
+        const codes = new Set(season?.tournaments || []);
+        return completedTournaments.filter(t => codes.has(t.code));
+      })();
+
+  const stats = {};
+  members.forEach(m => {
+    const live = memberProfiles?.[m.uid];
+    const key = live?.displayName || m.playerName || m.name;
+    const lkey = key.toLowerCase();
+    const avatarProfile = live?.avatar || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
+    stats[lkey] = { name: key, uid: m.uid, avatar: avatarProfile, wins: 0, losses: 0, titles: 0, matches: 0 };
+  });
+
+  filteredTournaments.forEach(t => {
+    if (t.champion) {
+      t.champion.split(" & ").map(s => s.trim().toLowerCase()).forEach(p => {
+        if (stats[p]) stats[p].titles++;
+      });
+    }
+    if (t.playerStats) {
+      Object.entries(t.playerStats).forEach(([name, s]) => {
+        const lname = name.toLowerCase();
+        if (stats[lname]) {
+          stats[lname].wins += s.wins || 0;
+          stats[lname].losses += s.losses || 0;
+          stats[lname].matches += s.matches || 0;
+        }
+      });
+    }
+  });
+
+  const ranked = Object.values(stats)
+    .filter(p => p.matches > 0)
+    .sort((a, b) => b.titles - a.titles || b.wins - a.wins);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
+        {[{ id: "all", name: "All Time" }, ...seasons].map(s => (
+          <button key={s.id} onClick={() => setSelectedSeason(s.id)}
+            style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer",
+              background: selectedSeason === s.id ? (themeColor || "var(--color-lime)") : "rgba(255,255,255,0.06)",
+              color: selectedSeason === s.id ? "#0d0f0a" : "var(--color-muted)" }}>
+            {s.name}
+          </button>
+        ))}
+      </div>
+
+      {ranked.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+          <div>No stats yet for this period</div>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", alignItems: "center", padding: "0 14px 6px", gap: 12 }}>
+            <div style={{ width: 28 }} />
+            <div style={{ width: 44 }} />
+            <div style={{ flex: 1 }} />
+            <div style={{ display: "flex", gap: 0, textAlign: "center" }}>
+              {["TITLES", "WINS", "LOSS", "WIN%"].map(h => (
+                <div key={h} style={{ width: 40, fontSize: 9, color: "var(--color-muted)", letterSpacing: 1 }}>{h}</div>
+              ))}
+            </div>
+          </div>
+          {ranked.map((p, i) => {
+            const winRate = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+            return (
+              <div key={p.name} className="rh glass-card"
+                style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
+                  background: i === 0 ? "rgba(241,200,53,0.06)" : undefined,
+                  border: i === 0 ? "1px solid rgba(241,200,53,0.2)" : undefined }}
+                onClick={() => navigate(`/clubs/${clubId}/player/${p.uid}`)}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--color-muted)", width: 28, textAlign: "center" }}>
+                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                </div>
+                <PlayerAvatar name={p.name} profile={p.avatar} size={32} expandable />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{p.name}</div>
+                </div>
+                <div style={{ display: "flex", gap: 0, textAlign: "center" }}>
+                  <div style={{ width: 40 }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-gold)", lineHeight: 1 }}>{p.titles}</div>
+                  </div>
+                  <div style={{ width: 40 }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-lime)", lineHeight: 1 }}>{p.wins}</div>
+                  </div>
+                  <div style={{ width: 40 }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--color-muted)", lineHeight: 1 }}>{p.losses}</div>
+                  </div>
+                  <div style={{ width: 40 }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: winRate >= 50 ? "var(--color-lime)" : "var(--color-danger)", lineHeight: 1 }}>{winRate}%</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
+
 function SeasonTab({ seasons, clubId, isAdmin }) {
   const [creating, setCreating] = useState(false);
   const [seasonName, setSeasonName] = useState("");
@@ -492,6 +603,7 @@ export function ClubDashboardScreen() {
             {[
               { id: "members", label: "👥 MEMBERS" },
               { id: "leaderboard", label: "🏆 LEADERBOARD" },
+              { id: "stats", label: "📊 STATS" },
               { id: "tournaments", label: "📅 MATCHES" },
               { id: "season", label: "🏅 SEASON" },
             ].map(t => (
@@ -518,6 +630,7 @@ export function ClubDashboardScreen() {
 
         {tab === "members" && <MembersTab members={members} pendingMembers={pendingMembers} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} memberProfiles={memberProfiles} />}
         {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} memberProfiles={memberProfiles} />}
+        {tab === "stats" && <ClubStatsTab tournaments={tournaments} seasons={seasons} members={members} memberProfiles={memberProfiles} clubId={clubId} navigate={navigate} themeColor={club?.themeColor} />}
         {tab === "tournaments" && <TournamentsTab tournaments={tournaments} clubId={clubId} navigate={navigate} onOpenLive={(code) => navigate(`/?join=${code}`)} isAdmin={isAdmin} />}
         {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}
       </div>
