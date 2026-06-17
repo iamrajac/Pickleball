@@ -342,6 +342,64 @@ export async function addTournamentToSeason(clubId, seasonId, tournamentCode, pl
   });
 }
 
+export async function migrateSeasonPoints(clubId, seasonId) {
+  const seasonRef = doc(firestore, "clubs", clubId, "seasons", seasonId);
+  const snap = await getDoc(seasonRef);
+  if (!snap.exists()) return;
+  const season = snap.data();
+  if ((season.pointsVersion || 0) >= 2) return;
+
+  const tournamentCodes = season.tournaments || [];
+  if (tournamentCodes.length === 0) {
+    await updateDoc(seasonRef, { pointsVersion: 2 });
+    return;
+  }
+
+  const tSnap = await getDocs(collection(firestore, "clubs", clubId, "tournaments"));
+  const clubTs = tSnap.docs.map(d => d.data()).filter(t => tournamentCodes.includes(t.code));
+
+  const losingTeam = (match) => {
+    if (!match?.played) return [];
+    return (match.scoreA > match.scoreB ? match.teamB : match.teamA) || [];
+  };
+
+  const standings = {};
+  for (const t of clubTs) {
+    const fbSnap = await get(ref(db, `tournaments/${t.code}`));
+    if (!fbSnap.exists()) continue;
+    const fbData = fbSnap.val();
+    const champion = fbData.champion || t.champion;
+    const playoffs = fbData.playoffs || null;
+    const players = fbData.players || t.players || [];
+
+    const silverTeam = playoffs?.final ? losingTeam(playoffs.final) : [];
+    let bronzeTeam = [];
+    if (playoffs) {
+      const mode = playoffs.mode;
+      if (mode === "ipl8" || mode === "top8_ipl") bronzeTeam = losingTeam(playoffs.q2);
+      else if (mode === "ipl6") bronzeTeam = losingTeam(playoffs.elim);
+      else if (mode === "elim_to_sf") bronzeTeam = losingTeam(playoffs.sf);
+      else if (mode === "top8") bronzeTeam = [...losingTeam(playoffs.sf1), ...losingTeam(playoffs.sf2)];
+    }
+
+    const championSet = new Set(champion ? champion.split(" & ").map(s => s.trim().toLowerCase()) : []);
+    const silverSet = new Set(silverTeam.map(s => s.toLowerCase()));
+    const bronzeSet = new Set(bronzeTeam.map(s => s.toLowerCase()));
+
+    players.forEach(p => {
+      if (!standings[p]) standings[p] = { points: 0, wins: 0, played: 0 };
+      standings[p].played++;
+      const k = p.toLowerCase();
+      if (championSet.has(k)) { standings[p].points += 5; standings[p].wins++; }
+      else if (silverSet.has(k)) standings[p].points += 3;
+      else if (bronzeSet.has(k)) standings[p].points += 2;
+      else standings[p].points += 1;
+    });
+  }
+
+  await updateDoc(seasonRef, { standings, pointsVersion: 2 });
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────
 
 export function useClubs() {

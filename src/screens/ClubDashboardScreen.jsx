@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, useClubMemberProfiles, useClubFullHistory, leaveClub, kickMember, setMemberRole, createSeason, endSeason, saveTournamentToClub, removeTournamentFromClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
+import { useClubDetail, useClubMemberProfiles, useClubFullHistory, leaveClub, kickMember, setMemberRole, createSeason, endSeason, saveTournamentToClub, removeTournamentFromClub, approveJoinRequest, rejectJoinRequest, migrateSeasonPoints } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { computeCareerStats } from "../utils/careerStats";
 import { normalizePlayerName } from "../utils/players";
@@ -691,6 +691,12 @@ export function ClubDashboardScreen() {
   const { club, members, pendingMembers, tournaments, seasons, loading, isAdmin } = useClubDetail(clubId);
   const memberProfiles = useClubMemberProfiles(members);
   const [tab, setTab] = useState(location.state?.tab || "members");
+
+  useEffect(() => {
+    if (!clubId || !seasons.length) return;
+    seasons.filter(s => (s.pointsVersion || 0) < 2).forEach(s => migrateSeasonPoints(clubId, s.id));
+  }, [clubId, seasons]);
+
   const [showInvite, setShowInvite] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
