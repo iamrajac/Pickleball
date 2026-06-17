@@ -28,7 +28,8 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmKick, setConfirmKick] = useState(null);
-  const [confirmRole, setConfirmRole] = useState(null); // { uid, name, newRole }
+  const [confirmRole, setConfirmRole] = useState(null);
+  const [actionMenu, setActionMenu] = useState(null); // uid of member whose ⋮ menu is open
 
   const handleLeave = async () => {
     await leaveClub(clubId);
@@ -86,12 +87,13 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
         const avatarProfile = live?.avatar || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
         const isMe = m.uid === uid;
         const isMemberCreator = m.uid === club?.adminUid;
-        // Admins can manage any member except the creator (and not themselves)
         const canManage = isAdmin() && !isMe && !isMemberCreator;
+        const menuOpen = actionMenu === m.uid;
         const hasConfirm = confirmKick === m.uid || confirmRole?.uid === m.uid;
+        const openBottom = menuOpen || hasConfirm;
         return (
           <div key={m.uid}>
-            <div className="glass-card" style={{ borderRadius: hasConfirm ? "12px 12px 0 0" : 12, padding: "12px 14px", marginBottom: hasConfirm ? 0 : 8, display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="glass-card" style={{ borderRadius: openBottom ? "12px 12px 0 0" : 12, padding: "12px 14px", marginBottom: openBottom ? 0 : 8, display: "flex", alignItems: "center", gap: 12 }}>
               <PlayerAvatar name={pName} profile={avatarProfile} size={36} expandable />
               <div style={{ flex: 1, cursor: "pointer" }} onClick={() => navigate(`/clubs/${clubId}/player/${m.uid}`)}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
@@ -104,18 +106,26 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
                 </div>
               </div>
               {canManage && !hasConfirm && (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button className="pb" onClick={() => setConfirmRole({ uid: m.uid, name: pName, newRole: m.role === "admin" ? "member" : "admin" })}
-                    style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${m.role === "admin" ? "rgba(245,158,11,0.5)" : "rgba(16,212,142,0.4)"}`, background: m.role === "admin" ? "rgba(245,158,11,0.1)" : "rgba(16,212,142,0.1)", color: m.role === "admin" ? "#f59e0b" : "var(--color-lime)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                    {m.role === "admin" ? "👑 ADMIN" : "MAKE ADMIN"}
-                  </button>
-                  <button className="pb" onClick={() => setConfirmKick(m.uid)}
-                    style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                    KICK
-                  </button>
-                </div>
+                <button className="pb" onClick={(e) => { e.stopPropagation(); setActionMenu(menuOpen ? null : m.uid); }}
+                  style={{ width: 32, height: 32, borderRadius: 7, border: "1px solid var(--color-border)", background: menuOpen ? "var(--color-surface)" : "none", color: "var(--color-muted)", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                  ⋮
+                </button>
               )}
             </div>
+
+            {/* Three-dot dropdown menu */}
+            {menuOpen && !hasConfirm && (
+              <div className="glass-card" style={{ borderRadius: "0 0 12px 12px", marginBottom: 8, borderTop: "none", border: "1px solid var(--color-border)", overflow: "hidden" }}>
+                <button className="pb" onClick={() => { setConfirmRole({ uid: m.uid, name: pName, newRole: m.role === "admin" ? "member" : "admin" }); setActionMenu(null); }}
+                  style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: m.role === "admin" ? "#f59e0b" : "var(--color-lime)", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--color-border)" }}>
+                  👑 {m.role === "admin" ? "Remove Admin" : "Make Admin"}
+                </button>
+                <button className="pb" onClick={() => { setConfirmKick(m.uid); setActionMenu(null); }}
+                  style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", color: "var(--color-danger)", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
+                  🚫 Kick from club
+                </button>
+              </div>
+            )}
 
             {confirmRole?.uid === m.uid && (
               <div className="glass-card" style={{ borderRadius: "0 0 12px 12px", padding: "10px 14px", marginBottom: 8, border: `1px solid ${confirmRole.newRole === "admin" ? "rgba(16,212,142,0.3)" : "rgba(245,158,11,0.3)"}`, borderTop: "none" }}>
@@ -170,9 +180,23 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
           </>
         )}
 
-        {/* Creator gets DELETE CLUB */}
+        {/* Creator gets LEAVE CLUB + DELETE CLUB */}
         {isCreator && (
           <>
+            {!confirmLeave ? (
+              <button className="pb" onClick={() => setConfirmLeave(true)}
+                style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                <LogOut size={15} /> LEAVE CLUB
+              </button>
+            ) : (
+              <div className="glass-card" style={{ borderRadius: 10, padding: "1rem", border: "1px solid rgba(239,68,68,0.3)", marginBottom: 10 }}>
+                <div style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 10 }}>Leave this club? Your match history stays but you'll lose access.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setConfirmLeave(false)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", cursor: "pointer" }}>CANCEL</button>
+                  <button onClick={handleLeave} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: "var(--color-danger)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>LEAVE</button>
+                </div>
+              </div>
+            )}
             {!confirmDelete ? (
               <button className="pb" onClick={() => setConfirmDelete(true)}
                 style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
