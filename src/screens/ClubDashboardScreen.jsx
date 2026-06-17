@@ -197,7 +197,7 @@ function LeaderboardTab({ members, tournaments, memberProfiles }) {
     }
   });
 
-  const ranked = Object.values(stats).sort((a, b) => b.titles - a.titles || b.wins - a.wins);
+  const ranked = Object.values(stats).sort((a, b) => b.titles - a.titles || (b.matches > 0 ? b.wins / b.matches : 0) - (a.matches > 0 ? a.wins / a.matches : 0) || b.wins - a.wins);
 
   if (ranked.length === 0) return (
     <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-muted)" }}>
@@ -371,7 +371,7 @@ function ClubStatsTab({ tournaments, seasons, members, memberProfiles, clubId, n
 
   const ranked = Object.values(stats)
     .filter(p => p.matches > 0)
-    .sort((a, b) => b.titles - a.titles || b.wins - a.wins);
+    .sort((a, b) => b.titles - a.titles || (b.matches > 0 ? b.wins / b.matches : 0) - (a.matches > 0 ? a.wins / a.matches : 0) || b.wins - a.wins);
 
   return (
     <div>

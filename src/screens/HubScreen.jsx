@@ -273,7 +273,7 @@ export function HubScreen({ user, isGuest, onCreateTournament, onOpenTournament,
         setLoadingMy(false);
         if (snap.empty) return; // Firestore empty — keep showing localStorage
         const docs = snap.docs.map(d => fromFirestoreDoc(d.data()));
-        docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        docs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         setMyTournaments(docs.map(normalize));
         saveH(docs); // keep local cache in sync with Firestore
       },

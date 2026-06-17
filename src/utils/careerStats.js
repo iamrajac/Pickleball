@@ -4,7 +4,9 @@
 import { normalizePlayerName } from "./players";
 
 export function computeCareerStats(history) {
-  const completedTournaments = history.filter(t => t.rounds && t.rounds.length > 0);
+  const completedTournaments = history
+    .filter(t => t.rounds && t.rounds.length > 0)
+    .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
   
   const players = {}; // normalized name -> stats (with display name preserved)
   const partnerships = {}; // "normA|normB" -> stats
@@ -218,7 +220,7 @@ export function computeCareerStats(history) {
   }, null);
 
   return {
-    players: Object.values(players).sort((a, b) => b.wins - a.wins || b.matches - a.matches),
+    players: Object.values(players).sort((a, b) => b.titles - a.titles || (b.winRate ?? 0) - (a.winRate ?? 0) || b.wins - a.wins),
     partnerships: Object.values(partnerships)
       .filter(p => p.matches >= 2)
       .sort((a, b) => (b.wins/Math.max(b.matches,1)) - (a.wins/Math.max(a.matches,1))),
