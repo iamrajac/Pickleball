@@ -166,6 +166,10 @@ export async function rejectJoinRequest(clubId, pendingUid) {
   });
 }
 
+export async function setMemberRole(clubId, memberUid, role) {
+  await updateDoc(doc(firestore, "clubs", clubId, "members", memberUid), { role });
+}
+
 export async function kickMember(clubId, memberUid) {
   await deleteDoc(doc(firestore, "clubs", clubId, "members", memberUid));
   try {
@@ -196,9 +200,19 @@ export async function syncProfileToClubs(uid, clubIds, { displayName, avatar }) 
 export async function leaveClub(clubId) {
   const uid = getAuth().currentUser?.uid;
   if (!uid) return;
+  // If leaving as an admin, auto-promote earliest-joined member if no other admin remains
+  const memberSnap = await getDoc(doc(firestore, "clubs", clubId, "members", uid));
+  if (memberSnap.exists() && memberSnap.data().role === "admin") {
+    const allSnap = await getDocs(collection(firestore, "clubs", clubId, "members"));
+    const others = allSnap.docs.filter(d => d.id !== uid).map(d => ({ uid: d.id, ...d.data() }));
+    const hasOtherAdmin = others.some(m => m.role === "admin");
+    if (!hasOtherAdmin && others.length > 0) {
+      const earliest = [...others].sort((a, b) => (a.joinedAt?.seconds || 0) - (b.joinedAt?.seconds || 0))[0];
+      await updateDoc(doc(firestore, "clubs", clubId, "members", earliest.uid), { role: "admin" });
+    }
+  }
   await deleteDoc(doc(firestore, "clubs", clubId, "members", uid));
   await updateDoc(doc(firestore, "users", uid), { clubs: arrayRemove(clubId) });
-  // Decrement memberCount
   try {
     const clubSnap = await getDoc(doc(firestore, "clubs", clubId));
     if (clubSnap.exists()) {
@@ -405,8 +419,8 @@ export function useClubDetail(clubId) {
 
   const isAdmin = useCallback(() => {
     const uid = getAuth().currentUser?.uid;
-    return club?.adminUid === uid;
-  }, [club]);
+    return members.find(m => m.uid === uid)?.role === "admin";
+  }, [members]);
 
   return { club, members, pendingMembers, tournaments, seasons, loading, isAdmin };
 }

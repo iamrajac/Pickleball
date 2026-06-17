@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, useClubMemberProfiles, useClubFullHistory, leaveClub, kickMember, createSeason, endSeason, saveTournamentToClub, removeTournamentFromClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
+import { useClubDetail, useClubMemberProfiles, useClubFullHistory, leaveClub, kickMember, setMemberRole, createSeason, endSeason, saveTournamentToClub, removeTournamentFromClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { computeCareerStats } from "../utils/careerStats";
 import { normalizePlayerName } from "../utils/players";
@@ -24,9 +24,11 @@ async function deleteClub(clubId, adminUid) {
 
 function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, memberProfiles }) {
   const uid = getAuth().currentUser?.uid;
+  const isCreator = uid === club?.adminUid;
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmKick, setConfirmKick] = useState(null); // uid of member to kick
+  const [confirmKick, setConfirmKick] = useState(null);
+  const [confirmRole, setConfirmRole] = useState(null); // { uid, name, newRole }
 
   const handleLeave = async () => {
     await leaveClub(clubId);
@@ -77,32 +79,59 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
       <div style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 12 }}>
         {members.length} member{members.length !== 1 ? "s" : ""}
       </div>
+
       {members.map(m => {
         const live = memberProfiles?.[m.uid];
         const pName = live?.displayName || m.playerName || m.name;
         const avatarProfile = live?.avatar || m.avatar || (m.photoURL ? { type: "image", value: m.photoURL } : null);
         const isMe = m.uid === uid;
-        const canKick = isAdmin() && !isMe && m.role !== "admin";
+        const isMemberCreator = m.uid === club?.adminUid;
+        // Admins can manage any member except the creator (and not themselves)
+        const canManage = isAdmin() && !isMe && !isMemberCreator;
+        const hasConfirm = confirmKick === m.uid || confirmRole?.uid === m.uid;
         return (
           <div key={m.uid}>
-            <div className="glass-card" style={{ borderRadius: confirmKick === m.uid ? "12px 12px 0 0" : 12, padding: "12px 14px", marginBottom: confirmKick === m.uid ? 0 : 8, display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="glass-card" style={{ borderRadius: hasConfirm ? "12px 12px 0 0" : 12, padding: "12px 14px", marginBottom: hasConfirm ? 0 : 8, display: "flex", alignItems: "center", gap: 12 }}>
               <PlayerAvatar name={pName} profile={avatarProfile} size={36} expandable />
               <div style={{ flex: 1, cursor: "pointer" }} onClick={() => navigate(`/clubs/${clubId}/player/${m.uid}`)}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6 }}>
                   {pName}
                   {isMe && <span style={{ fontSize: 9, background: "rgba(16,212,142,0.15)", color: "var(--color-lime)", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>YOU</span>}
+                  {isMemberCreator && <span style={{ fontSize: 9, background: "rgba(245,158,11,0.15)", color: "#f59e0b", padding: "2px 6px", borderRadius: 4, fontWeight: 700, letterSpacing: 1 }}>OWNER</span>}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--color-muted)" }}>
                   {m.role === "admin" ? "👑 Admin" : "Member"}
                 </div>
               </div>
-              {canKick && confirmKick !== m.uid && (
-                <button className="pb" onClick={() => setConfirmKick(m.uid)}
-                  style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  KICK
-                </button>
+              {canManage && !hasConfirm && (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button className="pb" onClick={() => setConfirmRole({ uid: m.uid, name: pName, newRole: m.role === "admin" ? "member" : "admin" })}
+                    style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${m.role === "admin" ? "rgba(245,158,11,0.5)" : "rgba(16,212,142,0.4)"}`, background: m.role === "admin" ? "rgba(245,158,11,0.1)" : "rgba(16,212,142,0.1)", color: m.role === "admin" ? "#f59e0b" : "var(--color-lime)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {m.role === "admin" ? "👑 ADMIN" : "MAKE ADMIN"}
+                  </button>
+                  <button className="pb" onClick={() => setConfirmKick(m.uid)}
+                    style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--color-danger)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    KICK
+                  </button>
+                </div>
               )}
             </div>
+
+            {confirmRole?.uid === m.uid && (
+              <div className="glass-card" style={{ borderRadius: "0 0 12px 12px", padding: "10px 14px", marginBottom: 8, border: `1px solid ${confirmRole.newRole === "admin" ? "rgba(16,212,142,0.3)" : "rgba(245,158,11,0.3)"}`, borderTop: "none" }}>
+                <div style={{ fontSize: 12, color: "var(--color-text)", marginBottom: 8 }}>
+                  {confirmRole.newRole === "admin" ? <>Make <strong>{pName}</strong> an admin?</> : <>Remove admin from <strong>{pName}</strong>?</>}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setConfirmRole(null)} style={{ flex: 1, padding: "8px", borderRadius: 7, border: "1px solid var(--color-border)", background: "none", color: "var(--color-muted)", fontSize: 12, cursor: "pointer" }}>CANCEL</button>
+                  <button onClick={async () => { await setMemberRole(clubId, m.uid, confirmRole.newRole); setConfirmRole(null); }}
+                    style={{ flex: 1, padding: "8px", borderRadius: 7, border: "none", background: confirmRole.newRole === "admin" ? "var(--color-lime)" : "#f59e0b", color: "#0d0f0a", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    CONFIRM
+                  </button>
+                </div>
+              </div>
+            )}
+
             {confirmKick === m.uid && (
               <div className="glass-card" style={{ borderRadius: "0 0 12px 12px", padding: "10px 14px", marginBottom: 8, border: "1px solid rgba(239,68,68,0.3)", borderTop: "none" }}>
                 <div style={{ fontSize: 12, color: "var(--color-text)", marginBottom: 8 }}>Remove <strong>{pName}</strong> from the club?</div>
@@ -121,7 +150,8 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
 
       {/* Leave / Delete buttons */}
       <div style={{ marginTop: 24 }}>
-        {!isAdmin() && (
+        {/* Non-creators (members + non-creator admins) get LEAVE CLUB */}
+        {!isCreator && (
           <>
             {!confirmLeave ? (
               <button className="pb" onClick={() => setConfirmLeave(true)}
@@ -140,7 +170,8 @@ function MembersTab({ members, pendingMembers, club, isAdmin, clubId, navigate, 
           </>
         )}
 
-        {isAdmin() && (
+        {/* Creator gets DELETE CLUB */}
+        {isCreator && (
           <>
             {!confirmDelete ? (
               <button className="pb" onClick={() => setConfirmDelete(true)}
@@ -364,7 +395,7 @@ function ClubStatsTab({ tournaments, seasons, members, memberProfiles, clubId, n
   const { players = [], partnerships = [], records = {}, totalTournaments = 0, totalMatches = 0 } = stats || {};
 
   const mostTitles = [...players].sort((a, b) => b.titles - a.titles)[0];
-  const bestWinRate = [...players].sort((a, b) => (b.winRate ?? 0) - (a.winRate ?? 0))[0];
+  const bestWinRate = ([...players].filter(p => p.matches >= 3).sort((a, b) => (b.winRate ?? 0) - (a.winRate ?? 0))[0]) || players[0];
   const longestStreak = [...players].sort((a, b) => b.bestStreak - a.bestStreak)[0];
   const topScorer = [...players].sort((a, b) => b.scored - a.scored)[0];
 
@@ -460,7 +491,7 @@ function ClubStatsTab({ tournaments, seasons, members, memberProfiles, clubId, n
             return (
               <div key={p.name} className="rh glass-card"
                 style={{ borderRadius: 14, padding: "1rem 1.2rem", cursor: "pointer", marginBottom: 10, border: `1px solid ${i === 0 ? "rgba(241,200,53,0.2)" : "var(--color-border)"}`, background: i === 0 ? "rgba(241,200,53,0.06)" : undefined }}
-                onClick={() => uid && navigate(`/clubs/${clubId}/player/${uid}`)}>
+                onClick={() => uid && navigate(`/clubs/${clubId}/player/${uid}`, { state: { fromTab: "stats" } })}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: i < 3 ? "var(--color-lime)" : "var(--color-muted)", width: 28, textAlign: "center" }}>
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
@@ -632,9 +663,10 @@ function SeasonTab({ seasons, clubId, isAdmin }) {
 export function ClubDashboardScreen() {
   const { clubId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { club, members, pendingMembers, tournaments, seasons, loading, isAdmin } = useClubDetail(clubId);
   const memberProfiles = useClubMemberProfiles(members);
-  const [tab, setTab] = useState("members");
+  const [tab, setTab] = useState(location.state?.tab || "members");
   const [showInvite, setShowInvite] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
