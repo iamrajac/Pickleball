@@ -261,6 +261,11 @@ export async function saveTournamentToClub(clubId, tournamentEntry) {
   }, { merge: true });
 }
 
+export async function removeTournamentFromClub(clubId, tournamentCode) {
+  if (!clubId || !tournamentCode) return;
+  await deleteDoc(doc(firestore, "clubs", clubId, "tournaments", tournamentCode));
+}
+
 // ── Season CRUD ────────────────────────────────────────────────────────────
 
 export async function createSeason(clubId, name) {

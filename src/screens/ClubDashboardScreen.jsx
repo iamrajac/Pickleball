@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Copy, Plus, LogOut, Trash2, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getAuth } from "firebase/auth";
-import { useClubDetail, useClubMemberProfiles, leaveClub, kickMember, createSeason, endSeason, saveTournamentToClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
+import { useClubDetail, useClubMemberProfiles, leaveClub, kickMember, createSeason, endSeason, saveTournamentToClub, removeTournamentFromClub, approveJoinRequest, rejectJoinRequest } from "../hooks/useClub";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { doc, deleteDoc, getDocs, collection } from "firebase/firestore";
 import { firestore, db } from "../firebase";
@@ -237,7 +237,8 @@ function LeaderboardTab({ members, tournaments, memberProfiles }) {
   );
 }
 
-function TournamentsTab({ tournaments, clubId, navigate, onOpenLive }) {
+function TournamentsTab({ tournaments, clubId, navigate, onOpenLive, isAdmin }) {
+  const [confirmDelete, setConfirmDelete] = useState(null);
   // Sync all tournaments with Firebase Realtime DB:
   // - Completed without playerStats: backfill stats
   // - Live/unknown: check if champion was declared and update status
@@ -283,26 +284,46 @@ function TournamentsTab({ tournaments, clubId, navigate, onOpenLive }) {
   return (
     <div>
       {tournaments.map(t => (
-        <div key={t.code} className="rh glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: "pointer" }}
-          onClick={() => {
-            if (t.status === "live" || t.status === "in-progress") {
-              onOpenLive(t.code);
-            } else {
-              navigate("/history/detail", { state: { tournament: t } });
-            }
-          }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{t.name || `#${t.code}`}</div>
-              <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>
-                {t.date ? new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" }) : ""} · {t.playerCount} players
+        <div key={t.code}>
+          <div className="rh glass-card" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: confirmDelete === t.code ? 0 : 8, cursor: "pointer", borderBottomLeftRadius: confirmDelete === t.code ? 0 : 12, borderBottomRightRadius: confirmDelete === t.code ? 0 : 12 }}
+            onClick={() => {
+              if (confirmDelete === t.code) return;
+              if (t.status === "live" || t.status === "in-progress") {
+                onOpenLive(t.code);
+              } else {
+                navigate("/history/detail", { state: { tournament: t } });
+              }
+            }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{t.name || `#${t.code}`}</div>
+                <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>
+                  {t.date ? new Date(t.date).toLocaleDateString("en-IN", { dateStyle: "medium" }) : ""} · {t.playerCount} players
+                </div>
+                {t.champion && <div style={{ fontSize: 11, color: "var(--color-gold)", marginTop: 2 }}>🏆 {t.champion}</div>}
               </div>
-              {t.champion && <div style={{ fontSize: 11, color: "var(--color-gold)", marginTop: 2 }}>🏆 {t.champion}</div>}
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: t.status === "completed" ? "rgba(16,212,142,0.12)" : "rgba(239,68,68,0.12)", color: t.status === "completed" ? "var(--color-lime)" : "var(--color-danger)" }}>
+                {t.status === "completed" ? "DONE" : "LIVE"}
+              </span>
+              {isAdmin() && (
+                <button onClick={e => { e.stopPropagation(); setConfirmDelete(confirmDelete === t.code ? null : t.code); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 2px", color: "var(--color-muted)", display: "flex", alignItems: "center" }}>
+                  <Trash2 size={15} />
+                </button>
+              )}
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: t.status === "completed" ? "rgba(16,212,142,0.12)" : "rgba(239,68,68,0.12)", color: t.status === "completed" ? "var(--color-lime)" : "var(--color-danger)" }}>
-              {t.status === "completed" ? "DONE" : "LIVE"}
-            </span>
           </div>
+          {confirmDelete === t.code && (
+            <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderTop: "none", borderRadius: "0 0 12px 12px", padding: "10px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 12, color: "var(--color-danger)" }}>
+                {t.status === "completed" ? "Remove from club? (stats stay in player history)" : "Remove this live tournament from club?"}
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setConfirmDelete(null)} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: "var(--color-muted)" }}>Cancel</button>
+                <button onClick={async () => { await removeTournamentFromClub(clubId, t.code); setConfirmDelete(null); }} style={{ background: "var(--color-danger)", border: "none", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", color: "#fff", fontWeight: 700 }}>Remove</button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -497,7 +518,7 @@ export function ClubDashboardScreen() {
 
         {tab === "members" && <MembersTab members={members} pendingMembers={pendingMembers} club={club} isAdmin={isAdmin} clubId={clubId} navigate={navigate} memberProfiles={memberProfiles} />}
         {tab === "leaderboard" && <LeaderboardTab members={members} tournaments={tournaments} memberProfiles={memberProfiles} />}
-        {tab === "tournaments" && <TournamentsTab tournaments={tournaments} clubId={clubId} navigate={navigate} onOpenLive={(code) => navigate(`/?join=${code}`)} />}
+        {tab === "tournaments" && <TournamentsTab tournaments={tournaments} clubId={clubId} navigate={navigate} onOpenLive={(code) => navigate(`/?join=${code}`)} isAdmin={isAdmin} />}
         {tab === "season" && <SeasonTab seasons={seasons} clubId={clubId} isAdmin={isAdmin} />}
       </div>
 
