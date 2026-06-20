@@ -40,13 +40,14 @@ function ScoreCounter({ value, onChange, hasError, incDisabled }) {
   );
 }
 
-export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {}, onLiveScore, liveScore }) {
+export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix = {}, profiles = {}, onLiveScore, liveScore, onEdit }) {
   const matchKey = match ? `${match.label}-${(match.teamA||[]).join("-")}` : "none";
 
   const [sA, setSA] = useState(() => scoreBuffer[matchKey]?.sA ?? match?.scoreA ?? "");
   const [sB, setSB] = useState(() => scoreBuffer[matchKey]?.sB ?? match?.scoreB ?? "");
   const [matchNotes, setMatchNotes] = useState(() => scoreBuffer[matchKey]?.notes ?? match?.notes ?? "");
   const [isActive, setIsActive] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [scoreHistory, setScoreHistory] = useState([]);
   const [storyMoments, setStoryMoments] = useState([]);
@@ -149,8 +150,8 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
     </div>
   );
 
-  const wA = match.played && match.scoreA > match.scoreB;
-  const wB = match.played && match.scoreB > match.scoreA;
+  const wA = match.played && !editMode && match.scoreA > match.scoreB;
+  const wB = match.played && !editMode && match.scoreB > match.scoreA;
   const fmtDur = s => s ? `${Math.floor(s / 60)}m ${s % 60}s` : null;
 
   const hint = scoreHint(sA, sB);
@@ -164,6 +165,11 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
 
   const handleSave = () => {
     if (!canSave) return;
+    if (editMode) {
+      onEdit?.(Number(sA), Number(sB));
+      setEditMode(false);
+      return;
+    }
     const dur = timer.running ? timer.stop() : timer.elapsed || null;
     timer.reset();
     delete scoreBuffer[matchKey];
@@ -222,12 +228,16 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
               {team ? team.join(" & ") : "TBD"}
             </span>
           </div>
-          {match.played && <span style={{ fontFamily: "var(--font-display)", fontSize: 28, color: win ? "var(--accent)" : "var(--text-muted)", lineHeight: 1, flexShrink: 0 }}>{score}</span>}
+          {match.played && !editMode && <span style={{ fontFamily: "var(--font-display)", fontSize: 28, color: win ? "var(--accent)" : "var(--text-muted)", lineHeight: 1, flexShrink: 0 }}>{score}</span>}
         </div>
       ))}
 
-      {match.played && match.duration && (
+      {match.played && !editMode && match.duration && (
         <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "right", marginTop: 8 }}>⏱ {fmtDur(match.duration)}</div>
+      )}
+      {match.played && !editMode && onEdit && (
+        <button onClick={(e) => { e.stopPropagation(); setSA(String(match.scoreA ?? "")); setSB(String(match.scoreB ?? "")); setEditMode(true); }}
+          style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 13, padding: 4 }}>✏️</button>
       )}
 
       {/* Live score display for spectators */}
@@ -244,7 +254,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
         </div>
       )}
 
-      {!match.played && !readOnly && (
+      {(!match.played || editMode) && !readOnly && (
         <>
           {/* Score counters */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 8 }}>
@@ -267,8 +277,14 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
 
           <button className="pb" onClick={handleSave} disabled={!canSave}
             style={{ width: "100%", marginTop: 12, padding: "13px", background: canSave ? ac : "var(--card-hover)", border: "none", borderRadius: "var(--radius-md)", fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 1, color: canSave ? "#fff" : "var(--text-muted)", cursor: canSave ? "pointer" : "not-allowed" }}>
-            CONFIRM RESULT
+            {editMode ? "UPDATE RESULT" : "CONFIRM RESULT"}
           </button>
+          {editMode && (
+            <button className="pb" onClick={() => { setEditMode(false); setSA(String(match.scoreA ?? "")); setSB(String(match.scoreB ?? "")); }}
+              style={{ width: "100%", marginTop: 6, padding: "10px", background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", fontFamily: "var(--font-display)", fontSize: 13, color: "var(--text-muted)", cursor: "pointer" }}>
+              CANCEL
+            </button>
+          )}
 
           {isActive && (
             <div style={{ marginTop: 10, padding: "8px 10px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>

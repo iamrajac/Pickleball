@@ -119,7 +119,7 @@ export function generateAutoNote(history, teamA, teamB) {
 }
 
 export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatrix = {}, profiles = {},
-  timerState, onTimerStart, onTimerStop, onTimerReset, onLiveScore, liveScore, tournamentName, roundIndex }) {
+  timerState, onTimerStart, onTimerStop, onTimerReset, onLiveScore, liveScore, tournamentName, roundIndex, onEdit }) {
   const [sA, setSA] = useState(match.scoreA ?? "");
   const [sB, setSB] = useState(match.scoreB ?? "");
   const [localTouched, setLocalTouched] = useState(false); // true once THIS device taps +/-
@@ -129,6 +129,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
   const [storyMoments, setStoryMoments] = useState([]);
   const [isActive, setIsActive] = useState(false);
   const [localSaved, setLocalSaved] = useState(false); // instantly hides SAVE on this device
+  const [editMode, setEditMode] = useState(false);
   const [liveTick, setLiveTick] = useState(0); // forces re-render for live timer
   const [scoreSynced, setScoreSynced] = useState(false); // visual feedback for sync
   const prevPlayedRef = useRef(match.played); // track played state changes for spectator celebration
@@ -373,6 +374,11 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
 
   const handleSave = () => {
     if (!canSave) return;
+    if (editMode) {
+      onEdit?.(Number(sA), Number(sB));
+      setEditMode(false);
+      return;
+    }
     const { valid } = validatePickleballScore(sA, sB);
     if (!valid) return;
     const rawDur = timer.running ? timer.stop() : timer.elapsed || null;
@@ -414,8 +420,12 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
           {wA && <div style={{ fontSize: 9, letterSpacing: 2, color: 'var(--color-lime)', marginTop: 4 }}>WIN ✓</div>}
         </div>
 
-        {isPlayed ? (
-          <div style={{ textAlign: "center", minWidth: 72 }}>
+        {isPlayed && !editMode ? (
+          <div style={{ textAlign: "center", minWidth: 72, position: "relative" }}>
+            {onEdit && (
+              <button onClick={(e) => { e.stopPropagation(); setSA(String(match.scoreA ?? "")); setSB(String(match.scoreB ?? "")); setEditMode(true); }}
+                style={{ position: "absolute", top: -4, right: -6, background: "none", border: "none", color: "var(--color-muted)", cursor: "pointer", padding: 2, fontSize: 12, lineHeight: 1 }}>✏️</button>
+            )}
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--color-lime)', letterSpacing: 3, lineHeight: 1 }}>
               {localSaved ? `${sA}–${sB}` : `${match.scoreA}–${match.scoreB}`}
             </div>
@@ -425,7 +435,7 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
               <Share2 size={10} /> SHARE
             </button>
           </div>
-        ) : readOnly ? (
+        ) : (readOnly && !editMode) ? (
           <div style={{ textAlign: "center", minWidth: 72 }}>
             {(sA !== "" || sB !== "") ? (
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--color-lime)', letterSpacing: 3, lineHeight: 1 }}>
@@ -449,11 +459,17 @@ export function MatchCard({ match, onSave, delay = 0, readOnly = false, h2hMatri
             </div>
             <button className="pb" onClick={handleSave} disabled={!canSave}
               style={{ width: "100%", background: canSave ? 'var(--color-lime)' : 'rgba(200,241,53,0.2)', border: "none", borderRadius: 'var(--radius-sm)', padding: "8px 4px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, color: canSave ? 'var(--color-dark)' : 'var(--color-muted)', cursor: canSave ? "pointer" : "not-allowed", position: "relative", overflow: "hidden" }}>
-              SAVE
+              {editMode ? "UPDATE" : "SAVE"}
               {scoreSynced && (
                 <span style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--color-dark)", fontWeight: 700, animation: "slideIn 0.3s ease-out" }}>✓</span>
               )}
             </button>
+            {editMode && (
+              <button className="pb" onClick={() => { setEditMode(false); setSA(String(match.scoreA ?? "")); setSB(String(match.scoreB ?? "")); }}
+                style={{ width: "100%", marginTop: 4, background: "none", border: "1px solid var(--color-border)", borderRadius: 'var(--radius-sm)', padding: "8px 4px", fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 1, color: "var(--color-muted)", cursor: "pointer" }}>
+                CANCEL
+              </button>
+            )}
           </div>
         )}
 

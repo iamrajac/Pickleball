@@ -401,6 +401,7 @@ function TournamentView({ t, theme, toggleTheme, user, playerDisplayName }) {
                         <div key={mi} className={animatingScore === tk ? "score-flash" : ""}>
                           <MatchCard match={m} delay={mi * 0.04} readOnly={readOnly}
                             onSave={(a, b, dur, notes) => saveResult(ri, mi, a, b, dur, notes)}
+                            onEdit={!readOnly ? (a, b) => saveResult(ri, mi, a, b, 0, m.notes) : undefined}
                             h2hMatrix={h2hMatrix} profiles={profiles}
                             timerState={t.getMatchTimer(tk)}
                             onTimerStart={() => t.startMatchTimer(tk)}
@@ -518,7 +519,7 @@ function PlayoffSection({ playoffs, champion, players, profiles, savePlayoff, re
   const labels = { final_only: "GRAND FINAL", elim_to_sf: "TOP 4 BRACKET", ipl6: "6-TEAM IPL BRACKET", ipl8: "IPL PLAYOFF BRACKET", top8: "TOP 8 BRACKET", top8_ipl: "TOP 8 IPL BRACKET" };
   const desc = { final_only: "Single match final", elim_to_sf: "Semi Final + Final", ipl6: "Q1 · Eliminator · Final", ipl8: "Q1 · Eliminator · Q2 · Final", top8: "QF · SF · Final", top8_ipl: "Q1 · Q2 · Elim · SF · Final" };
   const elim = playoffs.eliminated || [];
-  const pc = (stage, match, accent) => match ? <PlayoffCard key={stage} match={match} onSave={(a, b, d, n) => savePlayoff(stage, a, b, d, n)} accent={accent || "var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} onLiveScore={pushLiveScore ? (a, b, note, startedAt) => pushLiveScore(`playoff-${stage}`, a, b, note, startedAt) : undefined} liveScore={liveScores?.[`playoff-${stage}`]} /> : null;
+  const pc = (stage, match, accent) => match ? <PlayoffCard key={stage} match={match} onSave={(a, b, d, n) => savePlayoff(stage, a, b, d, n)} accent={accent || "var(--color-lime)"} readOnly={readOnly} h2hMatrix={h2hMatrix} profiles={profiles} onLiveScore={pushLiveScore ? (a, b, note, startedAt) => pushLiveScore(`playoff-${stage}`, a, b, note, startedAt) : undefined} liveScore={liveScores?.[`playoff-${stage}`]} onEdit={!readOnly ? (a, b) => savePlayoff(stage, a, b, 0) : undefined} /> : null;
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto" }}>

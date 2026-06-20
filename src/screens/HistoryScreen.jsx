@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
-import { ref as fbRef, get } from "firebase/database";
+import { ref as fbRef, get, set as fbSet, update as fbUpdate } from "firebase/database";
 import { doc, deleteDoc, collection, getDocs, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, firestore } from "../firebase";
 import { loadH, saveH, isCreator } from "../utils/history";
@@ -416,6 +416,52 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
   const playoffs = t.playoffs ? (typeof t.playoffs === 'object' && !Array.isArray(t.playoffs) ? t.playoffs : null) : null;
   const profiles = t.profiles || {};
 
+  const canEdit = !!(t.code && (t.createdBy === getAuth().currentUser?.uid || isCreator(t.code)));
+
+  const editRoundMatch = async (ri, mi, newScoreA, newScoreB) => {
+    const updatedRounds = fullData.rounds.map((r, rIdx) =>
+      rIdx === ri ? r.map((m, mIdx) => mIdx === mi ? { ...m, scoreA: newScoreA, scoreB: newScoreB } : m) : r
+    );
+    await fbSet(fbRef(db, `tournaments/${t.code}/rounds/${ri}/${mi}`), { ...fullData.rounds[ri][mi], scoreA: newScoreA, scoreB: newScoreB });
+    const next = { ...fullData, rounds: updatedRounds, finalStandings: computeStandings(fullData.players, updatedRounds) };
+    setFullData(next);
+    const all = loadH(); const idx = all.findIndex(x => x.code === t.code);
+    if (idx >= 0) { all[idx] = { ...all[idx], rounds: updatedRounds }; saveH(all); }
+    const uid = getAuth().currentUser?.uid;
+    if (uid) saveFullTournament(uid, next);
+  };
+
+  const editPlayoffMatch = async (stage, newScoreA, newScoreB) => {
+    const cur = fullData.playoffs[stage];
+    const win = newScoreA > newScoreB ? cur.teamA : cur.teamB;
+    const updatedStage = { ...cur, scoreA: newScoreA, scoreB: newScoreB };
+    const updatedPlayoffs = { ...fullData.playoffs, [stage]: updatedStage };
+    let newChampion = fullData.champion;
+    if (stage === "final") {
+      newChampion = win.join(" & ");
+      updatedPlayoffs.champion = newChampion;
+    }
+    await fbSet(fbRef(db, `tournaments/${t.code}/playoffs/${stage}`), updatedStage);
+    if (stage === "final") {
+      await fbUpdate(fbRef(db, `tournaments/${t.code}`), { champion: newChampion });
+      const clubId = localStorage.getItem(`pkl_club_${t.code}`);
+      if (clubId) {
+        await updateDoc(doc(firestore, "clubs", clubId, "tournaments", t.code), { champion: newChampion });
+        const seasonsSnap = await getDocs(collection(firestore, "clubs", clubId, "seasons"));
+        for (const sDoc of seasonsSnap.docs) {
+          if ((sDoc.data().tournaments || []).includes(t.code))
+            await updateDoc(sDoc.ref, { pointsVersion: 0 });
+        }
+      }
+    }
+    const next = { ...fullData, playoffs: updatedPlayoffs, champion: newChampion };
+    setFullData(next);
+    const all = loadH(); const idx = all.findIndex(x => x.code === t.code);
+    if (idx >= 0) { all[idx] = { ...all[idx], playoffs: updatedPlayoffs, champion: newChampion }; saveH(all); }
+    const uid = getAuth().currentUser?.uid;
+    if (uid) saveFullTournament(uid, next);
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: 'var(--color-dark)', color: text, fontFamily: "'DM Sans', sans-serif" }}>
       <div className="glass" style={{ position: "sticky", top: 0, zIndex: 10 }}>
@@ -471,7 +517,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                   <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
                   <div style={{ fontSize: 11, color: round.every(m => m.played) ? 'var(--color-lime)' : 'var(--color-muted)', letterSpacing: 1, fontWeight: 600 }}>{round.filter(m => m.played).length}/{round.length}</div>
                 </div>
-                {round.map((m, mi) => <MatchCard key={mi} match={m} delay={mi * .04} readOnly={true} onSave={() => {}} profiles={profiles} />)}
+                {round.map((m, mi) => <MatchCard key={mi} match={m} delay={mi * .04} readOnly={true} onSave={() => {}} profiles={profiles} onEdit={canEdit ? (a, b) => editRoundMatch(ri, mi, a, b) : undefined} />)}
               </div>
             ))}
           </div>
@@ -501,34 +547,34 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                 )}
                 {/* final_only mode */}
                 {playoffs.mode === "final_only" && playoffs.final && (
-                  <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} />
+                  <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("final", a, b) : undefined} />
                 )}
                 {/* elim_to_sf mode */}
                 {playoffs.mode === "elim_to_sf" && (
                   <>
-                    {playoffs.sf1 && <div style={{ marginBottom: 16 }}><PlayoffCard match={playoffs.sf1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} /></div>}
-                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} />}
+                    {playoffs.sf1 && <div style={{ marginBottom: 16 }}><PlayoffCard match={playoffs.sf1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("sf1", a, b) : undefined} /></div>}
+                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("final", a, b) : undefined} />}
                   </>
                 )}
                 {/* ipl8 / default mode */}
                 {(playoffs.mode === "ipl8" || (!playoffs.mode && playoffs.q1)) && (
                   <>
                     <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-                      {playoffs.q1 && <PlayoffCard match={playoffs.q1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} />}
-                      {playoffs.elim && <PlayoffCard match={playoffs.elim} onSave={() => {}} accent="var(--color-cyan)" readOnly={true} />}
+                      {playoffs.q1 && <PlayoffCard match={playoffs.q1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("q1", a, b) : undefined} />}
+                      {playoffs.elim && <PlayoffCard match={playoffs.elim} onSave={() => {}} accent="var(--color-cyan)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("elim", a, b) : undefined} />}
                     </div>
-                    {playoffs.q2 && <div style={{ marginBottom: 16 }}><PlayoffCard match={playoffs.q2} onSave={() => {}} accent="var(--color-gold)" readOnly={true} /></div>}
-                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-lime)" readOnly={true} />}
+                    {playoffs.q2 && <div style={{ marginBottom: 16 }}><PlayoffCard match={playoffs.q2} onSave={() => {}} accent="var(--color-gold)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("q2", a, b) : undefined} /></div>}
+                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-lime)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("final", a, b) : undefined} />}
                   </>
                 )}
                 {/* ipl6 mode */}
                 {playoffs.mode === "ipl6" && (
                   <>
                     <div className="playoff-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-                      {playoffs.q1 && <PlayoffCard match={playoffs.q1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} />}
-                      {playoffs.elim && <PlayoffCard match={playoffs.elim} onSave={() => {}} accent="var(--color-cyan)" readOnly={true} />}
+                      {playoffs.q1 && <PlayoffCard match={playoffs.q1} onSave={() => {}} accent="var(--color-lime)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("q1", a, b) : undefined} />}
+                      {playoffs.elim && <PlayoffCard match={playoffs.elim} onSave={() => {}} accent="var(--color-cyan)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("elim", a, b) : undefined} />}
                     </div>
-                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} />}
+                    {playoffs.final && <PlayoffCard match={playoffs.final} onSave={() => {}} accent="var(--color-gold)" readOnly={true} onEdit={canEdit ? (a, b) => editPlayoffMatch("final", a, b) : undefined} />}
                   </>
                 )}
                 <div style={{ marginTop: 32 }}>
