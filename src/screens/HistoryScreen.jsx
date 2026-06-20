@@ -330,6 +330,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
 
       merged.finalStandings = computeStandings(merged.players, merged.rounds);
       setFullData(merged);
+      setIsPublic(merged.isPublic !== false); // sync display from RTDB (source of truth)
       setLoading(false);
 
       // Save full data to localStorage so career stats update on this device
