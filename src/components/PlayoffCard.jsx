@@ -254,7 +254,7 @@ export function PlayoffCard({ match, onSave, accent, readOnly = false, h2hMatrix
         </div>
       )}
 
-      {(!match.played || editMode) && !readOnly && (
+      {(!match.played || editMode) && (!readOnly || editMode) && (
         <>
           {/* Score counters */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 8 }}>
