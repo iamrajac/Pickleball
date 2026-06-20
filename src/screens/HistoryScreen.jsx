@@ -369,6 +369,9 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
       // Update creator's own record
       await updateDoc(doc(firestore, "users", uid, "tournaments", code), { isPublic: newPublic });
 
+      // Update RTDB so useTournament doesn't re-overwrite on next open
+      await fbUpdate(fbRef(db, `tournaments/${code}`), { isPublic: newPublic });
+
       // Update or remove from public discovery collection
       if (newPublic) {
         await setDoc(doc(firestore, "tournaments", code), {
@@ -416,7 +419,8 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
   const playoffs = t.playoffs ? (typeof t.playoffs === 'object' && !Array.isArray(t.playoffs) ? t.playoffs : null) : null;
   const profiles = t.profiles || {};
 
-  const canEdit = !!(t.code && (t.createdBy === getAuth().currentUser?.uid || isCreator(t.code)));
+  const _uid = getAuth().currentUser?.uid;
+  const canEdit = !!(t.code && _uid && (t.createdBy === _uid || t.creatorUid === _uid || isCreator(t.code)));
 
   const editRoundMatch = async (ri, mi, newScoreA, newScoreB) => {
     const updatedRounds = fullData.rounds.map((r, rIdx) =>
@@ -485,7 +489,7 @@ export function HistoryDetail({ tournament, onBack, onRematch, theme = 'dark' })
                 <RotateCcw size={15} />
               </button>
             )}
-            {t.code && (t.createdBy === getAuth().currentUser?.uid || isCreator(t.code)) && (
+            {t.code && _uid && (t.createdBy === _uid || t.creatorUid === _uid || isCreator(t.code)) && (
               <button className="pb" onClick={toggleVisibility} disabled={togglingVisibility}
                 title={isPublic ? "Make private" : "Make public"}
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, border: `1px solid ${isPublic ? "rgba(16,212,142,0.4)" : "var(--color-border)"}`, background: isPublic ? "rgba(16,212,142,0.08)" : "none", color: isPublic ? "var(--color-lime)" : muted, cursor: "pointer", fontSize: 16, opacity: togglingVisibility ? 0.5 : 1 }}>
